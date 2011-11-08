@@ -1,4 +1,4 @@
-# measure-logger.tcl --
+# logger.tcl --
 #
 #   Wrapper for standard logger package
 #   Can be used in mutlithreading environment
