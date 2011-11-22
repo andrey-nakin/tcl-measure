@@ -106,7 +106,7 @@ ttk::notebook::enableTraversal $w.note
 
 # Закладка "Параметры"
 ttk::frame $w.note.setup
-$w.note add $w.note.setup -text "Параметры" -underline 0 -padding 10
+$w.note add $w.note.setup -text " Параметры " -padding 10
 
 grid [label $w.note.setup.lrs485 -text "Порт для АС4:"] -row 0 -column 0 -sticky w
 ttk::combobox $w.note.setup.rs485 -textvariable settings(rs485Port) -state readonly -values [measure::com::allPorts]
@@ -136,7 +136,7 @@ grid rowconfigure $w.note.setup 4 -pad 20
 
 # Закладка "Измерение"
 ttk::frame $w.note.measure
-$w.note add $w.note.measure -text "Измерение" -underline 0 -padding 10
+$w.note add $w.note.measure -text " Измерение " -padding 10
 
 #ttk::label $w.note.msg.m -wraplength 4i -justify left -anchor n -text "Ttk is the new Tk themed widget set. One of the widgets it includes is the notebook widget, which provides a set of tabs that allow the selection of a group of panels, each with distinct content. They are a feature of many modern user interfaces. Not only can the tabs be selected with the mouse, but they can also be switched between using Ctrl+Tab when the notebook page heading itself is selected. Note that the second tab is disabled, and cannot be selected."
 #ttk::button $w.note.msg.b -text "Neat!" -underline 0 -command {
