@@ -15,9 +15,6 @@ namespace eval measure::config {
   namespace export config
 }
 
-# Runs code blocks in parallel threads
-# Arguments (any number)
-#   code blocks to execute
 proc measure::config::read { { configFileName params.ini } } {
 	set log [measure::logger::init measure::config]
 
@@ -26,21 +23,38 @@ proc measure::config::read { { configFileName params.ini } } {
 		return
 	}
 
-#	set pairs [ini::get $fd $CONFIG_SECTION_SETTINGS]
+	foreach section [::ini::sections $fd] {
+		global $section
+		array set $section [list]
+
+		foreach {key value} [::ini::get $fd $section] {
+			set ${section}($key) $value
+		}
+	}
+
 	ini::close $fd
 }
 
-# Runs code blocks in parallel threads
-# Arguments (any number)
-#   code blocks to execute
 proc measure::config::write { { configFileName params.ini } } {
 	set log [measure::logger::init measure::config]
+	set arrays { settings measure }
 
 	if { [catch { set fd [ini::open $configFileName r+] } rc ] } {
 		${log}::error "Ошибка открытия файла конфигурации: $rc"
 		return
 	}
 
+	foreach section $arrays {
+		global $section
+
+		if { [array exists $section] } {
+			foreach {key value} [array get $section] {
+				::ini::set $fd $section $key $value
+			}
+		}
+	}
+
+	::ini::commit $fd
 	ini::close $fd
 }
 

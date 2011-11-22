@@ -57,21 +57,16 @@ set measureThread [thread::create -joinable {
   thread::wait 
 }]
 
-# Читаем настройки из конфигурационного файла
-proc readSettings {} {
-  global CONFIG_FILE_NAME CONFIG_SECTION_SETTINGS log
-  
-  if { [catch { set fd [ini::open $CONFIG_FILE_NAME r] } rc ] } {
-    # Ошибка открытия файла конфигурации
-    ${log}::error "Ошибка открытия файла конфигурации: $rc"
-    return
-  }
-  set pairs [ini::get $fd $CONFIG_SECTION_SETTINGS]
-  ini::close $fd
-}
+proc fileDialog { ent } {
+	global w
 
-# Сохраняем настройки в конфигурационном файле
-proc saveSettings {} {
+	set file [tk_getOpenFile -parent "$w."]
+
+	if {[string compare $file ""]} {
+		$ent delete 0 end
+		$ent insert 0 $file
+		$ent xview end
+	}
 }
 
 # Завершение работы программы
@@ -79,7 +74,7 @@ proc quit {} {
   global measureThread
 
   # Сохраняем параметры программы
-  saveSettings
+  measure::config::write
     
   # завершаем измерительный поток
   #thread::send $measureThread "thread::exit"
@@ -125,10 +120,7 @@ ttk::combobox $w.note.setup.mm -textvariable settings(mmAddr) -state readonly -v
 grid $w.note.setup.mm -row 3 -column 1 -sticky w
 
 pack [ttk::button $w.note.setup.test -text "Опросить устройства" -compound left] -expand no -side left
-grid $w.note.setup.test -row 4 -column 0 -sticky w
-
-pack [ttk::button $w.note.setup.save -text "Сохранить настройки" -compound left -command measure::config::write] -expand no -side right
-grid $w.note.setup.save -row 4 -column 1 -sticky e
+grid $w.note.setup.test -row 4 -column 1 -sticky e
 
 grid columnconfigure $w.note.setup {0 1} -pad 5
 grid rowconfigure $w.note.setup {0 1 2 3} -pad 5
@@ -138,17 +130,38 @@ grid rowconfigure $w.note.setup 4 -pad 20
 ttk::frame $w.note.measure
 $w.note add $w.note.measure -text " Измерение " -padding 10
 
-#ttk::label $w.note.msg.m -wraplength 4i -justify left -anchor n -text "Ttk is the new Tk themed widget set. One of the widgets it includes is the notebook widget, which provides a set of tabs that allow the selection of a group of panels, each with distinct content. They are a feature of many modern user interfaces. Not only can the tabs be selected with the mouse, but they can also be switched between using Ctrl+Tab when the notebook page heading itself is selected. Note that the second tab is disabled, and cannot be selected."
-#ttk::button $w.note.msg.b -text "Neat!" -underline 0 -command {
-#    set neat "Yeah, I know..."
-#    after 500 {set neat {}}
-#}
-#ttk::label $w.note.msg.l -textvariable neat
+pack [labelframe $w.note.measure.curr -text " Токи " -padx 2 -pady 2]
 
-#grid $w.note.msg.m - -sticky new -pady 2
-#grid $w.note.msg.b $w.note.msg.l -pady {2 4}
-#grid rowconfigure $w.note.msg 1 -weight 1
-#grid columnconfigure $w.note.msg {0 1} -weight 1 -uniform 1
+grid [label $w.note.measure.curr.lstart -text "Начальный ток, мА:"] -row 0 -column 0 -sticky w
+spinbox $w.note.measure.curr.start -textvariable measure(startCurrent) -from 1 -to 2200 -width 10 -validate key -vcmd {string is integer %P}
+grid $w.note.measure.curr.start -row 0 -column 1 -sticky w
+
+grid [label $w.note.measure.curr.lend -text "Конечный ток, мА:"] -row 1 -column 0 -sticky w
+spinbox $w.note.measure.curr.end -textvariable measure(endCurrent) -from 1 -to 2200 -width 10 -validate key -vcmd {string is integer %P}
+grid $w.note.measure.curr.end -row 1 -column 1 -sticky w
+
+grid [label $w.note.measure.curr.lstep -text "Приращение, мА:"] -row 2 -column 0 -sticky w
+spinbox $w.note.measure.curr.step -textvariable measure(currentStep) -from 1 -to 2200 -width 10 -validate key -vcmd {string is integer %P}
+grid $w.note.measure.curr.step -row 2 -column 1 -sticky w
+
+grid columnconfigure $w.note.measure.curr {0 1} -pad 5
+grid rowconfigure $w.note.measure.curr {0 1 2 3} -pad 5
+grid rowconfigure $w.note.measure.curr 4 -pad 20
+
+pack [labelframe $w.note.measure.file -text " Файл " -padx 2 -pady 2]
+
+grid [label $w.note.measure.file.lname -text "Имя файла с результатами: " -anchor e] -row 0 -column 0 -sticky w
+entry $w.note.measure.file.name -width 20 -textvariable measure(fileName)
+grid $w.note.measure.file.name -row 0 -column 1 -sticky w
+grid [button $w.note.measure.file.bname -text "Обзор..." -command "fileDialog $w.note.measure.file.name"] -row 0 -column 2 -sticky w
+
+grid [label $w.note.measure.file.lformat -text "Формат файла:"] -row 1 -column 0 -sticky w
+ttk::combobox $w.note.measure.file.format -textvariable measure(fileFormat) -state readonly -values [list TXT CSV]
+grid $w.note.measure.file.format -row 1 -column 1 -sticky w
+
+grid [label $w.note.measure.file.lrewrite -text "Переписать файл:"] -row 2 -column 0 -sticky w
+checkbutton $w.note.measure.file.rewrite -variable measure(fileRewrite) -relief flat
+grid $w.note.measure.file.rewrite -row 2 -column 1 -sticky w
 
 frame $w.inf
 pack $w.inf -fill both -expand 1 -padx 10 -pady 10
@@ -158,10 +171,6 @@ pack [label $w.inf.txt -wraplength 4i -justify left -text "Программа и
 ::measure::widget::exit-button $w
 
 # Читаем настройки
-array set settings [list] 
 measure::config::read
-set settings(rs485Port) COM5
-set settings(switchAddr) 40
-set settings(psAddr) "ASRL1::INSTR"
 
 vwait forever
