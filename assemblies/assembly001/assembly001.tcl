@@ -1,5 +1,13 @@
 #!/usr/bin/tclsh
 
+###############################################################################
+# Измерительная установка № 001
+# Измеряем удельное сопротивление при постоянной температуре 4-х контактным
+# методом.
+# Количество одновременно измеряемых образцов: 1
+# Переполюсовка напряжения и тока.
+###############################################################################
+
 package require Tcl 8.4
 package require Tk
 package require Ttk
@@ -10,14 +18,6 @@ package require measure::logger
 package require measure::config
 package require measure::visa
 package require measure::com
-
-###############################################################################
-# Измерительная установка № 001
-# Измеряем удельное сопротивление при постоянной температуре 4-х контактным
-# методом.
-# Количество одновременно измеряемых образцов: 1
-# Переполюсовка напряжения и тока.
-###############################################################################
 
 ###############################################################################
 # Константы
@@ -33,29 +33,27 @@ set CONFIG_SECTION_SETTINGS "settings"
 # Процедуры
 ###############################################################################
 
-# Создаём измерительный поток
-set measureThread [thread::create -joinable {
+# Запускаем измерения
+proc startMeasure {} {
+	global w measureThread
 
-  
-  #package require tclvisa
-  #package require measure::logger
+	# Сохраняем параметры программы
+	measure::config::write
 
-  #set log [measure::logger::init measure]
-  
-  #proc measure { config measure } {
-    #global log
-  
-    #${log}::debug "Подключаемся к менеджеру ресурсов VISA"    
-    #set rm [visa::open-default-rm]
-    
-    #set cfg [tsv::array get $config]
-    
-    # Закрываем подключения
-    #close $rm
-  #}
-  
-  thread::wait 
-}]
+	$w.note.measure.run.start state disabled
+
+	# Создаём измерительный поток
+	set measureThread [thread::create -joinable { 
+		package require measure::logger
+		set log [measure::logger::init measure]
+
+		if { [catch { source measure.tcl } rc] } {
+			${log}::error "Ошибка выполнения потока измерения: $rc"
+		}
+	}]
+
+	thread::join $measureThread
+}
 
 proc fileDialog { ent } {
 	global w
@@ -103,7 +101,7 @@ ttk::notebook::enableTraversal $w.note
 ttk::frame $w.note.measure
 $w.note add $w.note.measure -text " Измерение " -padding 10
 
-grid [labelframe $w.note.measure.curr -text " Параметры измерения " -padx 2 -pady 2] -column 0 -row 0
+grid [labelframe $w.note.measure.curr -text " Параметры измерения " -padx 2 -pady 2] -column 0 -row 0 -sticky wns
 
 grid [label $w.note.measure.curr.lstart -text "Начальный ток, мА:"] -row 0 -column 0 -sticky w
 spinbox $w.note.measure.curr.start -textvariable measure(startCurrent) -from 0 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is integer %P}
@@ -128,7 +126,7 @@ grid $w.note.measure.curr.switchCurrent -row 4 -column 1 -sticky w
 grid columnconfigure $w.note.measure.curr {0 1} -pad 5
 grid rowconfigure $w.note.measure.curr {0 1 2 3 4} -pad 5
 
-grid [labelframe $w.note.measure.file -text " Результаты " -padx 2 -pady 2] -column 1 -row 0 -sticky n
+grid [labelframe $w.note.measure.file -text " Результаты " -padx 2 -pady 2] -column 1 -row 0 -sticky ens
 
 grid [label $w.note.measure.file.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
 entry $w.note.measure.file.name -width 20 -textvariable measure(fileName)
@@ -151,11 +149,14 @@ grid [label $w.note.measure.run.lcurrent -text "Ток питания, мА:"] -
 grid [entry $w.note.measure.run.current -textvariable run(current) -state readonly] -column 1 -row 0 -sticky w
 grid [label $w.note.measure.run.lvoltage -text "Напряжение, мВ:"] -column 3 -row 0 -sticky e
 grid [entry $w.note.measure.run.voltage -textvariable run(voltage) -state readonly] -column 4 -row 0 -sticky e
-grid [ttk::button $w.note.measure.run.start -text "Начать измерения"] -column 0 -row 1 -columnspan 5 -sticky e
+grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 0 -row 1 -columnspan 5 -sticky e
 
 grid columnconfigure $w.note.measure.run {0 1 2 3 4} -pad 5
 grid rowconfigure $w.note.measure.run {0} -pad 5
 grid rowconfigure $w.note.measure.run {1} -pad 20
+
+grid columnconfigure $w.note.measure {0 1} -pad 5
+grid rowconfigure $w.note.measure {0 1} -pad 5
 
 # Закладка "Параметры"
 ttk::frame $w.note.setup
@@ -176,8 +177,6 @@ grid $w.note.setup.ps -row 2 -column 1 -sticky w
 grid [label $w.note.setup.lmm -text "VISA адрес мультиметра:"] -row 3 -column 0 -sticky w
 ttk::combobox $w.note.setup.mm -textvariable settings(mmAddr) -values [measure::visa::allInstruments]
 grid $w.note.setup.mm -row 3 -column 1 -sticky w
-
-grid columnconfigure $w.note.measure {0 1} -pad 5
 
 #pack [ttk::button $w.note.setup.test -text "Опросить устройства" -compound left] -expand no -side left
 #grid $w.note.setup.test -row 4 -column 1 -sticky e
