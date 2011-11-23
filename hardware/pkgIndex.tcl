@@ -18,5 +18,6 @@ if {(0 == [catch {
 
 set maindir $dir
 set dir [file join $maindir owen] ;	 source [file join $dir pkgIndex.tcl]
+set dir [file join $maindir agilent] ;	 source [file join $dir pkgIndex.tcl]
 unset maindir
 
