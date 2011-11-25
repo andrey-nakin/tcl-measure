@@ -1,5 +1,3 @@
-# Tcl package index file, version 1.1
-
 # All packages need Tcl 8.4 (use [namespace])
 if {![package vsatisfies [package provide Tcl] 8.4]} {return}
 
@@ -8,13 +6,7 @@ if {[lsearch -exact $::auto_path $dir] == -1} {
     lappend ::auto_path $dir
 }
 
-# For Tcl 8.3.1 and later, that's all we need
-if {[package vsatisfies [package provide Tcl] 8.4]} {return}
-if {(0 == [catch {
-    package vcompare [info patchlevel] [info patchlevel]
-}]) && (
-    [package vcompare [info patchlevel] 8.3.1] >= 0
-)} {return}
+package ifneeded hardware::scpi 0.1.0 [list source [file join $dir scpi.tcl]]
 
 set maindir $dir
 set dir [file join $maindir owen] ;	 source [file join $dir pkgIndex.tcl]

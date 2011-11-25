@@ -27,3 +27,13 @@ proc ::measure::widget::exit-button { w } {
 	pack [ttk::button $w.fr.bexit -text "\u0412\u044b\u0445\u043e\u0434" -image ::img::delete -compound left -command quit] -padx 5 -pady 5 -side right
 }
 
+proc ::measure::widget::fileSaveDialog { w ent } {
+	set file [tk_getSaveFile -parent $w]
+
+	if {[string compare $file ""]} {
+		$ent delete 0 end
+		$ent insert 0 $file
+		$ent xview end
+	}
+}
+

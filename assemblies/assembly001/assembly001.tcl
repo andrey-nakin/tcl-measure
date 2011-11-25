@@ -1,9 +1,9 @@
-#!/usr/bin/tclsh
+#!/usr/bin/wish
 
 ###############################################################################
 # Измерительная установка № 001
-# Измеряем удельное сопротивление при постоянной температуре 4-х контактным
-# методом.
+# Измеряем удельное сопротивление с варьированием тока, протекающего через 
+#   образец, при постоянной температуре 4-х контактным методом.
 # Количество одновременно измеряемых образцов: 1
 # Переполюсовка напряжения и тока.
 ###############################################################################
@@ -18,67 +18,47 @@ package require measure::logger
 package require measure::config
 package require measure::visa
 package require measure::com
+package require measure::interop
 
 ###############################################################################
 # Константы
 ###############################################################################
 
-# Имя файла конфигурации
-set CONFIG_FILE_NAME "params.ini"
-
-# Имя секции файла конфигурации для параметров программы
-set CONFIG_SECTION_SETTINGS "settings"
-
 ###############################################################################
 # Процедуры
 ###############################################################################
 
+# Процедура вызываеися из фонового рабочего потока по завершении его работы
+proc stopMeasure {} {
+	global w log
+
+	# разрешаем кнопку запуска измерений
+	$w.note.measure.run.start configure -state normal 
+}
+
 # Запускаем измерения
 proc startMeasure {} {
-	global w measureThread
+	global w log
+
+	# запрещаем кнопку запуска измерений
+	$w.note.measure.run.start configure -state disabled
 
 	# Сохраняем параметры программы
 	measure::config::write
 
-	$w.note.measure.run.start state disabled
-
-	# Создаём измерительный поток
-	set measureThread [thread::create -joinable { 
-		package require measure::logger
-		set log [measure::logger::init measure]
-
-		if { [catch { source measure.tcl } rc] } {
-			${log}::error "Ошибка выполнения потока измерения: $rc"
-		}
-	}]
-
-	thread::join $measureThread
-}
-
-proc fileDialog { ent } {
-	global w
-
-	set file [tk_getOpenFile -parent "$w."]
-
-	if {[string compare $file ""]} {
-		$ent delete 0 end
-		$ent insert 0 $file
-		$ent xview end
-	}
+	# Запускаем на выполнение фоновый поток	с процедурой измерения
+	measure::interop::startWorker { source measure.tcl } { stopMeasure }
 }
 
 # Завершение работы программы
 proc quit {} {
-  global measureThread
+	# Сохраняем параметры программы
+	measure::config::write
 
-  # Сохраняем параметры программы
-  measure::config::write
-    
-  # завершаем измерительный поток
-  #thread::send $measureThread "thread::exit"
-  #thread::join $measureThread 
-  
-  exit
+	# завершаем измерительный поток, если он запущен
+	measure::interop::waitForWorkerThreads
+
+	exit
 }
 
 ###############################################################################
@@ -90,7 +70,7 @@ measure::logger::server
 
 # Создаём окно программы
 set w ""
-wm title $w. "Установка № 1: Измерение удельного сопротивления"
+wm title $w. "Установка № 1: Измерение УС"
 
 # Панель закладок
 ttk::notebook $w.note
@@ -131,7 +111,7 @@ grid [labelframe $w.note.measure.file -text " Результаты " -padx 2 -pa
 grid [label $w.note.measure.file.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
 entry $w.note.measure.file.name -width 20 -textvariable measure(fileName)
 grid $w.note.measure.file.name -row 0 -column 1 -sticky w
-grid [button $w.note.measure.file.bname -text "Обзор..." -command "fileDialog $w.note.measure.file.name"] -row 1 -column 1 -sticky e
+grid [button $w.note.measure.file.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $w.note.measure.file.name"] -row 1 -column 1 -sticky e
 
 grid [label $w.note.measure.file.lformat -text "Формат файла:"] -row 2 -column 0 -sticky w
 ttk::combobox $w.note.measure.file.format -textvariable measure(fileFormat) -state readonly -values [list TXT CSV]
@@ -146,14 +126,18 @@ grid rowconfigure $w.note.measure.file {0 1 2 3 4} -pad 5
 
 grid [labelframe $w.note.measure.run -text " Работа " -padx 2 -pady 2] -column 0 -row 1 -columnspan 2 -sticky we
 grid [label $w.note.measure.run.lcurrent -text "Ток питания, мА:"] -column 0 -row 0 -sticky w
-grid [entry $w.note.measure.run.current -textvariable run(current) -state readonly] -column 1 -row 0 -sticky w
+grid [entry $w.note.measure.run.current -textvariable runtime(current) -state readonly] -column 1 -row 0 -sticky w
 grid [label $w.note.measure.run.lvoltage -text "Напряжение, мВ:"] -column 3 -row 0 -sticky e
-grid [entry $w.note.measure.run.voltage -textvariable run(voltage) -state readonly] -column 4 -row 0 -sticky e
-grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 0 -row 1 -columnspan 5 -sticky e
+grid [entry $w.note.measure.run.voltage -textvariable runtime(voltage) -state readonly] -column 4 -row 0 -sticky e
+grid [label $w.note.measure.run.lresistance -text "Сопротивление, Ом:"] -column 0 -row 1 -sticky w
+grid [entry $w.note.measure.run.resistance -textvariable runtime(resistance) -state readonly] -column 1 -row 1 -sticky w
+grid [label $w.note.measure.run.lpower -text "Мощность, мВт:"] -column 3 -row 1 -sticky e
+grid [entry $w.note.measure.run.power -textvariable runtime(power) -state readonly] -column 4 -row 1 -sticky e
+grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 0 -row 2 -columnspan 5 -sticky e
 
 grid columnconfigure $w.note.measure.run {0 1 2 3 4} -pad 5
-grid rowconfigure $w.note.measure.run {0} -pad 5
-grid rowconfigure $w.note.measure.run {1} -pad 20
+grid rowconfigure $w.note.measure.run {0 1} -pad 5
+grid rowconfigure $w.note.measure.run {2} -pad 20
 
 grid columnconfigure $w.note.measure {0 1} -pad 5
 grid rowconfigure $w.note.measure {0 1} -pad 5
@@ -189,7 +173,7 @@ grid rowconfigure $w.note.setup 4 -pad 20
 
 frame $w.inf
 pack $w.inf -fill both -expand 1 -padx 10 -pady 10
-pack [label $w.inf.txt -wraplength 6i -justify left -text "Программа измерения удельного сопротивления 4-х контактным методом при постоянной температуре с переполюсовкой контактов по току и напряжению."]
+pack [label $w.inf.txt -wraplength 6i -justify left -text "Программа измерения удельного сопротивления 4-х контактным методом при постоянной температуре с переполюсовкой контактов по току и напряжению. Максимально допустимое сопротивление: 35 кОм."]
 
 # Кнопка закрытия приложения
 ::measure::widget::exit-button $w
@@ -197,4 +181,6 @@ pack [label $w.inf.txt -wraplength 6i -justify left -text "Программа и
 # Читаем настройки
 measure::config::read
 
-vwait forever
+#vwait forever
+thread::wait
+

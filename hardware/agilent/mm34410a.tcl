@@ -9,9 +9,17 @@
 package require Tcl 8.4
 package provide hardware::agilent::mm34410a 0.1.0
 
+package require hardware::scpi
+
 namespace eval hardware::agilent::mm34410a {
-  namespace export resistanceSystematicError dcvSystematicError dciSystematicError
+  namespace export \
+    resistanceSystematicError \
+    dcvSystematicError \
+    dciSystematicError  \
+    query
 }
+
+set hardware::agilent::mm34410a::IDN "Agilent Technologies,34410A"
 
 set hardware::agilent::mm34410a::dcvReadingErrors {
 	1.0e-1	0.000040
@@ -133,3 +141,20 @@ proc hardware::agilent::mm34410a::systematicError { value readingErrors rangeErr
 	return [expr $reading + $range]
 }
 
+# Производит инициализацию и опрос устройства
+# Аргументы
+#   channel - канал с открытым портом для связи с устройством
+proc hardware::agilent::mm34410a::init { channel } {
+    global hardware::agilent::mm34410a::IDN
+
+    # устанавливаем параметры канала
+    hardware::scpi::configure $channel
+    
+    # производим опрос устройства
+	hardware::scpi::validateIdn $channel $IDN
+    
+    puts $channel "*CLS"
+    after 500
+    puts $channel "*RST"
+    after 500
+}
