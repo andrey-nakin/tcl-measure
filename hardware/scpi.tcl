@@ -5,11 +5,37 @@
 #   Copyright (c) 2011 by Andrey V. Nakin <andrey.nakin@gmail.com>
 #
 
-package require Tcl 8.4
+package require Tcl 8.5
 package provide hardware::scpi 0.1.0
 
 namespace eval hardware::scpi {
 	namespace export query setAndQuery validateIdn
+}
+
+array set hardware::scpi::commandTimes {}
+
+# Send a command to SCPI device. Does not wait for any answer.
+# Checks when previous command was sent to the same device and makes a delay if needed.
+# Arguments
+#   channel - device channel
+#   command - command to send. Should not end with "new line" character.
+#   ?delay? - delay between commands to the same device
+proc hardware::scpi::cmd { channel command { delay 500 } } {
+	global hardware::scpi::commandTimes
+
+	# Check what time the prev. command was sent to the device
+	if { [info exists commandTimes($channel)] } {
+		set timeSpent [expr [clock milliseconds] - $commandTimes($channel)]
+		if { $timeSpent < $delay } {
+			after [expr int($delay - $timeSpent)]
+		}
+	}
+
+	# Send command to device
+	puts $channel $command
+
+	# Save the time the command is sent
+	set commandTimes($channel) [clock milliseconds]
 }
 
 # Issues command to SCPI device and waits for answer.
@@ -17,9 +43,10 @@ namespace eval hardware::scpi {
 # Arguments
 #   channel - device channel
 #   command - command to send. Should not end with "new line" character.
+#   ?delay? - delay between command and query
 # Return
 #   Value returned by device. "Line end" character is removed from answer.
-proc hardware::scpi::query { channel command } {
+proc hardware::scpi::query { channel command { delay 500 } } {
 	# Save current device timeout
 	set timeout [fconfigure $channel -timeout]
 
@@ -35,7 +62,7 @@ proc hardware::scpi::query { channel command } {
 		fconfigure $channel -timeout $timeout
 
 		# Send command
-		puts $channel $command
+		cmd $channel $command $delay
 
 		# Read device's answer. Trailing new line char is removed by `gets`.
 		set answer [gets $channel]
@@ -56,9 +83,8 @@ proc hardware::scpi::query { channel command } {
 #   value - command argument
 #   ?delay? - delay between command and query
 proc hardware::scpi::setAndQuery { channel command value { delay 500 } } {
-	puts $channel "$command $value"
-	after $delay
-	set answer [query $channel "${command}?"]
+	cmd $channel "$command $value" $delay
+	set answer [query $channel "${command}?" $delay]
 	if { $answer != $value } {
 		error "`value' expected but `$answer' read when setting parameter `$command' on channel `$channel'"
 	}

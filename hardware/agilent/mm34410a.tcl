@@ -16,7 +16,8 @@ namespace eval hardware::agilent::mm34410a {
     resistanceSystematicError \
     dcvSystematicError \
     dciSystematicError  \
-    query
+	init	\
+	done
 }
 
 set hardware::agilent::mm34410a::IDN "Agilent Technologies,34410A"
@@ -150,11 +151,20 @@ proc hardware::agilent::mm34410a::init { channel } {
     # устанавливаем параметры канала
     hardware::scpi::configure $channel
     
+    hardware::scpi::cmd $channel "*CLS"
+
+    hardware::scpi::cmd $channel "*RST"
+
     # производим опрос устройства
 	hardware::scpi::validateIdn $channel $IDN
-    
-    puts $channel "*CLS"
-    after 500
-    puts $channel "*RST"
-    after 500
 }
+
+# Переводит устройство в исходное состояние
+# Аргументы
+#   channel - канал с открытым портом для связи с устройством
+proc hardware::agilent::mm34410a::done { channel } {
+    hardware::scpi::cmd $channel "*CLS"
+
+    hardware::scpi::cmd $channel "*RST"
+}
+

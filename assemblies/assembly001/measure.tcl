@@ -23,8 +23,14 @@ package require measure::interop
 proc setCurrent { curr } {
     global ps
 
-    puts $ps "CURRENT [expr 0.001 * $curr]"
-	after 500
+	# Очищаем очередь ошибок
+	hardware::scpi::cmd $ps "*CLS"
+
+	# Задаём выходной ток с переводом из мА в А
+    hardware::scpi::cmd $ps "CURRENT [expr 0.001 * $curr]"
+
+	# Нет ли ошибки?
+    #set ans [hardware::scpi::query $ps "SYSTEM:ERROR?"]
 }
 
 # Измеряет напряжение на образце
@@ -46,24 +52,44 @@ proc setupPs {} {
     global ps rm settings
     
     # Подключаемся к источнику питания (ИП)
-    set ps [visa::open $rm $settings(psAddr)]
+    if { [catch { set ps [visa::open $rm $settings(psAddr)] } ] } {
+		error "Невозможно подключиться к источнику питания по адресу `$settings(psAddr)'"
+	}
+
     # Иниализируем и опрашиваем ИП
     hardware::agilent::pse3645a::init $ps
     
-    puts $ps "VOLT 0.100"
-    after 500
+    hardware::scpi::cmd $ps "VOLT 0.100"
 }
 
+# Инициализация мультиметра
 proc setupMM {} {
     global mm rm settings
     
     # Подключаемся к мультиметру (ММ)
-    set mm [visa::open $rm $settings(mmAddr)]
+    if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
+		error "Невозможно подключиться к мультиметру по адресу `$settings(mmAddr)'"
+	}
+
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
 	# Измерять напряжение в течении 100 циклов питания
 	hardware::scpi::setAndQuery $mm "SENSE:VOLTAGE:DC:NPLC" 100
+}
+
+# Завершаем работу установки, матчасть в исходное.
+proc finish {} {
+    global ps mm
+
+	# Переводим ИП в исходный режим
+	hardware::agilent::pse3645a::done $ps
+
+	# Переводим ММ в исходный режим
+	hardware::agilent::mm34410a::done $mm
+
+	# реле в исходное
+	setConnectors { 0 0 0 0 }
 }
 
 ###############################################################################
@@ -73,8 +99,11 @@ proc setupMM {} {
 # Инициализируем протоколирование
 set log [measure::logger::init measure]
 
-# Читаем настройки
+# Читаем настройки программы
 measure::config::read
+
+# Создаём файл с результатами измерений
+measure::datafile::create $measure(fileName) $measure(fileFormat) $measure(fileRewrite) [list "I (mA)" "U (mV)" "R (Ohm)" "W (mWt)"]
 
 # Подключаемся к менеджеру ресурсов VISA
 set rm [visa::open-default-rm]
@@ -103,8 +132,10 @@ if { $measure(switchCurrent) } {
 # Основной цикл измерений
 ###############################################################################
 
-measure::datafile::create $measure(fileName) $measure(fileFormat) $measure(fileRewrite) [list "I (mA)" "U (mV)" "R (Ohm)" "W (mWt)"]
+# Устанавливаем выходной ток
+setCurrent $measure(startCurrent)
 
+# Включаем подачу тока на выходы ИП
 hardware::agilent::pse3645a::setOutput $ps 1
 
 # Пробегаем по всем токам из заданного диапазона
@@ -114,10 +145,14 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 } 
 	# Пробегаем по переполюсовкам
 	foreach conn $connectors {
 		# Устанавливаем нужную полярность
-		#hardware::agilent::pse3645a::setOutput $ps 0
-		setConnectors $conn
-		#hardware::agilent::pse3645a::setOutput $ps 1
-		after 2200
+		if { [llength $connectors] > 1 } {
+			setConnectors $conn
+		}
+
+		# Ждём окончания переходных процессов, 
+		# а также пока пройдёт 100 циклов питания 
+		# (частота 50 Гц, 1 цикл = 20 мс).
+		after 3000
 
 		# Измеряем напряжение
 		set v [measureVoltage]
@@ -130,9 +165,5 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 } 
 # Завершение измерений
 ###############################################################################
 
-# Отключаем выход ИП
-hardware::agilent::pse3645a::setOutput $ps 0
-
-# реле в исходное
-setConnectors { 0 0 0 0 }
+finish
 
