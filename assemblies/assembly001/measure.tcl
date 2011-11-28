@@ -37,7 +37,8 @@ proc setCurrent { curr } {
 proc measureVoltage { } {
     global mm
     
-    set res [hardware::scpi::query $mm "MEASURE:VOLTAGE?"]
+    set t [clock milliseconds]
+    set res [hardware::scpi::query $mm "READ?"]
 	return [expr 1000.0 * $res]
 }
 
@@ -59,7 +60,7 @@ proc setupPs {} {
     # Иниализируем и опрашиваем ИП
     hardware::agilent::pse3645a::init $ps
     
-    hardware::scpi::cmd $ps "VOLT 0.100"
+    hardware::scpi::cmd $ps "APPLY 35.000,0.001"
 }
 
 # Инициализация мультиметра
@@ -74,8 +75,22 @@ proc setupMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
-	# Измерять напряжение в течении 100 циклов питания
-	hardware::scpi::setAndQuery $mm "SENSE:VOLTAGE:DC:NPLC" 100
+	# Сбрасываем флаг ошибки
+    hardware::scpi::cmd $mm "*CLS"
+    
+	# Измерять напряжение в течении 10 циклов питания
+	hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC 10"
+
+    # Включить подстройку ноля
+    hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO ON"
+    
+    # Включить автоподстройку входного сопротивления
+    hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
+
+	# Настраиваем триггер
+    hardware::scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
+    
+    hardware::scpi::cmd $mm "INIT"
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -141,6 +156,7 @@ hardware::agilent::pse3645a::setOutput $ps 1
 # Пробегаем по всем токам из заданного диапазона
 for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 } { set curr [expr $curr + $measure(currentStep)] } {
 	setCurrent $curr
+	measure::interop::setVar runtime(current) $curr
 
 	# Пробегаем по переполюсовкам
 	foreach conn $connectors {
@@ -150,14 +166,25 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 } 
 		}
 
 		# Ждём окончания переходных процессов, 
-		# а также пока пройдёт 100 циклов питания 
-		# (частота 50 Гц, 1 цикл = 20 мс).
-		after 3000
+		after 10000
 
 		# Измеряем напряжение
 		set v [measureVoltage]
+		set r [expr $v / $curr]
+        set pw [expr 0.001 * $curr * $v]
+          
+        # Округлим результаты
+        set v [format "%0.9g" $v]
+        set r [format "%0.9g" $r]
+        set pw [format "%0.9g" $pw]
+        
+        # Выводим результаты в окно программы
+    	measure::interop::setVar runtime(voltage) $v
+    	measure::interop::setVar runtime(resistance) $r
+    	measure::interop::setVar runtime(power) $pw
 
-		measure::datafile::write $measure(fileName) $measure(fileFormat) [list $curr $v [expr $v / $curr] [expr 0.001 * $curr * $v]]
+        # Выводим результаты в результирующий файл
+		measure::datafile::write $measure(fileName) $measure(fileFormat) [list $curr $v $r $pw]
 	}
 }
 

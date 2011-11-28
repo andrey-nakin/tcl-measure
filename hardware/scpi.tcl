@@ -13,6 +13,7 @@ namespace eval hardware::scpi {
 }
 
 array set hardware::scpi::commandTimes {}
+array set hardware::scpi::commandDelays {}
 
 # Send a command to SCPI device. Does not wait for any answer.
 # Checks when previous command was sent to the same device and makes a delay if needed.
@@ -20,16 +21,28 @@ array set hardware::scpi::commandTimes {}
 #   channel - device channel
 #   command - command to send. Should not end with "new line" character.
 #   ?delay? - delay between commands to the same device
-proc hardware::scpi::cmd { channel command { delay 500 } } {
-	global hardware::scpi::commandTimes
+proc hardware::scpi::cmd { channel command { delay -1 } } {
+	global hardware::scpi::commandTimes hardware::scpi::commandDelays
 
 	# Check what time the prev. command was sent to the device
 	if { [info exists commandTimes($channel)] } {
 		set timeSpent [expr [clock milliseconds] - $commandTimes($channel)]
+		if { $delay < 0 } {
+    		set delay $commandDelays($channel) 
+        }
 		if { $timeSpent < $delay } {
 			after [expr int($delay - $timeSpent)]
 		}
-	}
+	} else {
+	   # determine delay for this channel
+	   if { [isRs232 $channel] } {
+	       # default delay for RS-232 connection type
+	       set commandDelays($channel) 500 
+       } else {
+	       # default delay for other connection types
+	       set commandDelays($channel) 50 
+       }
+    }
 
 	# Send command to device
 	puts $channel $command
@@ -46,21 +59,21 @@ proc hardware::scpi::cmd { channel command { delay 500 } } {
 #   ?delay? - delay between command and query
 # Return
 #   Value returned by device. "Line end" character is removed from answer.
-proc hardware::scpi::query { channel command { delay 500 } } {
+proc hardware::scpi::query { channel command { delay -1 } } {
 	# Save current device timeout
 	set timeout [fconfigure $channel -timeout]
 
+	# Make nonblocking reading
+	#fconfigure $channel -timeout 0
+
+	# Read all from input buffer.
+	#while { [gets $channel ] != "" } {}
+
+	# Restore the timeout
+	#fconfigure $channel -timeout $timeout
+		
     # We will do 3 attempt to contact with device
     for { set attempts 3 } { $attempts > 0 } { incr attempts -1 } {
-		# Make nonblocking reading
-		fconfigure $channel -timeout 0
-
-		# Read all from input buffer.
-		while { [gets $channel ] != "" } {}
-
-		# Restore the timeout
-		fconfigure $channel -timeout $timeout
-
 		# Send command
 		cmd $channel $command $delay
 
@@ -82,7 +95,7 @@ proc hardware::scpi::query { channel command { delay 500 } } {
 #   command - command to send. Should not end with "new line" character.
 #   value - command argument
 #   ?delay? - delay between command and query
-proc hardware::scpi::setAndQuery { channel command value { delay 500 } } {
+proc hardware::scpi::setAndQuery { channel command value { delay -1 } } {
 	cmd $channel "$command $value" $delay
 	set answer [query $channel "${command}?" $delay]
 	if { $answer != $value } {
@@ -102,6 +115,13 @@ proc hardware::scpi::validateIdn { channel idn } {
 
 # Sets basic SCPI-compatible settings for channel
 proc hardware::scpi::configure { channel } {
-    fconfigure $channel -timeout 500 -buffering line -encoding binary -translation binary
+    fconfigure $channel -timeout 3000 -buffering line -encoding binary -translation binary
 }
 
+proc isRs232 { channel } {
+    if { [ catch { fconfigure $channel -mode } ] } {
+        return 0
+    } else {
+        return 1
+    }
+}

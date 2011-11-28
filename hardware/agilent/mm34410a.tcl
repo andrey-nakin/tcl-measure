@@ -151,19 +151,19 @@ proc hardware::agilent::mm34410a::init { channel } {
     # устанавливаем параметры канала
     hardware::scpi::configure $channel
     
+    # производим опрос устройства
+	hardware::scpi::validateIdn $channel $IDN
+	
     hardware::scpi::cmd $channel "*CLS"
 
     hardware::scpi::cmd $channel "*RST"
-
-    # производим опрос устройства
-	hardware::scpi::validateIdn $channel $IDN
 }
 
 # Переводит устройство в исходное состояние
 # Аргументы
 #   channel - канал с открытым портом для связи с устройством
 proc hardware::agilent::mm34410a::done { channel } {
-    hardware::scpi::cmd $channel "*CLS"
+    #hardware::scpi::cmd $channel "*CLS"
 
     hardware::scpi::cmd $channel "*RST"
 }

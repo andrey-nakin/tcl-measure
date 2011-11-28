@@ -32,11 +32,14 @@ proc hardware::agilent::pse3645a::init { channel } {
     hardware::scpi::cmd $channel "*CLS"
 
     hardware::scpi::cmd $channel "*RST"
+    
+    hardware::scpi::cmd $channel "SYSTEM:REMOTE"
 
     # производим опрос устройства
 	hardware::scpi::validateIdn $channel $IDN
-    
-    hardware::scpi::cmd $channel "SYSTEM:REMOTE"
+	
+	# отключаем выход ИП
+	setOutput $channel 0
 }
 
 # Также переводит устройство в режим ручного управления.
