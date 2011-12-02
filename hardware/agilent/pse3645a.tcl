@@ -29,17 +29,14 @@ proc hardware::agilent::pse3645a::init { channel } {
     # устанавливаем параметры канала
     hardware::scpi::configure $channel
     
-    hardware::scpi::cmd $channel "*CLS"
-
-    hardware::scpi::cmd $channel "*RST"
-    
-    hardware::scpi::cmd $channel "SYSTEM:REMOTE"
+    # очищаем выходной буфер
+	hardware::scpi::clear $channel
 
     # производим опрос устройства
 	hardware::scpi::validateIdn $channel $IDN
-	
-	# отключаем выход ИП
-	setOutput $channel 0
+
+	# в исходное состояние	с включённым удалённым доступом
+    hardware::scpi::cmd $channel "*RST;*CLS;SYSTEM:REMOTE"
 }
 
 # Также переводит устройство в режим ручного управления.
@@ -58,13 +55,7 @@ proc hardware::agilent::pse3645a::done { channel } {
 #   channel - канал устройства
 #   on - true/false
 proc hardware::agilent::pse3645a::setOutput { channel on } {
-    set mode [expr $on ? "ON" : "OFF"]
-    hardware::scpi::cmd $channel "OUTPUT $mode"
-
-    set ans [hardware::scpi::query $channel "OUTPUT?"]
-    set ans [expr $ans ? "ON" : "OFF"]
-    if { $ans != $mode } {
-        error "Error setting power supply output to $mode"
-    }
+    set mode [expr $on ? 1 : 0]
+	hardware::scpi::setAndQuery $channel "OUTPUT" $mode
 }
 

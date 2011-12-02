@@ -99,19 +99,23 @@ spinbox $w.note.measure.curr.end -textvariable measure(endCurrent) -from 0 -to 2
 grid $w.note.measure.curr.end -row 1 -column 1 -sticky w
 
 grid [label $w.note.measure.curr.lstep -text "Приращение, мА:"] -row 2 -column 0 -sticky w
-spinbox $w.note.measure.curr.step -textvariable measure(currentStep) -from 1 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is integer %P}
+spinbox $w.note.measure.curr.step -textvariable measure(currentStep) -from -2200 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is integer %P}
 grid $w.note.measure.curr.step -row 2 -column 1 -sticky w
 
-grid [label $w.note.measure.curr.lswitchVoltage -text "Переполюсовка напряжения:"] -row 3 -column 0 -sticky w
-checkbutton $w.note.measure.curr.switchVoltage -variable measure(switchVoltage) -relief flat
-grid $w.note.measure.curr.switchVoltage -row 3 -column 1 -sticky w
+grid [label $w.note.measure.curr.lnsamples -text "Измерений на точку:"] -row 3 -column 0 -sticky w
+spinbox $w.note.measure.curr.nsamples -textvariable measure(numberOfSamples) -from 1 -to 50000 -increment 10 -width 10 -validate key -vcmd {string is integer %P}
+grid $w.note.measure.curr.nsamples -row 3 -column 1 -sticky w
 
-grid [label $w.note.measure.curr.lswitchCurrent -text "Переполюсовка тока:"] -row 4 -column 0 -sticky w
+grid [label $w.note.measure.curr.lswitchVoltage -text "Переполюсовка напряжения:"] -row 4 -column 0 -sticky w
+checkbutton $w.note.measure.curr.switchVoltage -variable measure(switchVoltage) -relief flat
+grid $w.note.measure.curr.switchVoltage -row 4 -column 1 -sticky w
+
+grid [label $w.note.measure.curr.lswitchCurrent -text "Переполюсовка тока:"] -row 5 -column 0 -sticky w
 checkbutton $w.note.measure.curr.switchCurrent -variable measure(switchCurrent) -relief flat
-grid $w.note.measure.curr.switchCurrent -row 4 -column 1 -sticky w
+grid $w.note.measure.curr.switchCurrent -row 5 -column 1 -sticky w
 
 grid columnconfigure $w.note.measure.curr {0 1} -pad 5
-grid rowconfigure $w.note.measure.curr {0 1 2 3 4} -pad 5
+grid rowconfigure $w.note.measure.curr {0 1 2 3 4 5} -pad 5
 
 grid [labelframe $w.note.measure.file -text " Результаты " -padx 2 -pady 2] -column 1 -row 0 -sticky ens
 

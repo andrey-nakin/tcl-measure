@@ -9,7 +9,7 @@ package require Tcl 8.5
 package provide hardware::scpi 0.1.0
 
 namespace eval hardware::scpi {
-	namespace export query setAndQuery validateIdn
+	namespace export query setAndQuery validateIdn clear
 }
 
 array set hardware::scpi::commandTimes {}
@@ -60,18 +60,6 @@ proc hardware::scpi::cmd { channel command { delay -1 } } {
 # Return
 #   Value returned by device. "Line end" character is removed from answer.
 proc hardware::scpi::query { channel command { delay -1 } } {
-	# Save current device timeout
-	set timeout [fconfigure $channel -timeout]
-
-	# Make nonblocking reading
-	#fconfigure $channel -timeout 0
-
-	# Read all from input buffer.
-	#while { [gets $channel ] != "" } {}
-
-	# Restore the timeout
-	#fconfigure $channel -timeout $timeout
-		
     # We will do 3 attempt to contact with device
     for { set attempts 3 } { $attempts > 0 } { incr attempts -1 } {
 		# Send command
@@ -116,6 +104,21 @@ proc hardware::scpi::validateIdn { channel idn } {
 # Sets basic SCPI-compatible settings for channel
 proc hardware::scpi::configure { channel } {
     fconfigure $channel -timeout 3000 -buffering line -encoding binary -translation binary
+}
+
+# Clears device output buffer
+proc hardware::scpi::clear { channel } {
+	# Save current device timeout
+	set timeout [fconfigure $channel -timeout]
+
+	# Make nonblocking reading
+	fconfigure $channel -timeout 0
+
+	# Read all from input buffer.
+	while { [gets $channel ] != "" } {}
+
+	# Restore the timeout
+	fconfigure $channel -timeout $timeout
 }
 
 proc isRs232 { channel } {

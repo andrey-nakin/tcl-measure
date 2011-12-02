@@ -151,12 +151,14 @@ proc hardware::agilent::mm34410a::init { channel } {
     # устанавливаем параметры канала
     hardware::scpi::configure $channel
     
+    # очищаем выходной буфер
+	hardware::scpi::clear $channel
+
     # производим опрос устройства
 	hardware::scpi::validateIdn $channel $IDN
-	
-    hardware::scpi::cmd $channel "*CLS"
 
-    hardware::scpi::cmd $channel "*RST"
+	# в исходное состояние
+    hardware::scpi::cmd $channel "*RST;*CLS"
 }
 
 # Переводит устройство в исходное состояние

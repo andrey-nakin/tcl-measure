@@ -35,11 +35,33 @@ proc setCurrent { curr } {
 
 # Измеряет напряжение на образце
 proc measureVoltage { } {
-    global mm
+    global mm measure
     
-    set t [clock milliseconds]
-    set res [hardware::scpi::query $mm "READ?"]
-	return [expr 1000.0 * $res]
+	# запускаем измерения
+	hardware::scpi::cmd $mm "INIT"
+
+	# цикл ожидания конца измерений
+	for { set i 0 } { $i < $measure(numberOfSamples) } { incr i } {
+		# немного подождём
+		after 1000
+		
+		# считываесм число накопленных в статистике измерений
+		set n [hardware::scpi::query $mm "CALCULATE:AVERAGE:COUNT?"]
+		if { $n >= $measure(numberOfSamples) } {
+			# считываем среднее и станд. отклонение
+			set avg [hardware::scpi::query $mm "CALCULATE:AVERAGE:AVERAGE?"]
+			set std [hardware::scpi::query $mm "CALCULATE:AVERAGE:SDEVIATION?"]
+
+			# возвращаем результат измерений, переведённый в милливольты
+			return [list [expr 1000.0 * $avg] [expr 1000.0 * $std]]
+		}
+	}
+
+	error "Таймаут ожидания измерения напряжения"
+
+#    set t [clock milliseconds]
+#    set res [hardware::scpi::query $mm "READ?"]
+#	return [expr 1000.0 * $res]
 }
 
 # Устанавливает положение переключателей полярности
@@ -65,7 +87,7 @@ proc setupPs {} {
 
 # Инициализация мультиметра
 proc setupMM {} {
-    global mm rm settings
+    global mm rm settings measure
     
     # Подключаемся к мультиметру (ММ)
     if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
@@ -75,9 +97,9 @@ proc setupMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
-	# Сбрасываем флаг ошибки
-    hardware::scpi::cmd $mm "*CLS"
-    
+	# включаем режим измерения пост. напряжения
+	hardware::scpi::cmd $mm "CONFIGURE:VOLTAGE:DC AUTO"
+
 	# Измерять напряжение в течении 10 циклов питания
 	hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC 10"
 
@@ -87,10 +109,17 @@ proc setupMM {} {
     # Включить автоподстройку входного сопротивления
     hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
 
+	# Включить сбор статистики
+	hardware::scpi::cmd $mm "CALCULATE:STATE ON;CALCULATE:FUNCTION AVERAGE"
+	
+	# Число измерений на одну точку результата
+	if { ![info exists measure(numberOfSamples)] } {
+		# Если не указано в настройках, по умолчанию равно 1
+		set measure(numberOfSamples) 1
+	}
+
 	# Настраиваем триггер
-    hardware::scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
-    
-    hardware::scpi::cmd $mm "INIT"
+    hardware::scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE;SAMPLE:SOURCE IMMEDIATE;SAMPLE:COUNT $measure(numberOfSamples)"
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -118,7 +147,7 @@ set log [measure::logger::init measure]
 measure::config::read
 
 # Создаём файл с результатами измерений
-measure::datafile::create $measure(fileName) $measure(fileFormat) $measure(fileRewrite) [list "I (mA)" "U (mV)" "R (Ohm)" "W (mWt)"]
+measure::datafile::create $measure(fileName) $measure(fileFormat) $measure(fileRewrite) [list "I (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
 
 # Подключаемся к менеджеру ресурсов VISA
 set rm [visa::open-default-rm]
@@ -158,6 +187,9 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 } 
 	setCurrent $curr
 	measure::interop::setVar runtime(current) $curr
 
+	set vsum 0.0
+	set ssum 0.0
+
 	# Пробегаем по переполюсовкам
 	foreach conn $connectors {
 		# Устанавливаем нужную полярность
@@ -169,23 +201,30 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 } 
 		after 10000
 
 		# Измеряем напряжение
-		set v [measureVoltage]
+		set res [measureVoltage]
+
+		# Вычисляем производные ведличины
+		set v [lindex $res 0]
 		set r [expr $v / $curr]
         set pw [expr 0.001 * $curr * $v]
+		set vsum [expr $vsum + $v]
+		set ssum [expr $ssum + [lindex $res 1]]
           
-        # Округлим результаты
-        set v [format "%0.9g" $v]
-        set r [format "%0.9g" $r]
-        set pw [format "%0.9g" $pw]
-        
-        # Выводим результаты в окно программы
-    	measure::interop::setVar runtime(voltage) $v
-    	measure::interop::setVar runtime(resistance) $r
-    	measure::interop::setVar runtime(power) $pw
-
-        # Выводим результаты в результирующий файл
-		measure::datafile::write $measure(fileName) $measure(fileFormat) [list $curr $v $r $pw]
+        # Выводим округлённые результаты в окно программы
+    	measure::interop::setVar runtime(voltage) [format "%0.9g" $v]
+    	measure::interop::setVar runtime(resistance) [format "%0.9g" $r]
+    	measure::interop::setVar runtime(power) [format "%0.9g" $pw]
 	}
+
+	# среднее значение напряжения
+	set v [expr $vsum / [llength $connectors]]
+	set sv [expr $ssum / [llength $connectors]]
+	set r [expr $v / $curr]
+    set pw [expr 0.001 * $curr * $v]
+	set vsum [expr $vsum + $v]
+
+    # Выводим результаты в результирующий файл
+	measure::datafile::write $measure(fileName) $measure(fileFormat) [list $curr $v $sv $r [expr $sv / $curr]]
 }
 
 ###############################################################################
