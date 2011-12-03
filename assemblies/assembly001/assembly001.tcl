@@ -47,7 +47,7 @@ proc startMeasure {} {
 	measure::config::write
 
 	# Запускаем на выполнение фоновый поток	с процедурой измерения
-	measure::interop::startWorker { source measure.tcl } { stopMeasure }
+	measure::interop::startWorker [list source [file join [file dirname [info script]] measure.tcl] ] { stopMeasure }
 }
 
 # Открываем файл с результами измерения
@@ -137,13 +137,13 @@ grid rowconfigure $w.note.measure.file {0 1 2 3 4} -pad 5
 
 grid [labelframe $w.note.measure.run -text " Работа " -padx 2 -pady 2] -column 0 -row 1 -columnspan 2 -sticky we
 grid [label $w.note.measure.run.lcurrent -text "Ток питания, мА:"] -column 0 -row 0 -sticky w
-grid [entry $w.note.measure.run.current -textvariable runtime(current) -state readonly] -column 1 -row 0 -sticky w
-grid [label $w.note.measure.run.lvoltage -text "Напряжение, мВ:"] -column 3 -row 0 -sticky e
-grid [entry $w.note.measure.run.voltage -textvariable runtime(voltage) -state readonly] -column 4 -row 0 -sticky e
-grid [label $w.note.measure.run.lresistance -text "Сопротивление, Ом:"] -column 0 -row 1 -sticky w
-grid [entry $w.note.measure.run.resistance -textvariable runtime(resistance) -state readonly] -column 1 -row 1 -sticky w
-grid [label $w.note.measure.run.lpower -text "Мощность, мВт:"] -column 3 -row 1 -sticky e
-grid [entry $w.note.measure.run.power -textvariable runtime(power) -state readonly] -column 4 -row 1 -sticky e
+grid [entry $w.note.measure.run.current -textvariable runtime(current) -state readonly] -column 1 -row 0 -sticky e
+grid [label $w.note.measure.run.lpower -text "Мощность, мВт:"] -column 3 -row 0 -sticky e
+grid [entry $w.note.measure.run.power -textvariable runtime(power) -state readonly] -column 4 -row 0 -sticky w
+grid [label $w.note.measure.run.lvoltage -text "Напряжение, мВ:"] -column 0 -row 1 -sticky w
+grid [entry $w.note.measure.run.voltage -textvariable runtime(voltage) -state readonly] -column 1 -row 1 -sticky e
+grid [label $w.note.measure.run.lresistance -text "Сопротивление, Ом:"] -column 3 -row 1 -sticky e
+grid [entry $w.note.measure.run.resistance -textvariable runtime(resistance) -state readonly] -column 4 -row 1 -sticky w
 #grid [ttk::button $w.note.measure.run.open -text "Открыть файл результатов" -command openResults] -column 0 -row 2 -columnspan 2 -sticky w
 grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 3 -row 2 -columnspan 2 -sticky e
 
@@ -185,7 +185,7 @@ grid rowconfigure $w.note.setup 4 -pad 20
 
 frame $w.inf
 pack $w.inf -fill both -expand 1 -padx 10 -pady 10
-pack [label $w.inf.txt -wraplength 6i -justify left -text "Программа измерения удельного сопротивления 4-х контактным методом при постоянной температуре с переполюсовкой контактов по току и напряжению. Максимально допустимое сопротивление: 35 кОм."]
+pack [label $w.inf.txt -wraplength 6i -justify left -text "Программа измерения удельного сопротивления 4-х контактным методом при постоянной температуре с переполюсовкой контактов по току и напряжению. Максимально допустимое сопротивление в цепи: 35 кОм."]
 
 # Кнопка закрытия приложения
 ::measure::widget::exit-button $w

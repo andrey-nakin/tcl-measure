@@ -8,12 +8,12 @@
 package require Tcl 8.5
 package provide hardware::scpi 0.1.0
 
-namespace eval hardware::scpi {
+namespace eval scpi {
 	namespace export query setAndQuery validateIdn clear
 }
 
-array set hardware::scpi::commandTimes {}
-array set hardware::scpi::commandDelays {}
+array set scpi::commandTimes {}
+array set scpi::commandDelays {}
 
 # Send a command to SCPI device. Does not wait for any answer.
 # Checks when previous command was sent to the same device and makes a delay if needed.
@@ -21,8 +21,8 @@ array set hardware::scpi::commandDelays {}
 #   channel - device channel
 #   command - command to send. Should not end with "new line" character.
 #   ?delay? - delay between commands to the same device
-proc hardware::scpi::cmd { channel command { delay -1 } } {
-	global hardware::scpi::commandTimes hardware::scpi::commandDelays
+proc scpi::cmd { channel command { delay -1 } } {
+	global scpi::commandTimes scpi::commandDelays
 
 	# Check what time the prev. command was sent to the device
 	if { [info exists commandTimes($channel)] } {
@@ -59,7 +59,7 @@ proc hardware::scpi::cmd { channel command { delay -1 } } {
 #   ?delay? - delay between command and query
 # Return
 #   Value returned by device. "Line end" character is removed from answer.
-proc hardware::scpi::query { channel command { delay -1 } } {
+proc scpi::query { channel command { delay -1 } } {
     # We will do 3 attempt to contact with device
     for { set attempts 3 } { $attempts > 0 } { incr attempts -1 } {
 		# Send command
@@ -83,7 +83,7 @@ proc hardware::scpi::query { channel command { delay -1 } } {
 #   command - command to send. Should not end with "new line" character.
 #   value - command argument
 #   ?delay? - delay between command and query
-proc hardware::scpi::setAndQuery { channel command value { delay -1 } } {
+proc scpi::setAndQuery { channel command value { delay -1 } } {
 	cmd $channel "$command $value" $delay
 	set answer [query $channel "${command}?" $delay]
 	if { $answer != $value } {
@@ -94,7 +94,7 @@ proc hardware::scpi::setAndQuery { channel command value { delay -1 } } {
 # Requests device ID by *IDN command.
 # Then compares answer with given expected ID.
 # Throws an exception if ID's do not match.
-proc hardware::scpi::validateIdn { channel idn } {
+proc scpi::validateIdn { channel idn } {
     set ans [query $channel "*IDN?"]
     if { [string compare -nocase -length [string length $idn] $ans $idn] } {
         error "`$idn' expected but found `$ans'"
@@ -102,12 +102,12 @@ proc hardware::scpi::validateIdn { channel idn } {
 }
 
 # Sets basic SCPI-compatible settings for channel
-proc hardware::scpi::configure { channel } {
+proc scpi::configure { channel } {
     fconfigure $channel -timeout 3000 -buffering line -encoding binary -translation binary
 }
 
 # Clears device output buffer
-proc hardware::scpi::clear { channel } {
+proc scpi::clear { channel } {
 	# Save current device timeout
 	set timeout [fconfigure $channel -timeout]
 

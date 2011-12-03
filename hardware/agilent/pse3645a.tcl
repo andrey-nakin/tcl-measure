@@ -27,27 +27,23 @@ proc hardware::agilent::pse3645a::init { channel } {
     global hardware::agilent::pse3645a::IDN
 
     # устанавливаем параметры канала
-    hardware::scpi::configure $channel
+    scpi::configure $channel
     
     # очищаем выходной буфер
-	hardware::scpi::clear $channel
+	scpi::clear $channel
 
     # производим опрос устройства
-	hardware::scpi::validateIdn $channel $IDN
+	scpi::validateIdn $channel $IDN
 
 	# в исходное состояние	с включённым удалённым доступом
-    hardware::scpi::cmd $channel "*RST;*CLS;SYSTEM:REMOTE"
+    scpi::cmd $channel "*RST;*CLS;SYSTEM:REMOTE"
 }
 
 # Также переводит устройство в режим ручного управления.
 # Аргументы
 #   channel - канал с открытым портом для связи с устройством
 proc hardware::agilent::pse3645a::done { channel } {
-    hardware::scpi::cmd $channel "*CLS"
-
-    hardware::scpi::cmd $channel "*RST"
-
-    hardware::scpi::cmd $channel "SYSTEM:LOCAL"
+    scpi::cmd $channel "*RST;SYSTEM:LOCAL"
 }
 
 # Включает/выключает выход ИП
@@ -56,6 +52,6 @@ proc hardware::agilent::pse3645a::done { channel } {
 #   on - true/false
 proc hardware::agilent::pse3645a::setOutput { channel on } {
     set mode [expr $on ? 1 : 0]
-	hardware::scpi::setAndQuery $channel "OUTPUT" $mode
+	scpi::setAndQuery $channel "OUTPUT" $mode
 }
 

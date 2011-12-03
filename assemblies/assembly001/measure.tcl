@@ -20,48 +20,55 @@ package require measure::interop
 ###############################################################################
 
 # Устанавливает ток питания образца
+# curr - требуемый ток в мА
 proc setCurrent { curr } {
     global ps
 
-	# Очищаем очередь ошибок
-	hardware::scpi::cmd $ps "*CLS"
-
 	# Задаём выходной ток с переводом из мА в А
-    hardware::scpi::cmd $ps "CURRENT [expr 0.001 * $curr]"
-
-	# Нет ли ошибки?
-    #set ans [hardware::scpi::query $ps "SYSTEM:ERROR?"]
+    scpi::cmd $ps "CURRENT [expr 0.001 * $curr]"
 }
 
 # Измеряет напряжение на образце
+# Возвращает напряжение и погрешность в милливольтах
 proc measureVoltage { } {
     global mm measure
     
-	# запускаем измерения
-	hardware::scpi::cmd $mm "INIT"
+	if { $measure(numberOfSamples) > 1 } {
+		# режим многократного измерения с подсчётом статистики
 
-	# цикл ожидания конца измерений
-	for { set i 0 } { $i < $measure(numberOfSamples) } { incr i } {
-		# немного подождём
-		after 1000
+		# запускаем измерения
+		scpi::cmd $mm "INIT"
+
+		# цикл ожидания конца измерений
+		for { set i 0 } { $i < $measure(numberOfSamples) } { incr i } {
+			# немного подождём
+			after 1000
 		
-		# считываесм число накопленных в статистике измерений
-		set n [hardware::scpi::query $mm "CALCULATE:AVERAGE:COUNT?"]
-		if { $n >= $measure(numberOfSamples) } {
-			# считываем среднее и станд. отклонение
-			set avg [hardware::scpi::query $mm "CALCULATE:AVERAGE:AVERAGE?"]
-			set std [hardware::scpi::query $mm "CALCULATE:AVERAGE:SDEVIATION?"]
+			# считываесм число накопленных в статистике измерений
+			set n [scpi::query $mm "CALCULATE:AVERAGE:COUNT?"]
+			if { $n >= $measure(numberOfSamples) } {
+				# считываем среднее и станд. отклонение
+				set avg [scpi::query $mm "CALCULATE:AVERAGE:AVERAGE?"]
+				set std [scpi::query $mm "CALCULATE:AVERAGE:SDEVIATION?"]
 
-			# возвращаем результат измерений, переведённый в милливольты
-			return [list [expr 1000.0 * $avg] [expr 1000.0 * $std]]
+				# Добавляем систематическую погрешность
+				# и возвращаем результат измерений, переведённый в милливольты
+				set err [hardware::agilent::mm34410a::dcvSystematicError $avg]
+				return [list [expr 1000.0 * $avg] [expr 1000.0 * ($std + $err)]]
+			}
 		}
+
+		error "Таймаут ожидания измерения напряжения"
+	} else {
+		# режим однократного измерения
+
+		# Считываем напряжение
+		set res [scpi::query $mm "READ?"]
+
+		# Добавляем систематическую погрешность
+		# и возвращаем результат измерений, переведённый в милливольты
+		return [list [expr 1000.0 * $res] [hardware::agilent::mm34410a::dcvSystematicError $res]]
 	}
-
-	error "Таймаут ожидания измерения напряжения"
-
-#    set t [clock milliseconds]
-#    set res [hardware::scpi::query $mm "READ?"]
-#	return [expr 1000.0 * $res]
 }
 
 # Устанавливает положение переключателей полярности
@@ -82,7 +89,8 @@ proc setupPs {} {
     # Иниализируем и опрашиваем ИП
     hardware::agilent::pse3645a::init $ps
     
-    hardware::scpi::cmd $ps "APPLY 35.000,0.001"
+	# Задаём пределы по напряжению и току
+    scpi::cmd $ps "APPLY 35.000,0.001"
 }
 
 # Инициализация мультиметра
@@ -98,28 +106,29 @@ proc setupMM {} {
     hardware::agilent::mm34410a::init $mm
 
 	# включаем режим измерения пост. напряжения
-	hardware::scpi::cmd $mm "CONFIGURE:VOLTAGE:DC AUTO"
+	scpi::cmd $mm "CONFIGURE:VOLTAGE:DC AUTO"
 
 	# Измерять напряжение в течении 10 циклов питания
-	hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC 10"
+	scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC 10"
 
-    # Включить подстройку ноля
-    hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO ON"
+    # Включить автоподстройку нуля, если не используется переполюсовка
+	set mode [expr $measure(switchVoltage) || $measure(switchCurrent) ? "OFF" : "ON"]
+    scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO $mode"
     
     # Включить автоподстройку входного сопротивления
-    hardware::scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
+    scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
 
 	# Включить сбор статистики
-	hardware::scpi::cmd $mm "CALCULATE:STATE ON;CALCULATE:FUNCTION AVERAGE"
+	scpi::cmd $mm "CALCULATE:STATE ON;CALCULATE:FUNCTION AVERAGE"
 	
 	# Число измерений на одну точку результата
-	if { ![info exists measure(numberOfSamples)] } {
+	if { ![info exists measure(numberOfSamples)] || $measure(numberOfSamples) < 1 } {
 		# Если не указано в настройках, по умолчанию равно 1
 		set measure(numberOfSamples) 1
 	}
 
 	# Настраиваем триггер
-    hardware::scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE;SAMPLE:SOURCE IMMEDIATE;SAMPLE:COUNT $measure(numberOfSamples)"
+    scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE;SAMPLE:SOURCE IMMEDIATE;SAMPLE:COUNT $measure(numberOfSamples)"
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -152,7 +161,7 @@ measure::datafile::create $measure(fileName) $measure(fileFormat) $measure(fileR
 # Подключаемся к менеджеру ресурсов VISA
 set rm [visa::open-default-rm]
 
-# Подключаемся к устройствам
+# Производим подключение к устройствам и их настройку
 setupPs
 setupMM
 
@@ -198,33 +207,31 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 } 
 		}
 
 		# Ждём окончания переходных процессов, 
-		after 10000
+		after 1000
 
 		# Измеряем напряжение
 		set res [measureVoltage]
 
-		# Вычисляем производные ведличины
-		set v [lindex $res 0]
-		set r [expr $v / $curr]
-        set pw [expr 0.001 * $curr * $v]
+		# Накапливаем сумму напряжения и погрешности
+		lassign $res v sv
+		if { $v < 0.0 } {
+			set v [expr -1.0 * $v]
+		}
 		set vsum [expr $vsum + $v]
-		set ssum [expr $ssum + [lindex $res 1]]
+		set ssum [expr $ssum + $sv]
           
-        # Выводим округлённые результаты в окно программы
-    	measure::interop::setVar runtime(voltage) [format "%0.9g" $v]
-    	measure::interop::setVar runtime(resistance) [format "%0.9g" $r]
-    	measure::interop::setVar runtime(power) [format "%0.9g" $pw]
+        # Выводим результаты в окно программы
+    	measure::interop::setVar runtime(voltage) [format "%0.9g \u2213 %0.4g" $v $sv]
+    	measure::interop::setVar runtime(resistance) [format "%0.9g \u2213 %0.4g" [expr $v / $curr] [expr $sv / $curr]]
+    	measure::interop::setVar runtime(power) [format "%0.9g" [expr 0.001 * $curr * $v]]
 	}
 
-	# среднее значение напряжения
+	# Вычисляем средние значения напряжения и погрешности
 	set v [expr $vsum / [llength $connectors]]
 	set sv [expr $ssum / [llength $connectors]]
-	set r [expr $v / $curr]
-    set pw [expr 0.001 * $curr * $v]
-	set vsum [expr $vsum + $v]
 
     # Выводим результаты в результирующий файл
-	measure::datafile::write $measure(fileName) $measure(fileFormat) [list $curr $v $sv $r [expr $sv / $curr]]
+	measure::datafile::write $measure(fileName) $measure(fileFormat) [list $curr $v $sv [expr $v / $curr] [expr $sv / $curr]]
 }
 
 ###############################################################################

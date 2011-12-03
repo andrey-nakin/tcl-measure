@@ -19,7 +19,7 @@ proc measure::config::read { { configFileName params.ini } } {
 	set log [measure::logger::init measure::config]
 
 	if { [catch { set fd [ini::open $configFileName r] } rc ] } {
-		${log}::error "Ошибка открытия файла конфигурации: $rc"
+		#${log}::error "Ошибка открытия файла конфигурации: $rc"
 		return
 	}
 
@@ -39,7 +39,7 @@ proc measure::config::write { { configFileName params.ini } } {
 	set log [measure::logger::init measure::config]
 	set arrays { settings measure }
 
-	if { [catch { set fd [ini::open $configFileName r+] } rc ] } {
+	if { [catch { set fd [ini::open $configFileName w] } rc ] } {
 		${log}::error "Ошибка открытия файла конфигурации: $rc"
 		return
 	}
