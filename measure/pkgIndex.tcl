@@ -6,6 +6,5 @@ package ifneeded measure::visa 0.1.0 [list source [file join $dir visa.tcl]]
 package ifneeded measure::com 0.1.0 [list source [file join $dir com.tcl]]
 package ifneeded measure::datafile 0.1.0 [list source [file join $dir datafile.tcl]]
 package ifneeded measure::interop 0.1.0 [list source [file join $dir interop.tcl]]
-
-
+package ifneeded startfile 0.1.0 [list source [file join $dir startfile.tcl]]
 

@@ -19,6 +19,7 @@ package require measure::config
 package require measure::visa
 package require measure::com
 package require measure::interop
+package require startfile
 
 ###############################################################################
 # Константы
@@ -54,7 +55,7 @@ proc startMeasure {} {
 proc openResults {} {
     global measure
     
-    exec start \"measure(fileName)\"
+    startfile::start $measure(fileName)
 }
 
 # Завершение работы программы
@@ -144,7 +145,7 @@ grid [label $w.note.measure.run.lvoltage -text "Напряжение, мВ:"] -c
 grid [entry $w.note.measure.run.voltage -textvariable runtime(voltage) -state readonly] -column 1 -row 1 -sticky e
 grid [label $w.note.measure.run.lresistance -text "Сопротивление, Ом:"] -column 3 -row 1 -sticky e
 grid [entry $w.note.measure.run.resistance -textvariable runtime(resistance) -state readonly] -column 4 -row 1 -sticky w
-#grid [ttk::button $w.note.measure.run.open -text "Открыть файл результатов" -command openResults] -column 0 -row 2 -columnspan 2 -sticky w
+grid [ttk::button $w.note.measure.run.open -text "Открыть файл результатов" -command openResults] -column 0 -row 2 -columnspan 2 -sticky w
 grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 3 -row 2 -columnspan 2 -sticky e
 
 grid columnconfigure $w.note.measure.run {0 1 2 3 4} -pad 5
