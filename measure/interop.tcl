@@ -101,7 +101,7 @@ proc measure::interop::setVar { varName value } {
 	global log mainThreadId_
 
 	if { [info exists mainThreadId_] } {
-		if { [catch { thread::send -async $mainThreadId_ "set $varName $value" } rc] } {
+		if { [catch { thread::send -async $mainThreadId_ "set $varName \"$value\"" } rc] } {
 			${log}::error "setVar $varName $value"
 		}
 	}

@@ -148,9 +148,6 @@ proc hardware::agilent::mm34410a::systematicError { value readingErrors rangeErr
 proc hardware::agilent::mm34410a::init { channel } {
     global hardware::agilent::mm34410a::IDN
 
-    # устанавливаем параметры канала
-    scpi::configure $channel
-    
     # очищаем выходной буфер
 	scpi::clear $channel
 

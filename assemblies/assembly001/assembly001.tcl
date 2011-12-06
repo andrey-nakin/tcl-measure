@@ -39,13 +39,19 @@ proc stopMeasure {} {
 
 # Запускаем измерения
 proc startMeasure {} {
-	global w log
+	global w log runtime
 
 	# запрещаем кнопку запуска измерений
 	$w.note.measure.run.start configure -state disabled
 
 	# Сохраняем параметры программы
 	measure::config::write
+
+    # Очищаем результаты в окне программы
+	set runtime(current) ""
+	set runtime(voltage) ""
+	set runtime(resistance) ""
+	set runtime(power) ""
 
 	# Запускаем на выполнение фоновый поток	с процедурой измерения
 	measure::interop::startWorker [list source [file join [file dirname [info script]] measure.tcl] ] { stopMeasure }
@@ -92,15 +98,15 @@ $w.note add $w.note.measure -text " Измерение " -padding 10
 grid [labelframe $w.note.measure.curr -text " Параметры измерения " -padx 2 -pady 2] -column 0 -row 0 -sticky wns
 
 grid [label $w.note.measure.curr.lstart -text "Начальный ток, мА:"] -row 0 -column 0 -sticky w
-spinbox $w.note.measure.curr.start -textvariable measure(startCurrent) -from 0 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is integer %P}
+spinbox $w.note.measure.curr.start -textvariable measure(startCurrent) -from 0 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is double %P}
 grid $w.note.measure.curr.start -row 0 -column 1 -sticky w
 
 grid [label $w.note.measure.curr.lend -text "Конечный ток, мА:"] -row 1 -column 0 -sticky w
-spinbox $w.note.measure.curr.end -textvariable measure(endCurrent) -from 0 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is integer %P}
+spinbox $w.note.measure.curr.end -textvariable measure(endCurrent) -from 0 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is double %P}
 grid $w.note.measure.curr.end -row 1 -column 1 -sticky w
 
 grid [label $w.note.measure.curr.lstep -text "Приращение, мА:"] -row 2 -column 0 -sticky w
-spinbox $w.note.measure.curr.step -textvariable measure(currentStep) -from -2200 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is integer %P}
+spinbox $w.note.measure.curr.step -textvariable measure(currentStep) -from -2200 -to 2200 -increment 10 -width 10 -validate key -vcmd {string is double %P}
 grid $w.note.measure.curr.step -row 2 -column 1 -sticky w
 
 grid [label $w.note.measure.curr.lnsamples -text "Измерений на точку:"] -row 3 -column 0 -sticky w
@@ -160,27 +166,31 @@ ttk::frame $w.note.setup
 $w.note add $w.note.setup -text " Параметры " -padding 10
 
 grid [label $w.note.setup.lrs485 -text "Порт для АС4:"] -row 0 -column 0 -sticky w
-ttk::combobox $w.note.setup.rs485 -textvariable settings(rs485Port) -values [measure::com::allPorts]
+ttk::combobox $w.note.setup.rs485 -width 40 -textvariable settings(rs485Port) -values [measure::com::allPorts]
 grid $w.note.setup.rs485 -row 0 -column 1 -sticky w
 
 grid [label $w.note.setup.lswitchAddr -text "Сетевой адрес МВУ-8:"] -row 1 -column 0 -sticky w
-spinbox $w.note.setup.switchAddr -textvariable settings(switchAddr) -from 1 -to 2040 -width 10 -validate key -vcmd {string is integer %P}
+spinbox $w.note.setup.switchAddr -width 40 -textvariable settings(switchAddr) -from 1 -to 2040 -width 10 -validate key -vcmd {string is integer %P}
 grid $w.note.setup.switchAddr -row 1 -column 1 -sticky w
 
 grid [label $w.note.setup.lps -text "VISA адрес источника питания:"] -row 2 -column 0 -sticky w
-ttk::combobox $w.note.setup.ps -textvariable settings(psAddr) -values [measure::visa::allInstruments]
+ttk::combobox $w.note.setup.ps -width 40 -textvariable settings(psAddr) -values [measure::visa::allInstruments]
 grid $w.note.setup.ps -row 2 -column 1 -sticky w
 
-grid [label $w.note.setup.lmm -text "VISA адрес мультиметра:"] -row 3 -column 0 -sticky w
-ttk::combobox $w.note.setup.mm -textvariable settings(mmAddr) -values [measure::visa::allInstruments]
+grid [label $w.note.setup.lmm -text "VISA адрес вольтметра:"] -row 3 -column 0 -sticky w
+ttk::combobox $w.note.setup.mm -width 40 -textvariable settings(mmAddr) -values [measure::visa::allInstruments]
 grid $w.note.setup.mm -row 3 -column 1 -sticky w
+
+grid [label $w.note.setup.lcmm -text "VISA адрес амперметра:"] -row 4 -column 0 -sticky w
+ttk::combobox $w.note.setup.cmm -width 40 -textvariable settings(cmmAddr) -values [measure::visa::allInstruments]
+grid $w.note.setup.cmm -row 4 -column 1 -sticky w
 
 #pack [ttk::button $w.note.setup.test -text "Опросить устройства" -compound left] -expand no -side left
 #grid $w.note.setup.test -row 4 -column 1 -sticky e
 
 grid columnconfigure $w.note.setup {0 1} -pad 5
-grid rowconfigure $w.note.setup {0 1 2 3} -pad 5
-grid rowconfigure $w.note.setup 4 -pad 20
+grid rowconfigure $w.note.setup {0 1 2 3 4} -pad 5
+grid rowconfigure $w.note.setup 5 -pad 20
 
 # Информационная панель
 

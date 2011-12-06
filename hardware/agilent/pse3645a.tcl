@@ -26,9 +26,6 @@ set hardware::agilent::pse3645a::IDN "Agilent Technologies,E3645A"
 proc hardware::agilent::pse3645a::init { channel } {
     global hardware::agilent::pse3645a::IDN
 
-    # устанавливаем параметры канала
-    scpi::configure $channel
-    
     # очищаем выходной буфер
 	scpi::clear $channel
 
