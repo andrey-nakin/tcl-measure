@@ -34,7 +34,10 @@ proc stopMeasure {} {
 	global w log
 
 	# разрешаем кнопку запуска измерений
-	$w.note.measure.run.start configure -state normal 
+	$w.note.measure.run.start configure -state normal
+     
+    # Запрещаем кнопку останова измерений    
+	$w.note.measure.run.stop configure -state disabled
 }
 
 # Запускаем измерения
@@ -53,8 +56,25 @@ proc startMeasure {} {
 	set runtime(resistance) ""
 	set runtime(power) ""
 
+    # Сбрасываем сигнал "прерван"
+    measure::interop::clearTerminated
+    
 	# Запускаем на выполнение фоновый поток	с процедурой измерения
 	measure::interop::startWorker [list source [file join [file dirname [info script]] measure.tcl] ] { stopMeasure }
+
+    # Разрешаем кнопку останова измерений
+	$w.note.measure.run.stop configure -state normal
+}
+
+# Прерываем измерения
+proc terminateMeasure {} {
+    global w log
+
+    # Запрещаем кнопку останова измерений    
+	$w.note.measure.run.stop configure -state disabled
+	
+	# Посылаем в измерительный поток сигнал об останове
+	measure::interop::terminate
 }
 
 # Открываем файл с результами измерения
@@ -143,7 +163,7 @@ grid columnconfigure $w.note.measure.file {0 1} -pad 5
 grid rowconfigure $w.note.measure.file {0 1 2 3 4} -pad 5
 
 grid [labelframe $w.note.measure.run -text " Работа " -padx 2 -pady 2] -column 0 -row 1 -columnspan 2 -sticky we
-grid [label $w.note.measure.run.lcurrent -text "Ток питания, мА:"] -column 0 -row 0 -sticky w
+grid [label $w.note.measure.run.lcurrent -text "Ток, мА:"] -column 0 -row 0 -sticky w
 grid [entry $w.note.measure.run.current -textvariable runtime(current) -state readonly] -column 1 -row 0 -sticky e
 grid [label $w.note.measure.run.lpower -text "Мощность, мВт:"] -column 3 -row 0 -sticky e
 grid [entry $w.note.measure.run.power -textvariable runtime(power) -state readonly] -column 4 -row 0 -sticky w
@@ -152,7 +172,8 @@ grid [entry $w.note.measure.run.voltage -textvariable runtime(voltage) -state re
 grid [label $w.note.measure.run.lresistance -text "Сопротивление, Ом:"] -column 3 -row 1 -sticky e
 grid [entry $w.note.measure.run.resistance -textvariable runtime(resistance) -state readonly] -column 4 -row 1 -sticky w
 grid [ttk::button $w.note.measure.run.open -text "Открыть файл результатов" -command openResults] -column 0 -row 2 -columnspan 2 -sticky w
-grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 3 -row 2 -columnspan 2 -sticky e
+grid [ttk::button $w.note.measure.run.stop -text "Остановить измерения" -command terminateMeasure -state disabled] -column 3 -row 2 -columnspan 1 -sticky e
+grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 4 -row 2 -columnspan 1 -sticky e
 
 grid columnconfigure $w.note.measure.run {0 1 2 3 4} -pad 5
 grid rowconfigure $w.note.measure.run {0 1} -pad 5
@@ -185,11 +206,14 @@ grid [label $w.note.setup.lcmm -text "VISA адрес амперметра:"] -r
 ttk::combobox $w.note.setup.cmm -width 40 -textvariable settings(cmmAddr) -values [measure::visa::allInstruments]
 grid $w.note.setup.cmm -row 4 -column 1 -sticky w
 
+grid [label $w.note.setup.lbeepOnExit -text "Звуковой сигнал по окончании:"] -row 5 -column 0 -sticky w
+grid [checkbutton $w.note.setup.beepOnExit -variable settings(beepOnExit) -relief flat] -row 5 -column 1 -sticky w
+
 #pack [ttk::button $w.note.setup.test -text "Опросить устройства" -compound left] -expand no -side left
 #grid $w.note.setup.test -row 4 -column 1 -sticky e
 
 grid columnconfigure $w.note.setup {0 1} -pad 5
-grid rowconfigure $w.note.setup {0 1 2 3 4} -pad 5
+grid rowconfigure $w.note.setup {0 1 2 3 4 5} -pad 5
 grid rowconfigure $w.note.setup 5 -pad 20
 
 # Информационная панель

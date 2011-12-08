@@ -45,6 +45,9 @@ proc measureVoltage { } {
 		
 		# цикл ожидания конца измерений
 		for { set i 0 } { $i < $measure(numberOfSamples) } { incr i } {
+		    # проверим, не нажата ли кнопка остановки
+		    measure::interop::checkTerminated
+		    
 			# немного подождём
 			after 1000
 		
@@ -131,7 +134,11 @@ proc setupMM {} {
 	scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC 10"
 
     # Включить автоподстройку нуля, если не используется переполюсовка
-	set mode [expr $measure(switchVoltage) || $measure(switchCurrent) ? "OFF" : "ON"]
+    if { $measure(switchVoltage) || $measure(switchCurrent) } {
+        set mode "OFF"
+    } else {
+        set mode "ONCE"
+    }
     scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO $mode"
     
     # Включить автоподстройку входного сопротивления
@@ -175,7 +182,11 @@ proc setupCMM {} {
 	scpi::cmd $cmm "SENSE:CURRENT:DC:NPLC 10"
 
     # Включить автоподстройку нуля, если не используется переполюсовка
-	set mode [expr $measure(switchVoltage) || $measure(switchCurrent) ? "OFF" : "ON"]
+    if { $measure(switchVoltage) || $measure(switchCurrent) } {
+        set mode "OFF"
+    } else {
+        set mode "ONCE"
+    }
     scpi::cmd $cmm "SENSE:CURRENT:DC:ZERO:AUTO $mode"
     
 	# Включить сбор статистики
@@ -218,6 +229,9 @@ proc finish {} {
 # Инициализируем протоколирование
 set log [measure::logger::init measure]
 
+# Эта команда будет вызвааться в случае преждевременной остановки потока
+measure::interop::registerFinalization { finish }
+
 # Читаем настройки программы
 measure::config::read
 
@@ -258,8 +272,14 @@ setCurrent $measure(startCurrent)
 # Включаем подачу тока на выходы ИП
 hardware::agilent::pse3645a::setOutput $ps 1
 
+# Холостое измерение для "прогрева" мультиметров
+measureVoltage
+
 # Пробегаем по всем токам из заданного диапазона
 for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 * $measure(currentStep) } { set curr [expr $curr + $measure(currentStep)] } {
+    # проверим, не нажата ли кнопка остановки
+    measure::interop::checkTerminated
+    
 	# выставляем ток на ИП
 	setCurrent $curr
 
@@ -312,3 +332,9 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 * 
 
 finish
 
+if { [info exists settings(beepOnExit)] && $settings(beepOnExit) } {
+    # подаём звуковой сигнал об окончании измерений
+    fconfigure $mm -timeout 0
+    gets $mm
+    puts $mm "*CLS"
+}

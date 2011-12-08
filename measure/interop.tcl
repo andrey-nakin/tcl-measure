@@ -55,10 +55,17 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 		}
 
 		proc interopStart {} {
-			global log workScript_ stopScript_ errorProc_
+			global log workScript_ stopScript_ errorProc_ finalizer_
 
 			if { [catch { uplevel 1 $workScript_ } rc] } {
 				${log}::error "Error executing worker thread: $rc"
+				
+				if { [info exists finalizer_] && $finalizer_ != "" } {
+				    if { [catch { eval $finalizer_ } rc2] } {
+        				${log}::error "Error executing finalizer: $rc2"
+                    }
+                }
+				
 				notify "$errorProc_ {$rc}"
 			}
 
@@ -89,6 +96,16 @@ proc measure::interop::waitForWorkerThreads {} {
 	}
 }
 
+# Sends "terminate" signal to all child threads
+proc measure::interop::terminate {} {
+    tsv::set interop stopped 1
+}
+
+# Clears "terminated" signal
+proc measure::interop::clearTerminated {} {
+    tsv::set interop stopped 0
+}
+
 ##############################################################################
 # Procedures for child threads
 ##############################################################################
@@ -105,6 +122,30 @@ proc measure::interop::setVar { varName value } {
 			${log}::error "setVar $varName $value"
 		}
 	}
+}
+
+# Checks whether this thread should terminate
+# Return
+#   true - terminate
+proc measure::interop::isTerminated {} {
+    return [tsv::get interop stopped]
+}
+
+# Checks whether this thread should terminate
+# If it should, throws an error
+proc measure::interop::checkTerminated {} {
+    if { [isTerminated] } {
+        error "Terminated by user"
+    }
+}
+
+# Register script which should be called on thread error
+# Arguments
+#   script - script to evaluate
+proc measure::interop::registerFinalization { script } {
+    global finalizer_
+    
+    set finalizer_ $script
 }
 
 ##############################################################################
