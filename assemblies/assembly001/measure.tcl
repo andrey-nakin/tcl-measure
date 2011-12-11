@@ -41,11 +41,20 @@ proc measureVoltage { } {
 	# запускаем измерение тока
 	scpi::cmd $cmm "INIT"
 
+	# выставим нужный таймаут
+	set timeout [fconfigure $mm -timeout]
+	fconfigure $mm -timeout [expr int(1000 * $measure(numberOfSamples))]
+	fconfigure $cmm -timeout [expr int(1000 * $measure(numberOfSamples))]
+
 	# ждём завершения измерения напряжения
 	scpi::query $mm "*OPC?"
 
 	# ждём завершения измерения тока
 	scpi::query $cmm "*OPC?"
+
+    # восстановим таймаут
+	fconfigure $mm -timeout $timeout
+	fconfigure $cmm -timeout $timeout
 
 	# списки для хранения значений
 	set vs [list]
