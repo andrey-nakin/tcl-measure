@@ -19,9 +19,9 @@ xset("wpos", screenWidth/2, 0)
 
 scf()
 xtitle("Distribution", "Voltage")
-histplot(50, M(:, 2))
 nd=rand(10000, 1, 'normal') * mSigma + mMean
-histplot(50, nd(:))
+histplot(50, M(:, 2))
+histplot(50, nd(:), style=5)
 xset("wpdim", screenWidth/2, screenHeight/2)
 xset("wpos", 0, screenHeight/2)
 
@@ -33,7 +33,7 @@ rf = real(f)
 if = imag(f)
 f = rf .* rf + if .* if
 x=[0.0 : 1.0 / maxTime : (fl - 1) / maxTime]'
-plot2d(x(1:fl/2), f(1:fl/2))
+plot2d(x(2:fl/2), f(2:fl/2))
 xset("wpdim", screenWidth/2, screenHeight/2)
 xset("wpos", screenWidth/2, screenHeight/2)
 

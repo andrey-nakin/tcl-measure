@@ -209,11 +209,14 @@ grid $w.note.setup.cmm -row 4 -column 1 -sticky w
 grid [label $w.note.setup.lbeepOnExit -text "Звуковой сигнал по окончании:"] -row 5 -column 0 -sticky w
 grid [checkbutton $w.note.setup.beepOnExit -variable settings(beepOnExit) -relief flat] -row 5 -column 1 -sticky w
 
+grid [label $w.note.setup.lsystError -text "Не учитывать инстр. погрешность:"] -row 6 -column 0 -sticky w
+grid [checkbutton $w.note.setup.systError -variable settings(noSystErr) -relief flat] -row 6 -column 1 -sticky w
+
 #pack [ttk::button $w.note.setup.test -text "Опросить устройства" -compound left] -expand no -side left
 #grid $w.note.setup.test -row 4 -column 1 -sticky e
 
 grid columnconfigure $w.note.setup {0 1} -pad 5
-grid rowconfigure $w.note.setup {0 1 2 3 4 5} -pad 5
+grid rowconfigure $w.note.setup {0 1 2 3 4 5 6} -pad 5
 grid rowconfigure $w.note.setup 5 -pad 20
 
 # Информационная панель

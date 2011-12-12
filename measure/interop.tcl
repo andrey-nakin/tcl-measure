@@ -128,7 +128,11 @@ proc measure::interop::setVar { varName value } {
 # Return
 #   true - terminate
 proc measure::interop::isTerminated {} {
-    return [tsv::get interop stopped]
+    if { [tsv::exists interop stopped] } {
+        return [tsv::get interop stopped]
+    } else {
+        return 0
+    }
 }
 
 # Checks whether this thread should terminate

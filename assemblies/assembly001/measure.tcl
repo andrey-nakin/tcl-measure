@@ -33,7 +33,7 @@ proc setCurrent { curr } {
 # Измеряет ток и напряжение на образце
 # Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
 proc measureVoltage { } {
-    global mm cmm measure
+    global mm cmm measure settings
     
 	# запускаем измерение напряжения
 	scpi::cmd $mm "INIT"
@@ -43,8 +43,8 @@ proc measureVoltage { } {
 
 	# выставим нужный таймаут
 	set timeout [fconfigure $mm -timeout]
-	fconfigure $mm -timeout [expr int(1000 * $measure(numberOfSamples))]
-	fconfigure $cmm -timeout [expr int(1000 * $measure(numberOfSamples))]
+	fconfigure $mm -timeout [expr int(10000 * $measure(numberOfSamples))]
+	fconfigure $cmm -timeout [expr int(10000 * $measure(numberOfSamples))]
 
 	# ждём завершения измерения напряжения
 	scpi::query $mm "*OPC?"
@@ -56,50 +56,36 @@ proc measureVoltage { } {
 	fconfigure $mm -timeout $timeout
 	fconfigure $cmm -timeout $timeout
 
-	# списки для хранения значений
-	set vs [list]
-	set cs [list]
-	set rs [list]
-
-	# цикл измерения
+	# считываем значения напряжения и тока
 	set n $measure(numberOfSamples)
-	for { set i 0 } { $i < $n } { incr i } {
-	    # проверим, не нажата ли кнопка остановки
-	    measure::interop::checkTerminated
+	set vs [split [scpi::query $mm "DATA:REMOVE? $n"] ","]
+	set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
 
-		# считываем напряжение
-		set v [expr abs([scpi::query $mm "DATA:REMOVE? 1"])]
-		lappend vs $v
-
-		# считываем ток
-		set c [expr abs([scpi::query $cmm "DATA:REMOVE? 1"])]
-		lappend cs $c
-
-		# вычисляем сопротивление
+	# вычисляем сопротивление
+	set rs [list]
+	foreach v $vs c $cs {
 		lappend rs [expr $v / $c]
-		
-		# выведем прогресс измерения на индикаторы мультиметров
-		#scpi::cmd $mm "DISPLAY:WINDOW2:TEXT:DATA \"[format %0.0f [expr 100.0 * ($i + 1) / $n]]% measured\""
-		#scpi::cmd $cmm "DISPLAY:WINDOW2:TEXT:DATA \"[format %0.0f [expr 100.0 * ($i + 1) / $n]]% measured\""
 	}
 
 	# вычисляем средние значения и сигмы
-	set v [math::statistics::mean $vs]; set sv [math::statistics::stdev $vs]
-	set c [math::statistics::mean $cs]; set sc [math::statistics::stdev $cs]
-	set r [math::statistics::mean $rs]; set sr [math::statistics::stdev $rs]
+	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]
+	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]
+	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]
 
-	# определяем инструментальную погрешность
-	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v]
-	set cErr [hardware::agilent::mm34410a::dciSystematicError $c]
-	set rErr [measure::sigma::div $v $vErr $c $cErr]
-
-	# суммируем инструментальную и измерительную погрешности
-	set vErr [measure::sigma::add $vErr $sv]
-	set cErr [measure::sigma::add $cErr $sc]
-	set rErr [measure::sigma::add $rErr $sr]
+    if { ![info exists settings(noSystErr)] || !$settings(noSystErr) } {
+    	# определяем инструментальную погрешность
+    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v]
+    	set cErr [hardware::agilent::mm34410a::dciSystematicError $c]
+    	set rErr [measure::sigma::div $v $vErr $c $cErr]
+    
+    	# суммируем инструментальную и измерительную погрешности
+    	set sv [measure::sigma::add $vErr $sv]
+    	set sc [measure::sigma::add $cErr $sc]
+    	set sr [measure::sigma::add $rErr $sr]
+    }
 
 	# возвращаем результат измерений, переведённый в милливольты и милливольты
-	return [list [expr 1000.0 * $v] [expr 1000.0 * $vErr] [expr 1000.0 * $c] [expr 1000.0 * $cErr] $r $rErr]
+	return [list [expr 1000.0 * $v] [expr 1000.0 * $sv] [expr 1000.0 * $c] [expr 1000.0 * $sc] $r $sr]
 }
 
 # Устанавливает положение переключателей полярности
@@ -160,10 +146,6 @@ proc setupMM {} {
     # Включить автоподстройку входного сопротивления
     scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
 
-	# Включить сбор статистики
-	scpi::cmd $mm "CALCULATE:STATE ON"
-	scpi::cmd $mm "CALCULATE:FUNCTION AVERAGE"
-	
 	# Число измерений на одну точку результата
 	if { ![info exists measure(numberOfSamples)] || $measure(numberOfSamples) < 1 } {
 		# Если не указано в настройках, по умолчанию равно 1
@@ -209,10 +191,6 @@ proc setupCMM {} {
     }
     scpi::cmd $cmm "SENSE:CURRENT:DC:ZERO:AUTO $mode"
     
-	# Включить сбор статистики
-	scpi::cmd $cmm "CALCULATE:STATE ON"
-	scpi::cmd $cmm "CALCULATE:FUNCTION AVERAGE"
-	
 	# Число измерений на одну точку результата
 	if { ![info exists measure(numberOfSamples)] || $measure(numberOfSamples) < 1 } {
 		# Если не указано в настройках, по умолчанию равно 1
@@ -323,9 +301,9 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 * 
 
 		# Накапливаем суммы
 		lassign $res v sv c sc r sr
-		lappend vs $v; lappend svs $vs
-		lappend cs $c; lappend scs $cs
-		lappend rs $r; lappend srs $rs
+		lappend vs $v; lappend svs $sv
+		lappend cs $c; lappend scs $sc
+		lappend rs $r; lappend srs $sr
           
         # Выводим результаты в окно программы
     	measure::interop::setVar runtime(current) [format "%0.9g \u2213 %0.2g" $c $sc]

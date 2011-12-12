@@ -32,9 +32,6 @@ proc stopMeasure {} {
 
 	# разрешаем кнопку запуска измерений
 	$w.note.measure.run.start configure -state normal
-     
-    # Запрещаем кнопку останова измерений    
-	$w.note.measure.run.stop configure -state disabled
 }
 
 # Запускаем измерения
@@ -52,18 +49,12 @@ proc startMeasure {} {
     
 	# Запускаем на выполнение фоновый поток	с процедурой измерения
 	measure::interop::startWorker [list source [file join [file dirname [info script]] measure.tcl] ] { stopMeasure }
-
-    # Разрешаем кнопку останова измерений
-	$w.note.measure.run.stop configure -state normal
 }
 
 # Прерываем измерения
 proc terminateMeasure {} {
     global w log
 
-    # Запрещаем кнопку останова измерений    
-	$w.note.measure.run.stop configure -state disabled
-	
 	# Посылаем в измерительный поток сигнал об останове
 	measure::interop::terminate
 }
@@ -79,7 +70,7 @@ proc openResults {} {
 proc analyzeResults {} {
     global measure
     
-	catch { exec scilab -f "analyze.sce" & }
+	catch { exec "C:/Program Files/scilab-5.3.3/bin/WScilex.exe" -f "analyze.sce" & }
 }
 
 # Завершение работы программы
@@ -119,7 +110,7 @@ grid [label $w.note.measure.curr.lnsamples -text "Число измерений:
 grid [spinbox $w.note.measure.curr.nsamples -textvariable measure(numberOfSamples) -from 1 -to 50000 -increment 100 -width 10 -validate key -vcmd {string is integer %P} ] -row 0 -column 1 -sticky w
 
 grid [label $w.note.measure.curr.lfreq -text "Частота, Гц:"] -row 1 -column 0 -sticky w
-grid [spinbox $w.note.measure.curr.freq -textvariable measure(freq) -from 0 -to 8000 -increment 10 -width 10 -validate key -vcmd {string is double %P} ] -row 1 -column 1 -sticky w
+grid [spinbox $w.note.measure.curr.freq -textvariable measure(freq) -from 0 -to 2000 -increment 10 -width 10 -validate key -vcmd {string is double %P} ] -row 1 -column 1 -sticky w
 
 grid columnconfigure $w.note.measure.curr {0 1} -pad 5
 grid rowconfigure $w.note.measure.curr {0 1 2 3 4 5} -pad 5
@@ -146,7 +137,6 @@ grid [labelframe $w.note.measure.run -text " Работа " -padx 2 -pady 2] -co
 
 grid [ttk::button $w.note.measure.run.open -text "Открыть результаты" -command openResults] -column 0 -row 2 -sticky w
 grid [ttk::button $w.note.measure.run.analyze -text "Анализировать результаты" -command analyzeResults] -column 1 -row 2 -sticky w
-#grid [ttk::button $w.note.measure.run.stop -text "Остановить измерения" -command terminateMeasure -state disabled] -column 2 -row 2 -sticky w
 grid [ttk::button $w.note.measure.run.start -text "Начать измерения" -command startMeasure] -column 2 -row 2 -sticky e
 
 grid columnconfigure $w.note.measure.run {0 1 2 3 4} -pad 5

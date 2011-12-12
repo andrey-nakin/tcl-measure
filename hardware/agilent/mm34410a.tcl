@@ -31,11 +31,11 @@ set hardware::agilent::mm34410a::dcvReadingErrors {
 }
 
 set hardware::agilent::mm34410a::dcvRangeErrors {
-	1.0e-1	0.000035
-	1.0e-0	0.000007
-	1.0e1	0.000005
-	1.0e2	0.000006
-	1.0e3	0.000006
+	1.0e-1	0.000040
+	1.0e-0	0.000012
+	1.0e1	0.000010
+	1.0e2	0.000011
+	1.0e3	0.000011
 }
 
 set hardware::agilent::mm34410a::dciReadingErrors {
@@ -48,12 +48,12 @@ set hardware::agilent::mm34410a::dciReadingErrors {
 }
 
 set hardware::agilent::mm34410a::dciRangeErrors {
-	1.0e-4	0.00025
-	1.0e-3	0.00006
-	1.0e-2	0.00020
-	1.0e-1	0.00005
-	1.0e0	0.00010
-	3.0e0	0.00020
+	1.0e-4	0.000255
+	1.0e-3	0.000065
+	1.0e-2	0.000205
+	1.0e-1	0.000055
+	1.0e0	0.000105
+	3.0e0	0.000205
 }
 
 set hardware::agilent::mm34410a::resistance4wReadingErrors {
@@ -68,18 +68,26 @@ set hardware::agilent::mm34410a::resistance4wReadingErrors {
 }
 
 set hardware::agilent::mm34410a::resistance4wRangeErrors {
-	1.0e2	0.00004
-	1.0e3	0.00001
-	1.0e4	0.00001
-	1.0e5	0.00001
-	1.0e6	0.00001
-	1.0e7	0.00001
-	1.0e8	0.00001
-	1.0e9	0.00001
+	1.0e2	0.000045
+	1.0e3	0.000015
+	1.0e4	0.000015
+	1.0e5	0.000015
+	1.0e6	0.000015
+	1.0e7	0.000015
+	1.0e8	0.000015
+	1.0e9	0.000015
 }
 
+set hardware::agilent::mm34410a::nplcs { 0.006 0.02 0.06 0.2 1 2 10 100 }
+
+set hardware::agilent::mm34410a::powerFrequency 50.0
+
+set hardware::agilent::mm34410a::dcvRanges { 100.0e-3 1.0 10.0 100.0 1000.0 }
+
+set hardware::agilent::mm34410a::dciRanges { 100.0e-6 1.0e-3 10.0e-3 100.0e-3 1.0 3.0 }
+
 # Calculates and returns systematic DC voltage measure error
-# Automatic ranging mode is assumed.
+# Automatic ranging mode is assumed. NPLC=10
 # We use "90 Day" error with Tcal +/- 5 C
 # Arguments
 #   voltage - voltage value measured in volts
@@ -93,7 +101,7 @@ proc hardware::agilent::mm34410a::dcvSystematicError { voltage } {
 }
 
 # Calculates and returns systematic DC current measure error
-# Automatic ranging mode is assumed.
+# Automatic ranging mode is assumed. NPLC=10
 # We use "90 Day" error with Tcal +/- 5 C
 # Arguments
 #   current - current value measured in ampers
@@ -108,7 +116,7 @@ proc hardware::agilent::mm34410a::dciSystematicError { current } {
 
 # Calculates and returns systematic resistance measure error
 #   for 4-wire method
-# Automatic ranging mode is assumed.
+# Automatic ranging mode is assumed. NPLC=10
 # We use "90 Day" error with Tcal +/- 5 C
 # Arguments
 #   resistance - resistance value measured in ohms
@@ -126,14 +134,14 @@ proc hardware::agilent::mm34410a::systematicError { value readingErrors rangeErr
 	set range 0.0
 
 	foreach { maxval err } $readingErrors {
-		if { $value <= $maxval } {
+		if { $value <= $maxval * 1.0 } {
 			set reading [expr $value * $err]
 			break
 		}
 	}
 
 	foreach { maxval err } $rangeErrors {
-		if { $value <= $maxval } {
+		if { $value <= $maxval * 1.0 } {
 			set range [expr $maxval * $err]
 			break
 		}
@@ -163,5 +171,46 @@ proc hardware::agilent::mm34410a::init { channel } {
 #   channel - канал с открытым портом для связи с устройством
 proc hardware::agilent::mm34410a::done { channel } {
     scpi::cmd $channel "*RST"
+}
+
+# Вычисляет и вовзвращает максимально возможное значение параметра NPLC
+#   для указанного интервала измерений
+# Аргументы
+#   interval - интервал измерений в секундах
+# Результат
+#   значение параметра NPLC
+proc hardware::agilent::mm34410a::nplc { interval } {
+	global hardware::agilent::mm34410a::nplcs
+	global hardware::agilent::mm34410a::powerFrequency
+    
+    set result [lindex $nplcs 0]
+
+    foreach nplc $nplcs {
+        if { 1.0 / $powerFrequency * $nplc < $interval * 0.95 } {
+            set result $nplc
+        }
+    }
+    
+    return $result
+}
+
+# Определяет оптимальный диапазон измерения постоянного тока для указанного значения
+# Аргументы
+#   
+proc hardware::agilent::mm34410a::dciRange { value } {
+	global hardware::agilent::mm34410a::dciRanges
+	
+	set result [lindex $dciRanges end]
+
+	for { set i [expr [llength $dciRanges] - 1 } { $i >= 0 } { incr i -1 } {
+		set max [lindex $dciRanges $i]
+		if { $max * 1.2 > $value } {
+			set result $max
+		} else {
+			break
+		}
+	}
+
+	return $result
 }
 
