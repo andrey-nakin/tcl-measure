@@ -20,6 +20,7 @@ package require measure::visa
 package require measure::com
 package require measure::interop
 package require startfile
+package require hardware::agilent::mm34410a
 
 ###############################################################################
 # Константы
@@ -198,25 +199,28 @@ grid [label $w.note.setup.lps -text "VISA адрес источника пита
 ttk::combobox $w.note.setup.ps -width 40 -textvariable settings(psAddr) -values [measure::visa::allInstruments]
 grid $w.note.setup.ps -row 2 -column 1 -sticky w
 
-grid [label $w.note.setup.lmm -text "VISA адрес вольтметра:"] -row 3 -column 0 -sticky w
+grid [label $w.note.setup.lmanualPower -text "Ручное управление питанием:"] -row 3 -column 0 -sticky w
+grid [checkbutton $w.note.setup.manualPower -variable settings(manualPower) -relief flat] -row 3 -column 1 -sticky w
+
+grid [label $w.note.setup.lmm -text "VISA адрес вольтметра:"] -row 4 -column 0 -sticky w
 ttk::combobox $w.note.setup.mm -width 40 -textvariable settings(mmAddr) -values [measure::visa::allInstruments]
-grid $w.note.setup.mm -row 3 -column 1 -sticky w
+grid $w.note.setup.mm -row 4 -column 1 -sticky w
 
-grid [label $w.note.setup.lcmm -text "VISA адрес амперметра:"] -row 4 -column 0 -sticky w
+grid [label $w.note.setup.lcmm -text "VISA адрес амперметра:"] -row 5 -column 0 -sticky w
 ttk::combobox $w.note.setup.cmm -width 40 -textvariable settings(cmmAddr) -values [measure::visa::allInstruments]
-grid $w.note.setup.cmm -row 4 -column 1 -sticky w
+grid $w.note.setup.cmm -row 5 -column 1 -sticky w
 
-grid [label $w.note.setup.lbeepOnExit -text "Звуковой сигнал по окончании:"] -row 5 -column 0 -sticky w
-grid [checkbutton $w.note.setup.beepOnExit -variable settings(beepOnExit) -relief flat] -row 5 -column 1 -sticky w
+grid [label $w.note.setup.lnplc -text "Кол-во циклов питания на измерение:"] -row 6 -column 0 -sticky w
+grid [ttk::combobox $w.note.setup.nplc -width 40 -textvariable settings(nplc) -state readonly -values $hardware::agilent::mm34410a::nplcs ] -row 6 -column 1 -sticky w
 
-grid [label $w.note.setup.lsystError -text "Не учитывать инстр. погрешность:"] -row 6 -column 0 -sticky w
-grid [checkbutton $w.note.setup.systError -variable settings(noSystErr) -relief flat] -row 6 -column 1 -sticky w
+grid [label $w.note.setup.lbeepOnExit -text "Звуковой сигнал по окончании:"] -row 7 -column 0 -sticky w
+grid [checkbutton $w.note.setup.beepOnExit -variable settings(beepOnExit) -relief flat] -row 7 -column 1 -sticky w
 
-#pack [ttk::button $w.note.setup.test -text "Опросить устройства" -compound left] -expand no -side left
-#grid $w.note.setup.test -row 4 -column 1 -sticky e
+grid [label $w.note.setup.lsystError -text "Не учитывать инстр. погрешность:"] -row 8 -column 0 -sticky w
+grid [checkbutton $w.note.setup.systError -variable settings(noSystErr) -relief flat] -row 8 -column 1 -sticky w
 
 grid columnconfigure $w.note.setup {0 1} -pad 5
-grid rowconfigure $w.note.setup {0 1 2 3 4 5 6} -pad 5
+grid rowconfigure $w.note.setup {0 1 2 3 4 5 6 7 8} -pad 5
 grid rowconfigure $w.note.setup 5 -pad 20
 
 # Информационная панель

@@ -116,46 +116,25 @@ proc setupMM {} {
     
     # Подключаемся к мультиметру (ММ)
     if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
-		error "Невозможно подключиться к мультиметру по адресу `$settings(mmAddr)'"
+		error "Невозможно подключиться к вольтметру по адресу `$settings(mmAddr)'"
 	}
 
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
-	if { [scpi::query $mm "ROUTE:TERMINALS?"] != "FRON" } {
-		error "Turn Front/Rear switch of voltmeter to Front"
-	}
-
-	# включаем режим измерения пост. напряжения
-	scpi::cmd $mm "CONFIGURE:VOLTAGE:DC AUTO"
-
-    # Включить авытовыбор диапазона
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:RANGE:AUTO ON"
-    
-	# Измерять напряжение в течении 10 циклов питания
-	scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC 10"
-
     # Включить автоподстройку нуля, если не используется переполюсовка
     if { $measure(switchVoltage) || $measure(switchCurrent) } {
-        set mode "OFF"
+        set autoZero "OFF"
     } else {
-        set mode "ONCE"
+        set autoZero "ONCE"
     }
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO $mode"
     
-    # Включить автоподстройку входного сопротивления
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
-
-	# Число измерений на одну точку результата
-	if { ![info exists measure(numberOfSamples)] || $measure(numberOfSamples) < 1 } {
-		# Если не указано в настройках, по умолчанию равно 1
-		set measure(numberOfSamples) 1
-	}
-
-	# Настраиваем триггер
-    scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
-    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
-    scpi::cmd $mm "SAMPLE:COUNT $measure(numberOfSamples)"
+	# Настраиваем мультиметр для измерения постоянного напряжения
+	hardware::agilent::mm34410a::configureDcVoltage \
+		-nplc $settings(nplc) \
+		-autoZero $autoZero	\
+		-sampleCount $measure(numberOfSamples)	\
+		 $mm
 }
 
 # Инициализация амперметра
@@ -170,37 +149,19 @@ proc setupCMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $cmm
 
-	if { [scpi::query $cmm "ROUTE:TERMINALS?"] != "FRON" } {
-		error "Turn Front/Rear switch of ampermeter to Front"
-	}
-
-	# включаем режим измерения пост. тока
-	scpi::cmd $cmm "CONFIGURE:CURRENT:DC AUTO"
-
-    # Включить авытовыбор диапазона
-    scpi::cmd $cmm "SENSE:CURRENT:DC:RANGE:AUTO ON"
-    
-	# Измерять напряжение в течении 10 циклов питания
-	scpi::cmd $cmm "SENSE:CURRENT:DC:NPLC 10"
-
     # Включить автоподстройку нуля, если не используется переполюсовка
     if { $measure(switchVoltage) || $measure(switchCurrent) } {
-        set mode "OFF"
+        set autoZero "OFF"
     } else {
-        set mode "ONCE"
+        set autoZero "ONCE"
     }
-    scpi::cmd $cmm "SENSE:CURRENT:DC:ZERO:AUTO $mode"
     
-	# Число измерений на одну точку результата
-	if { ![info exists measure(numberOfSamples)] || $measure(numberOfSamples) < 1 } {
-		# Если не указано в настройках, по умолчанию равно 1
-		set measure(numberOfSamples) 1
-	}
-
-	# Настраиваем триггер
-    scpi::cmd $cmm "TRIGGER:SOURCE IMMEDIATE"
-    scpi::cmd $cmm "SAMPLE:SOURCE IMMEDIATE"
-    scpi::cmd $cmm "SAMPLE:COUNT $measure(numberOfSamples)"
+	# Настраиваем мультиметр для измерения постоянного тока
+	hardware::agilent::mm34410a::configureDcCurrent \
+		-nplc $settings(nplc) \
+		-autoZero $autoZero	\
+		-sampleCount $measure(numberOfSamples)	\
+		 $cmm
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -220,66 +181,33 @@ proc finish {} {
 	setConnectors { 0 0 0 0 }
 }
 
-###############################################################################
-# Начало работы
-###############################################################################
+# Процедура проверяет правильность настроек, при необходимости вносит поправки
+proc validateSettings {} {
+    global settings measure
 
-# Инициализируем протоколирование
-set log [measure::logger::init measure]
+	# Число измерений на одну точку результата
+	if { ![info exists measure(numberOfSamples)] || $measure(numberOfSamples) < 1 } {
+		# Если не указано в настройках, по умолчанию равно 1
+		set measure(numberOfSamples) 1
+	}
 
-# Эта команда будет вызвааться в случае преждевременной остановки потока
-measure::interop::registerFinalization { finish }
+	# Число циклов питание на одно измерение
+	if { ![info exists settings(nplc)] || $settings(nplc) < 0 } {
+		# Если не указано в настройках, по умолчанию равно 10
+		set settings(nplc) 10
+	}
 
-# Читаем настройки программы
-measure::config::read
-
-# Создаём файл с результатами измерений
-measure::datafile::create $measure(fileName) $measure(fileFormat) $measure(fileRewrite) [list "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
-
-# Подключаемся к менеджеру ресурсов VISA
-set rm [visa::open-default-rm]
-
-# Производим подключение к устройствам и их настройку
-setupPs
-setupMM
-setupCMM
-
-# Задаём наборы переполюсовок
-# Основное положение переключателей
-set connectors [list { 0 0 0 0 }]
-if { $measure(switchVoltage) } {
-	# Инверсное подключение вольтметра
-	lappend connectors {1000 1000 0 0} 
-}
-if { $measure(switchCurrent) } {
-	# Инверсное подключение источника тока
-	lappend connectors { 0 0 1000 1000 }
-	if { $measure(switchVoltage) } {
-		# Инверсное подключение вольтметра и источника тока
-		lappend connectors { 1000 1000 1000 1000 } 
+	# Ручное управление питанием
+	if { ![info exists settings(manualPower)] } {
+		# Если не указано в настройках, по умолчанию равно 0
+		set settings(manualPower) 0
 	}
 }
 
-###############################################################################
-# Основной цикл измерений
-###############################################################################
-
-# Устанавливаем выходной ток
-setCurrent $measure(startCurrent)
-
-# Включаем подачу тока на выходы ИП
-hardware::agilent::pse3645a::setOutput $ps 1
-
-# Холостое измерение для "прогрева" мультиметров
-measureVoltage
-
-# Пробегаем по всем токам из заданного диапазона
-for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 * $measure(currentStep) } { set curr [expr $curr + $measure(currentStep)] } {
-    # проверим, не нажата ли кнопка остановки
-    measure::interop::checkTerminated
-    
-	# выставляем ток на ИП
-	setCurrent $curr
+# Процедура производит одно измерение со всеми нужными переполюсовками
+#   и сохраняет результаты в файле результатов
+proc makeMeasurement {} {
+	global mm cmm connectors measure
 
 	set vs [list]; set svs [list]
 	set cs [list]; set scs [list]
@@ -306,9 +234,9 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 * 
 		lappend rs $r; lappend srs $sr
           
         # Выводим результаты в окно программы
-    	measure::interop::setVar runtime(current) [format "%0.9g \u2213 %0.2g" $c $sc]
-    	measure::interop::setVar runtime(voltage) [format "%0.9g \u2213 %0.2g" $v $sv]
-    	measure::interop::setVar runtime(resistance) [format "%0.9g \u2213 %0.2g" $r $sr]
+    	measure::interop::setVar runtime(current) [format "%0.9g \u00b1 %0.2g" $c $sc]
+    	measure::interop::setVar runtime(voltage) [format "%0.9g \u00b1 %0.2g" $v $sv]
+    	measure::interop::setVar runtime(resistance) [format "%0.9g \u00b1 %0.2g" $r $sr]
     	measure::interop::setVar runtime(power) [format "%0.3g" [expr 0.001 * $c * $v]]
 	}
 
@@ -319,6 +247,85 @@ for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 * 
 
     # Выводим результаты в результирующий файл
 	measure::datafile::write $measure(fileName) $measure(fileFormat) [list $c $sc $v $sv $r $sr]
+}
+
+###############################################################################
+# Начало работы
+###############################################################################
+
+# Инициализируем протоколирование
+set log [measure::logger::init measure]
+
+# Эта команда будет вызвааться в случае преждевременной остановки потока
+measure::interop::registerFinalization { finish }
+
+# Читаем настройки программы
+measure::config::read
+
+# Проверяем правильность настроек
+validateSettings
+
+# Создаём файл с результатами измерений
+measure::datafile::create $measure(fileName) $measure(fileFormat) $measure(fileRewrite) [list "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
+
+# Подключаемся к менеджеру ресурсов VISA
+set rm [visa::open-default-rm]
+
+# Производим подключение к устройствам и их настройку
+if { !$settings(manualPower) } {
+	setupPs
+}
+setupMM
+setupCMM
+
+# Задаём наборы переполюсовок
+# Основное положение переключателей
+set connectors [list { 0 0 0 0 }]
+if { $measure(switchVoltage) } {
+	# Инверсное подключение вольтметра
+	lappend connectors {1000 1000 0 0} 
+}
+if { $measure(switchCurrent) } {
+	# Инверсное подключение источника тока
+	lappend connectors { 0 0 1000 1000 }
+	if { $measure(switchVoltage) } {
+		# Инверсное подключение вольтметра и источника тока
+		lappend connectors { 1000 1000 1000 1000 } 
+	}
+}
+
+###############################################################################
+# Основной цикл измерений
+###############################################################################
+
+if { !$settings(manualPower) } {
+	# Устанавливаем выходной ток
+	setCurrent $measure(startCurrent)
+
+	# Включаем подачу тока на выходы ИП
+	hardware::agilent::pse3645a::setOutput $ps 1
+}
+
+# Холостое измерение для "прогрева" мультиметров
+measureVoltage
+
+if { $settings(manualPower) } {
+	# Ручной режим управления питанием
+	# Просто делаем одно измерение и сохраняем результат в файл
+	makeMeasurement
+} else {
+	# Режим автоматического управления питанием
+	# Пробегаем по всем токам из заданного диапазона
+	for { set curr $measure(startCurrent) } { $curr <= $measure(endCurrent) + 0.1 * $measure(currentStep) } { set curr [expr $curr + $measure(currentStep)] } {
+		# проверим, не нажата ли кнопка остановки
+		measure::interop::checkTerminated
+		
+		# выставляем ток на ИП
+		setCurrent $curr
+
+		# Делаем очередное измерение из сохраняем результат в файл
+		makeMeasurement
+	}
 }
 
 ###############################################################################

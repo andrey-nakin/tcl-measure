@@ -40,6 +40,10 @@ proc hardware::agilent::pse3645a::init { channel } {
 # Аргументы
 #   channel - канал с открытым портом для связи с устройством
 proc hardware::agilent::pse3645a::done { channel } {
+	if { !$channel } {
+		return
+	}
+
     scpi::cmd $channel "*RST;SYSTEM:LOCAL"
 }
 

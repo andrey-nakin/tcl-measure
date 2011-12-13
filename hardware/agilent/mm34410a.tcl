@@ -9,6 +9,7 @@
 package require Tcl 8.4
 package provide hardware::agilent::mm34410a 0.1.0
 
+package require cmdline
 package require hardware::scpi
 
 namespace eval hardware::agilent::mm34410a {
@@ -17,7 +18,10 @@ namespace eval hardware::agilent::mm34410a {
     dcvSystematicError \
     dciSystematicError  \
 	init	\
-	done
+	done	\
+	configureDcVoltage	\
+	configureDcCurrent	\
+	checkFrontRear
 }
 
 set hardware::agilent::mm34410a::IDN "Agilent Technologies,34410A"
@@ -273,12 +277,19 @@ proc hardware::agilent::mm34410a::init { channel } {
 
 	# в исходное состояние
     scpi::cmd $channel "*RST;*CLS"
+
+	# Проверяем состояние переключателя front/rear
+	hardware::agilent::mm34410a::checkFrontRear $channel
 }
 
 # Переводит устройство в исходное состояние
 # Аргументы
 #   channel - канал с открытым портом для связи с устройством
 proc hardware::agilent::mm34410a::done { channel } {
+	if { !$channel } {
+		return
+	}
+
     scpi::cmd $channel "*RST"
 }
 
@@ -321,6 +332,99 @@ proc hardware::agilent::mm34410a::dciRange { value } {
 	}
 
 	return $result
+}
+
+# Производит конфигурацию устройства для измерения постоянного напряжения
+# Опции
+#   nplc - число циклов линии питания, по умолчанию 10
+#   autoRange - режим автоподстройки диапазона, может быть on или off. По умолчанию on
+#   autoZero - режим автоподстройки нуля, может быть on, off или once. По умолчанию on
+#   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
+proc hardware::agilent::mm34410a::configureDcVoltage { args } {
+	set options {
+		{nplc.arg			10	"NPLC"}
+		{autoRange.arg		on	"auto ranging: on, off or once"}
+		{autoZero.arg		on	"auto zero: on or off"}
+		{sampleCount.arg	1	"sample count"}
+	}
+
+	set usage ": configureDcVoltage \[options] channel\noptions:"
+	array set params [::cmdline::getoptions args $options $usage]
+
+	set mm [lindex $args 0]
+
+	# включаем режим измерения пост. напряжения
+	scpi::cmd $mm "CONFIGURE:VOLTAGE:DC AUTO"
+
+    # Включить авытовыбор диапазона
+    scpi::cmd $mm "SENSE:VOLTAGE:DC:RANGE:AUTO $params(autoRange)"
+    
+	# Измерять напряжение в течении указанного кол-ва циклов питания
+	scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC $params(nplc)"
+
+    # Включить нужный режим автоподстройки нуля
+    scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO $params(autoZero)"
+    
+    # Включить автоподстройку входного сопротивления
+    scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
+
+	# Настраиваем триггер
+    scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
+    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+    scpi::cmd $mm "SAMPLE:COUNT $params(sampleCount)"
+}
+
+# Производит конфигурацию устройства для измерения постоянного тока
+# Опции
+#   nplc - число циклов линии питания, по умолчанию 10
+#   autoRange - режим автоподстройки диапазона, может быть on или off. По умолчанию on
+#   autoZero - режим автоподстройки нуля, может быть on, off или once. По умолчанию on
+#   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
+proc hardware::agilent::mm34410a::configureDcCurrent { args } {
+	set options {
+		{nplc.arg			10	"NPLC"}
+		{autoRange.arg		on	"auto ranging: on, off or once"}
+		{autoZero.arg		on	"auto zero: on or off"}
+		{sampleCount.arg	1	"sample count"}
+	}
+
+	set usage ": configureDcVoltage \[options] channel\noptions:"
+	array set params [::cmdline::getoptions args $options $usage]
+
+	set mm [lindex $args 0]
+
+	# включаем режим измерения пост. напряжения
+	scpi::cmd $mm "CONFIGURE:CURRENT:DC AUTO"
+
+    # Включить авытовыбор диапазона
+    scpi::cmd $mm "SENSE:CURRENT:DC:RANGE:AUTO $params(autoRange)"
+    
+	# Измерять напряжение в течении указанного кол-ва циклов питания
+	scpi::cmd $mm "SENSE:CURRENT:DC:NPLC $params(nplc)"
+
+    # Включить нужный режим автоподстройки нуля
+    scpi::cmd $mm "SENSE:CURRENT:DC:ZERO:AUTO $params(autoZero)"
+    
+	# Настраиваем триггер
+    scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
+    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+    scpi::cmd $mm "SAMPLE:COUNT $params(sampleCount)"
+}
+
+# Проверяет положение переключателя Front/Rear
+# Если оно не равно нужному, выбрасывает ошибку
+# Аргументы
+#   channel - канал связи с мультиметром
+#   required - нужное положение переключателя, может быть FRON или REAR
+proc hardware::agilent::mm34410a::checkFrontRear { channel { required "FRON" } } {
+	if { [scpi::query $channel "ROUTE:TERMINALS?"] != $required } {
+		if { [string equal -nocase $required "FRON"] } {
+			set required "Front"
+		} else {
+			set required "Rear"
+		}
+		error "Turn Front/Rear switch of Agilent multimeter to \"$required\""
+	}
 }
 
 proc hardware::agilent::mm34410a::getDcvNplcAdder { range nplc } {
