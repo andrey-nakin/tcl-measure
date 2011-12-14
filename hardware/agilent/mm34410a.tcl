@@ -286,7 +286,7 @@ proc hardware::agilent::mm34410a::init { channel } {
 # Аргументы
 #   channel - канал с открытым портом для связи с устройством
 proc hardware::agilent::mm34410a::done { channel } {
-	if { !$channel } {
+	if { $channel == "" } {
 		return
 	}
 
@@ -339,13 +339,17 @@ proc hardware::agilent::mm34410a::dciRange { value } {
 #   nplc - число циклов линии питания, по умолчанию 10
 #   autoRange - режим автоподстройки диапазона, может быть on или off. По умолчанию on
 #   autoZero - режим автоподстройки нуля, может быть on, off или once. По умолчанию on
+#   triggerDelay - пауза срабатывания триггера, по умолчанию DEF
 #   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
+#   sampleInterval - интервал между измерениями, по умолчанию не указан
 proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 	set options {
 		{nplc.arg			10	"NPLC"}
-		{autoRange.arg		on	"auto ranging: on, off or once"}
-		{autoZero.arg		on	"auto zero: on or off"}
+		{autoRange.arg		ON	"auto ranging: on, off or once"}
+		{autoZero.arg		ON	"auto zero: on or off"}
+		{triggerDelay.arg	DEF		"trigger delay"}
 		{sampleCount.arg	1	"sample count"}
+		{sampleInterval.arg	""		"sample interval"}
 	}
 
 	set usage ": configureDcVoltage \[options] channel\noptions:"
@@ -359,19 +363,44 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
     # Включить авытовыбор диапазона
     scpi::cmd $mm "SENSE:VOLTAGE:DC:RANGE:AUTO $params(autoRange)"
     
-	# Измерять напряжение в течении указанного кол-ва циклов питания
-	scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC $params(nplc)"
-
     # Включить нужный режим автоподстройки нуля
     scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO $params(autoZero)"
     
     # Включить автоподстройку входного сопротивления
     scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
 
+	if { $params(sampleInterval) != "" } {
+		# Измерять напряжение в течении макс. возможного кол-ва циклов питания
+		scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC [hardware::agilent::mm34410a::nplc $params(sampleInterval)]"
+	} else {
+		# Измерять напряжение в течении указанного кол-ва циклов питания
+		if { $params(nplc) == "" } {
+			set params(nplc) 10
+		}
+		scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC $params(nplc)"
+
+	}
+
 	# Настраиваем триггер
-    scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
-    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+    #scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
+	if { $params(triggerDelay) == "" } {
+		set params(triggerDelay) DEF
+	}
+	if { ![string equal -nocase $params(triggerDelay) "DEF"] } {
+	    scpi::cmd $mm "TRIGGER:DELAY $params(triggerDelay)"
+	}
+	if { $params(sampleInterval) != "" } {
+		# Настраиваем периодический съём сигнала
+		scpi::cmd $mm "SAMPLE:SOURCE TIMER"
+		scpi::cmd $mm "SAMPLE:TIMER $params(sampleInterval)"
+	} else {
+		# Настраиваем непрерывный съём сигнала
+	    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+	}
     scpi::cmd $mm "SAMPLE:COUNT $params(sampleCount)"
+
+	# Проверяем отсутствие ошибки
+	scpi::checkError $mm
 }
 
 # Производит конфигурацию устройства для измерения постоянного тока
@@ -379,13 +408,17 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 #   nplc - число циклов линии питания, по умолчанию 10
 #   autoRange - режим автоподстройки диапазона, может быть on или off. По умолчанию on
 #   autoZero - режим автоподстройки нуля, может быть on, off или once. По умолчанию on
+#   triggerDelay - пауза срабатывания триггера, по умолчанию DEF
 #   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
+#   sampleInterval - интервал между измерениями, по умолчанию не указан
 proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 	set options {
-		{nplc.arg			10	"NPLC"}
-		{autoRange.arg		on	"auto ranging: on, off or once"}
-		{autoZero.arg		on	"auto zero: on or off"}
-		{sampleCount.arg	1	"sample count"}
+		{nplc.arg			10		"NPLC"}
+		{autoRange.arg		ON		"auto ranging: on, off or once"}
+		{autoZero.arg		ON		"auto zero: on or off"}
+		{triggerDelay.arg	DEF		"trigger delay"}
+		{sampleCount.arg	1		"sample count"}
+		{sampleInterval.arg	""		"sample interval"}
 	}
 
 	set usage ": configureDcVoltage \[options] channel\noptions:"
@@ -397,18 +430,48 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 	scpi::cmd $mm "CONFIGURE:CURRENT:DC AUTO"
 
     # Включить авытовыбор диапазона
+	if { $params(autoRange) == "" } {
+		set params(autoRange) ON
+	}
     scpi::cmd $mm "SENSE:CURRENT:DC:RANGE:AUTO $params(autoRange)"
     
-	# Измерять напряжение в течении указанного кол-ва циклов питания
-	scpi::cmd $mm "SENSE:CURRENT:DC:NPLC $params(nplc)"
-
     # Включить нужный режим автоподстройки нуля
+	if { $params(autoZero) == "" } {
+		set params(autoZero) ON
+	}
     scpi::cmd $mm "SENSE:CURRENT:DC:ZERO:AUTO $params(autoZero)"
+
+	if { $params(sampleInterval) != "" } {
+		# Измерять напряжение в течении макс. возможного кол-ва циклов питания
+		scpi::cmd $mm "SENSE:CURRENT:DC:NPLC [hardware::agilent::mm34410a::nplc $params(sampleInterval)]"
+	} else {
+		# Измерять напряжение в течении указанного кол-ва циклов питания
+		if { $params(nplc) == "" } {
+			set params(nplc) 10
+		}
+		scpi::cmd $mm "SENSE:CURRENT:DC:NPLC $params(nplc)"
+	}
     
 	# Настраиваем триггер
-    scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
-    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+    #scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
+	if { $params(triggerDelay) == "" } {
+		set params(triggerDelay) DEF
+	}
+	if { ![string equal -nocase $params(triggerDelay) "DEF"] } {
+	    scpi::cmd $mm "TRIGGER:DELAY $params(triggerDelay)"
+	}
+	if { $params(sampleInterval) != "" } {
+		# Настраиваем периодический съём сигнала
+		scpi::cmd $mm "SAMPLE:SOURCE TIMER"
+		scpi::cmd $mm "SAMPLE:TIMER $params(sampleInterval)"
+	} else {
+		# Настраиваем непрерывный съём сигнала
+	    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+	}
     scpi::cmd $mm "SAMPLE:COUNT $params(sampleCount)"
+
+	# Проверяем отсутствие ошибки
+	scpi::checkError $mm
 }
 
 # Проверяет положение переключателя Front/Rear

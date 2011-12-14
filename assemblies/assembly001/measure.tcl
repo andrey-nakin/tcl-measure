@@ -122,17 +122,10 @@ proc setupMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
-    # Включить автоподстройку нуля, если не используется переполюсовка
-    if { $measure(switchVoltage) || $measure(switchCurrent) } {
-        set autoZero "OFF"
-    } else {
-        set autoZero "ONCE"
-    }
-    
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc $settings(nplc) \
-		-autoZero $autoZero	\
+		-autoZero ONCE	\
 		-sampleCount $measure(numberOfSamples)	\
 		 $mm
 }
@@ -149,17 +142,10 @@ proc setupCMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $cmm
 
-    # Включить автоподстройку нуля, если не используется переполюсовка
-    if { $measure(switchVoltage) || $measure(switchCurrent) } {
-        set autoZero "OFF"
-    } else {
-        set autoZero "ONCE"
-    }
-    
 	# Настраиваем мультиметр для измерения постоянного тока
 	hardware::agilent::mm34410a::configureDcCurrent \
 		-nplc $settings(nplc) \
-		-autoZero $autoZero	\
+		-autoZero ONCE	\
 		-sampleCount $measure(numberOfSamples)	\
 		 $cmm
 }
@@ -332,11 +318,10 @@ if { $settings(manualPower) } {
 # Завершение измерений
 ###############################################################################
 
-finish
-
 if { [info exists settings(beepOnExit)] && $settings(beepOnExit) } {
     # подаём звуковой сигнал об окончании измерений
-    fconfigure $mm -timeout 0
-    gets $mm
-    puts $mm "*CLS"
+	scpi::cmd $mm "SYST:BEEP"
 }
+
+finish
+

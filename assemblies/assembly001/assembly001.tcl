@@ -30,9 +30,43 @@ package require hardware::agilent::mm34410a
 # Процедуры
 ###############################################################################
 
+# Очищаем поля с результатами измерений
+proc clearResults {} {
+	global runtime
+
+	set runtime(current) ""
+	set runtime(voltage) ""
+	set runtime(resistance) ""
+	set runtime(power) ""
+}
+
+# Запускаем тестовый модуль
+proc startTester {} {
+	# Сохраняем параметры программы
+	measure::config::write
+
+    # Очищаем результаты в окне программы
+	clearResults
+
+    # Сбрасываем сигнал "прерван"
+    measure::interop::clearTerminated
+
+	# Запускаем на выполнение фоновый поток	с процедурой измерения
+	measure::interop::startWorker [list source [file join [file dirname [info script]] tester.tcl] ] {} {}
+}
+
+# Прерываем работу тестового модуля
+proc terminateTester {} {
+	# Посылаем в измерительный поток сигнал об останове
+	measure::interop::waitForWorkerThreads
+}
+
 # Процедура вызываеися из фонового рабочего потока по завершении его работы
 proc stopMeasure {} {
 	global w log
+
+	# Запускаем тестер
+	startTester
 
 	# разрешаем кнопку запуска измерений
 	$w.note.measure.run.start configure -state normal
@@ -48,14 +82,14 @@ proc startMeasure {} {
 	# запрещаем кнопку запуска измерений
 	$w.note.measure.run.start configure -state disabled
 
+	# Останавливаем работу тестера
+	terminateTester
+
 	# Сохраняем параметры программы
 	measure::config::write
 
     # Очищаем результаты в окне программы
-	set runtime(current) ""
-	set runtime(voltage) ""
-	set runtime(resistance) ""
-	set runtime(power) ""
+	clearResults
 
     # Сбрасываем сигнал "прерван"
     measure::interop::clearTerminated
@@ -102,6 +136,9 @@ proc quit {} {
 
 set log [measure::logger::init measure]
 measure::logger::server
+
+# Читаем настройки
+measure::config::read
 
 # Создаём окно программы
 set w ""
@@ -232,8 +269,8 @@ pack [label $w.inf.txt -wraplength 6i -justify left -text "Программа и
 # Кнопка закрытия приложения
 ::measure::widget::exit-button $w
 
-# Читаем настройки
-measure::config::read
+# Запускаем тестер
+startTester
 
 #vwait forever
 thread::wait

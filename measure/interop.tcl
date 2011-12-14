@@ -8,6 +8,8 @@
 package require Tcl 8.4
 package provide measure::interop 0.1.0
 
+package require Thread
+
 namespace eval measure::interop {
 	namespace export \
 		startWorker	\
@@ -45,7 +47,7 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 			}
 		}
 
-		proc interopConfig { mainThreadId workScript stopScript errorProc } {
+		proc interopConfig { mainThreadId workScript stopScript { errorProc "" } } {
 			global workScript_ stopScript_  mainThreadId_ errorProc_
 
 			set mainThreadId_ $mainThreadId
@@ -66,7 +68,9 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
                     }
                 }
 				
-				notify "$errorProc_ {$rc}"
+				if { $errorProc_ != "" } {
+					notify "$errorProc_ {$rc}"
+				}
 			}
 
 			notify "measure::interop::doStop [thread::id] { $stopScript_ }"
@@ -74,6 +78,7 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 			thread::exit
 		}
 
+		tsv::lpop interop workers [tsv::lsearch interop workers [thread::id]]
 		thread::wait
 	}]
 
@@ -86,6 +91,8 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 # Sends "stop" messages to worker threads and wait for them.
 proc measure::interop::waitForWorkerThreads {} {
 	global log
+
+	terminate
 
 	if { [tsv::exists interop workers] } {
 		foreach tid [tsv::get interop workers] {
@@ -150,6 +157,24 @@ proc measure::interop::registerFinalization { script } {
     global finalizer_
     
     set finalizer_ $script
+}
+
+# Sleeps given number of milliseconds or until thread is terminated
+# Arguments
+#   delay - number of milliseconds to sleep
+proc measure::interop::sleep { delay } {
+	set maxTime [expr int([clock milliseconds] + $delay)]
+	while { ![isTerminated] && [clock milliseconds] < $maxTime } {
+		after 100
+	}
+}
+
+# Checks whether thread is working under a "parent"
+# Return
+#   true - thread is not working under a parent
+proc measure::interop::isAlone {} {
+	global mainThreadId_
+	return [expr [info exists mainThreadId_] ? 0 : 1]
 }
 
 ##############################################################################

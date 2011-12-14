@@ -9,7 +9,7 @@ package require Tcl 8.5
 package provide hardware::scpi 0.1.0
 
 namespace eval scpi {
-	namespace export query setAndQuery validateIdn clear
+	namespace export query setAndQuery validateIdn clear readError checkError
 }
 
 array set scpi::commandTimes {}
@@ -94,6 +94,9 @@ proc scpi::setAndQuery { channel command value { delay -1 } } {
 # Requests device ID by *IDN command.
 # Then compares answer with given expected ID.
 # Throws an exception if ID's do not match.
+# Arguments
+#   channel - device channel
+#   idn - expected device ID
 proc scpi::validateIdn { channel idn } {
     set ans [query $channel "*IDN?"]
     if { [string compare -nocase -length [string length $idn] $ans $idn] } {
@@ -102,11 +105,15 @@ proc scpi::validateIdn { channel idn } {
 }
 
 # Sets basic SCPI-compatible settings for channel
+# Arguments
+#   channel - device channel
 proc scpi::configure { channel } {
     fconfigure $channel -timeout 3000 -buffering line -encoding binary -translation binary
 }
 
 # Clears device output buffer
+# Arguments
+#   channel - device channel
 proc scpi::clear { channel } {
 	# Save current device timeout
 	set timeout [fconfigure $channel -timeout]
@@ -121,6 +128,28 @@ proc scpi::clear { channel } {
 	fconfigure $channel -timeout $timeout
 }
 
+# Reads and parses first error from queue
+# Arguments
+#   channel - device channel
+# Return
+#   error code and message pair
+proc scpi::readError { channel } {
+	lassign [split [query $channel "SYSTEM:ERROR?"] ","] code msg
+	set msg [string range $msg 1 [expr [string length $range] - 1]]
+	return [list $code $msg]
+}
+
+# Checks whether device indicates an error
+# If it does, throws error
+# Arguments
+#   channel - device channel
+proc scpi::checkError { channel } {
+	lassign [readError $channel] code msg
+	if { $code != 0 } {
+		error "Error ${code} on SCPI channel $channel: $msg"
+	}
+}
+
 proc isRs232 { channel } {
     if { [ catch { fconfigure $channel -mode } ] } {
         return 0
@@ -128,3 +157,4 @@ proc isRs232 { channel } {
         return 1
     }
 }
+

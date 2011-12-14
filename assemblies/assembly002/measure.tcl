@@ -53,8 +53,6 @@ proc measureVoltage { } {
 proc setupMM {} {
     global mm rm settings measure
     
-    set interval [expr 1.0 / $measure(freq)]
-    
     # Подключаемся к мультиметру (ММ)
     if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
 		error "Невозможно подключиться к мультиметру по адресу `$settings(mmAddr)'"
@@ -63,37 +61,17 @@ proc setupMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
-	if { [scpi::query $mm "ROUTE:TERMINALS?"] != "FRON" } {
-		error "Turn Front/Rear switch of voltmeter to Front"
-	}
-
-	# включаем режим измерения пост. напряжения
-	scpi::cmd $mm "CONFIGURE:VOLTAGE:DC AUTO"
-
-    # Включить авытовыбор диапазона
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:RANGE:AUTO ONCE"
-    
-	# Измерять напряжение с макс. возможным разрешением
-	scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC [hardware::agilent::mm34410a::nplc $interval]"
-
-    # Выключить автоподстройку нуля
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO OFF"
-    
-    # Включить автоподстройку входного сопротивления
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
-
 	# Число измерений на одну точку результата
 	if { ![info exists measure(numberOfSamples)] || $measure(numberOfSamples) < 1 } {
-		# Если не указано в настройках, по умолчанию равно 1
 		error "Number of samples is not specified"
 	}
 
-	# Настраиваем триггер
-    scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
-    scpi::cmd $mm "TRIGGER:DELAY MIN"
-    scpi::cmd $mm "SAMPLE:SOURCE TIMER"
-    scpi::cmd $mm "SAMPLE:TIMER $interval"
-    scpi::cmd $mm "SAMPLE:COUNT $measure(numberOfSamples)"
+	# Настраиваем мультиметр для измерения постоянного напряжеия
+	hardware::agilent::mm34410a::configureDcVoltage \
+		-autoRange ONCE -autoZero ONCE -triggerDelay 0	\
+		-sampleInterval [expr 1.0 / $measure(freq)]	\
+		-sampleCount $measure(numberOfSamples)	\
+		 $mm
 }
 
 # Завершаем работу установки, матчасть в исходное.
