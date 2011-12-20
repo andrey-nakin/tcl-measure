@@ -40,7 +40,7 @@ proc scpi::cmd { channel command { delay -1 } } {
 	       set commandDelays($channel) 500 
        } else {
 	       # default delay for other connection types
-	       set commandDelays($channel) 50 
+	       set commandDelays($channel) 5 
        }
     }
 
@@ -135,7 +135,7 @@ proc scpi::clear { channel } {
 #   error code and message pair
 proc scpi::readError { channel } {
 	lassign [split [query $channel "SYSTEM:ERROR?"] ","] code msg
-	set msg [string range $msg 1 [expr [string length $range] - 1]]
+	set msg [string range $msg 1 [expr [string length $msg] - 1]]
 	return [list $code $msg]
 }
 

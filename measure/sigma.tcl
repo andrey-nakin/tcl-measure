@@ -21,7 +21,9 @@ proc measure::sigma::add { args } {
 	set sum 0.0
 
 	foreach e $args {
-		set sum [expr $sum + $e * $e]
+        if { $e != "" } {	
+		  set sum [expr $sum + $e * $e]
+		}
 	}
 
 	return [expr sqrt($sum)]

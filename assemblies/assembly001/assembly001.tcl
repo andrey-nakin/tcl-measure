@@ -88,9 +88,6 @@ proc startMeasure {} {
 	# Сохраняем параметры программы
 	measure::config::write
 
-    # Очищаем результаты в окне программы
-	clearResults
-
     # Сбрасываем сигнал "прерван"
     measure::interop::clearTerminated
     
@@ -99,6 +96,9 @@ proc startMeasure {} {
 
     # Разрешаем кнопку останова измерений
 	$w.note.measure.run.stop configure -state normal
+	
+    # Очищаем результаты в окне программы
+	clearResults
 }
 
 # Прерываем измерения

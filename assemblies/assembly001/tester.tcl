@@ -36,11 +36,11 @@ proc measureVoltage { } {
     global mm cmm measure settings
     
 	# измеряем напряжение и ток
-	set v [scpi::query $mm "READ?"]
-	set c [scpi::query $cmm "READ?"]
+	set v [expr abs([scpi::query $mm "READ?"])]
+	set c [expr abs([scpi::query $cmm "READ?"])]
 
 	# вычисляем сопротивление
-	set r [expr $v / $c]
+	set r [expr abs($v / $c)]
 
 	# определяем инструментальную погрешность
 	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
@@ -83,7 +83,7 @@ proc setupMM {} {
 	}
 
     # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init $mm
+    hardware::agilent::mm34410a::init -noFrontCheck $mm
 
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
@@ -101,7 +101,7 @@ proc setupCMM {} {
 	}
 
     # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init $cmm
+    hardware::agilent::mm34410a::init -noFrontCheck $cmm
 
 	# Настраиваем мультиметр для измерения постоянного тока
 	hardware::agilent::mm34410a::configureDcCurrent \
@@ -193,20 +193,20 @@ proc run {} {
 		# Снимаем показания
 		lassign [measureVoltage] v sv c sc r sr
 
-		set c [format "%0.9g \u00b1 %0.2g" $c $sc]
-		set v [format "%0.9g \u00b1 %0.2g" $v $sv]
-		set r [format "%0.9g \u00b1 %0.2g" $r $sr]
-		set p [format "%0.3g" [expr 0.001 * $c * $v]]
+		set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
+		set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
+		set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
+		set pf [format "%0.3g" [expr 0.001 * abs($c * $v)]]
 
 		if { [measure::interop::isAlone] } {
 		    # Выводим результаты в консоль
-			puts "Current=$c\tVoltage=$v\tResistance=$r\tPower=$p"
+			puts "Current=$cf\tVoltage=$vf\tResistance=$rf\tPower=$pf"
 		} else {
 		    # Выводим результаты в окно программы
-			measure::interop::setVar runtime(current) $c
-			measure::interop::setVar runtime(voltage) $v
-			measure::interop::setVar runtime(resistance) $r
-			measure::interop::setVar runtime(power) $p
+			measure::interop::setVar runtime(current) $cf
+			measure::interop::setVar runtime(voltage) $vf
+			measure::interop::setVar runtime(resistance) $rf
+			measure::interop::setVar runtime(power) $pf
 		}
 
 		# Выдерживаем паузу
@@ -231,13 +231,13 @@ validateSettings
 # Основной цикл измерений
 ###############################################################################
 
-# работаем в цикле пока не получен сигнал останова
-while { ![measure::interop::isTerminated] }	{
-	# Запускаем процедуру измерения
-	catch { run }
-	catch { finish }
+# Эта команда будет вызваться в случае преждевременной остановки потока
+measure::interop::registerFinalization { finish }
 
-	# В случае ошибки выдерживаем паузу
-	measure::interop::sleep 1000
-}
+# Запускаем процедуру измерения
+run
 
+# Завершаем работу
+finish
+
+after 1000

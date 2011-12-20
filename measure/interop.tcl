@@ -75,10 +75,10 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 
 			notify "measure::interop::doStop [thread::id] { $stopScript_ }"
 
+    		tsv::lpop interop workers [tsv::lsearch interop workers [thread::id]]
 			thread::exit
 		}
 
-		tsv::lpop interop workers [tsv::lsearch interop workers [thread::id]]
 		thread::wait
 	}]
 
@@ -163,9 +163,9 @@ proc measure::interop::registerFinalization { script } {
 # Arguments
 #   delay - number of milliseconds to sleep
 proc measure::interop::sleep { delay } {
-	set maxTime [expr int([clock milliseconds] + $delay)]
+	set maxTime [expr [clock milliseconds] + int($delay)]
 	while { ![isTerminated] && [clock milliseconds] < $maxTime } {
-		after 100
+		after 50
 	}
 }
 

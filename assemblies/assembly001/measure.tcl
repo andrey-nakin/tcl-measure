@@ -68,14 +68,14 @@ proc measureVoltage { } {
 	}
 
 	# вычисляем средние значения и сигмы
-	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]
-	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]
-	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]
+	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
+	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
+	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]; if { $sr == ""} { set sr 0 }
 
     if { ![info exists settings(noSystErr)] || !$settings(noSystErr) } {
     	# определяем инструментальную погрешность
-    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v]
-    	set cErr [hardware::agilent::mm34410a::dciSystematicError $c]
+    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
+    	set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(nplc)]
     	set rErr [measure::sigma::div $v $vErr $c $cErr]
     
     	# суммируем инструментальную и измерительную погрешности
@@ -152,19 +152,39 @@ proc setupCMM {} {
 
 # Завершаем работу установки, матчасть в исходное.
 proc finish {} {
-    global ps mm cmm
+    global rm ps mm cmm
 
-	# Переводим ИП в исходный режим
-	hardware::agilent::pse3645a::done $ps
+    if { [info exists ps] } {
+    	# Переводим ИП в исходный режим
+    	hardware::agilent::pse3645a::done $ps
+    	close $ps
+    	unset ps
+    }
 
-	# Переводим вольтметр в исходный режим
-	hardware::agilent::mm34410a::done $mm
+    if { [info exists mm] } {
+    	# Переводим вольтметр в исходный режим
+    	hardware::agilent::mm34410a::done $mm
+    	close $mm
+    	unset mm
+    }
 
-	# Переводим амперметр в исходный режим
-	hardware::agilent::mm34410a::done $cmm
+    if { [info exists cmm] } {
+    	# Переводим амперметр в исходный режим
+    	hardware::agilent::mm34410a::done $cmm
+    	close $cmm
+    	unset cmm
+    }
 	
+	if { [info exists rm] } {
+    	close $rm
+    	unset rm
+    }
+    
 	# реле в исходное
 	setConnectors { 0 0 0 0 }
+	
+	# выдержим паузу
+	after 1000
 }
 
 # Процедура проверяет правильность настроек, при необходимости вносит поправки
@@ -219,11 +239,21 @@ proc makeMeasurement {} {
 		lappend cs $c; lappend scs $sc
 		lappend rs $r; lappend srs $sr
           
-        # Выводим результаты в окно программы
-    	measure::interop::setVar runtime(current) [format "%0.9g \u00b1 %0.2g" $c $sc]
-    	measure::interop::setVar runtime(voltage) [format "%0.9g \u00b1 %0.2g" $v $sv]
-    	measure::interop::setVar runtime(resistance) [format "%0.9g \u00b1 %0.2g" $r $sr]
-    	measure::interop::setVar runtime(power) [format "%0.3g" [expr 0.001 * $c * $v]]
+        set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
+        set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
+        set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
+        set pf [format "%0.3g" [expr 0.001 * $c * $v]]    
+          
+		if { [measure::interop::isAlone] } {
+		    # Выводим результаты в консоль
+			puts "Current=$cf\tVoltage=$vf\tResistance=$rf\tPower=$pf"
+		} else {
+		    # Выводим результаты в окно программы
+			measure::interop::setVar runtime(current) $cf
+			measure::interop::setVar runtime(voltage) $vf
+			measure::interop::setVar runtime(resistance) $rf
+			measure::interop::setVar runtime(power) $pf
+		}
 	}
 
 	# Вычисляем средние значения
@@ -321,7 +351,7 @@ if { $settings(manualPower) } {
 if { [info exists settings(beepOnExit)] && $settings(beepOnExit) } {
     # подаём звуковой сигнал об окончании измерений
 	scpi::cmd $mm "SYST:BEEP"
+	after 500
 }
 
 finish
-

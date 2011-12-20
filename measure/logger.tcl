@@ -65,6 +65,9 @@ proc ::measure::logger::server { {logfile "measure.log"} } {
 # INTERNAL PROCEDURES
 
 proc ::measure::logger::log { level service txt } {
+    if { ![tsv::exists measure-logger loggerThread] } {
+        server
+    }
 	set t [tsv::get measure-logger loggerThread]
 	thread::send -async $t [list log $level "$service\t$txt"]
 }

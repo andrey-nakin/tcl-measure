@@ -266,11 +266,20 @@ proc hardware::agilent::mm34410a::systematicError { value readingErrors rangeErr
 # Производит инициализацию и опрос устройства
 # Аргументы
 #   channel - канал с открытым портом для связи с устройством
-proc hardware::agilent::mm34410a::init { channel } {
+proc hardware::agilent::mm34410a::init { args } {
     global hardware::agilent::mm34410a::IDN
 
+	set options {
+		{noFrontCheck			""	""}
+	}
+
+	set usage ": init \[options] channel\noptions:"
+	array set params [::cmdline::getoptions args $options $usage]
+
+	set channel [lindex $args 0]
+
     # очищаем выходной буфер
-	scpi::clear $channel
+	#scpi::clear $channel
 
     # производим опрос устройства
 	scpi::validateIdn $channel $IDN
@@ -278,8 +287,10 @@ proc hardware::agilent::mm34410a::init { channel } {
 	# в исходное состояние
     scpi::cmd $channel "*RST;*CLS"
 
-	# Проверяем состояние переключателя front/rear
-	hardware::agilent::mm34410a::checkFrontRear $channel
+    if { ![info exists params(noFrontCheck)] || !$params(noFrontCheck) } {
+    	# Проверяем состояние переключателя front/rear
+    	hardware::agilent::mm34410a::checkFrontRear $channel
+    } 
 }
 
 # Переводит устройство в исходное состояние
@@ -371,15 +382,15 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 
 	if { $params(sampleInterval) != "" } {
 		# Измерять напряжение в течении макс. возможного кол-ва циклов питания
-		scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC [hardware::agilent::mm34410a::nplc $params(sampleInterval)]"
+		set params(nplc) [hardware::agilent::mm34410a::nplc $params(sampleInterval)]
 	} else {
 		# Измерять напряжение в течении указанного кол-ва циклов питания
 		if { $params(nplc) == "" } {
 			set params(nplc) 10
 		}
-		scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC $params(nplc)"
-
 	}
+	scpi::cmd $mm "SENSE:VOLTAGE:DC:NPLC $params(nplc)"
+	checkTimeout $mm [minTimeout $params(nplc)]
 
 	# Настраиваем триггер
     #scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
@@ -401,6 +412,8 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 
 	# Проверяем отсутствие ошибки
 	scpi::checkError $mm
+	
+	after 500
 }
 
 # Производит конфигурацию устройства для измерения постоянного тока
@@ -443,14 +456,15 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 
 	if { $params(sampleInterval) != "" } {
 		# Измерять напряжение в течении макс. возможного кол-ва циклов питания
-		scpi::cmd $mm "SENSE:CURRENT:DC:NPLC [hardware::agilent::mm34410a::nplc $params(sampleInterval)]"
+		set params(nplc) [hardware::agilent::mm34410a::nplc $params(sampleInterval)]
 	} else {
 		# Измерять напряжение в течении указанного кол-ва циклов питания
 		if { $params(nplc) == "" } {
 			set params(nplc) 10
 		}
-		scpi::cmd $mm "SENSE:CURRENT:DC:NPLC $params(nplc)"
 	}
+	scpi::cmd $mm "SENSE:CURRENT:DC:NPLC $params(nplc)"
+	checkTimeout $mm [minTimeout $params(nplc)]
     
 	# Настраиваем триггер
     #scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
@@ -472,6 +486,8 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 
 	# Проверяем отсутствие ошибки
 	scpi::checkError $mm
+	
+	after 500
 }
 
 # Проверяет положение переключателя Front/Rear
@@ -552,3 +568,13 @@ proc hardware::agilent::mm34410a::getAdder { tbl nplc } {
 	return $result
 }
 
+proc hardware::agilent::mm34410a::minTimeout { nplc } {
+    global hardware::agilent::mm34410a::powerFrequency 
+	return [expr int(1.0 / $powerFrequency * $nplc * 2500)]
+} 
+
+proc hardware::agilent::mm34410a::checkTimeout { channel timeout } {
+	if { [fconfigure $channel -timeout] < $timeout } {
+        fconfigure $channel -timeout $timeout	   
+    }
+}
