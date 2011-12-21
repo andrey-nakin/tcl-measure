@@ -29,7 +29,15 @@ proc ::measure::widget::fileSaveDialog { w ent } {
 	if {[string compare $file ""]} {
 		$ent delete 0 end
 		$ent insert 0 $file
-		$ent xview end
+		#$ent xview end
+	}
+}
+
+if { [info commands ttk::spinbox] == "" } {
+	proc ::ttk::spinbox args {
+		set cmd "set res \[::spinbox $args\]"
+		eval $cmd
+		return $res
 	}
 }
 

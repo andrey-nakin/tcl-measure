@@ -11,10 +11,11 @@
 
 package require Tcl 8.5
 package require Tk 8.5
-package require Ttk
+package require Ttk 8.5
 package require Plotchart
 package require Thread
 package require inifile
+package require math::statistics
 package require measure::widget
 package require measure::widget::images
 package require measure::logger
@@ -133,15 +134,44 @@ proc quit {} {
 	exit
 }
 
+proc setDisabledInverse { value args } {
+	foreach ctrl $args {
+		if { $value } {
+			$ctrl configure -state disabled
+		} else {
+			$ctrl configure -state normal
+		}
+	}
+}
+
+proc togglePowerControls { } {
+	global settings w
+
+	set p "$w.nb.ms.l.curr"
+	setDisabledInverse $settings(manualPower) $p.start $p.lstart $p.lend $p.end $p.step $p.lstep
+}
+
+proc addValueToChart { v } {
+	global chartValues
+
+	if { ![info exists chartValues] } {
+		set chartValues [list]
+	}
+
+	if { [llength $chartValues] >= 200 } {
+		set chartValues [lrange $chartValues [expr [llength $chartValues] - 199] end]
+	}
+	lappend chartValues $v
+
+	doPlot	
+}
+
 ###############################################################################
 # Начало скрипта
 ###############################################################################
 
 set log [measure::logger::init measure]
 measure::logger::server
-
-# Читаем настройки
-measure::config::read
 
 # Создаём окно программы
 set w ""
@@ -158,15 +188,50 @@ $w.nb add $w.nb.m -text " Измерение "
 
 proc doPlot {} {
 	global w
+	global chartValues chartBgColor
 
     $w.nb.m.c.c delete all
-
-	set s [::Plotchart::createXYPlot $w.nb.m.c.c { 0 180 30 } {0 100 10}]
-	foreach {x y} {0.0 32.0 10.0 50.0 25.0 60.0 78.0 11.0 } {
-		$s plot series1 $x $y
+	if { ![info exists chartValues] } {
+		return
 	}
 
-	$s trend series1 100 50
+	set stats [::math::statistics::basic-stats $chartValues]
+	set max [lindex $stats 2]
+	if { $max <= 0 } {
+		set max 1
+	}
+	set limit [expr 10 ** int(log10($max) + 1)]
+	if { $max < $limit / 2 } {
+		set max [expr $limit / 2]
+	} else {
+		set max $limit
+	}
+	set s [::Plotchart::createXYPlot $w.nb.m.c.c { 0 200 20 } [list 0 $max [expr 0.2 * $max]]]
+
+	$s dataconfig series1 -colour green
+	$s ytext "R, \u03a9"
+
+	if { ![info exists chartBgColor] } {
+		set chartBgColor [$w.nb.m.c.c cget -bg]
+	}
+	$s background plot black
+	$s background axes $chartBgColor
+
+	set x 0
+	set xx [list]
+	foreach y $chartValues {
+		$s plot series1 $x $y
+		lappend xx $x
+		incr x
+	}
+
+	if { [llength $xx] > 10 } {
+		lassign [::math::statistics::linear-model $xx $chartValues] a b
+		set lll [expr [llength $xx] - 1]
+		$s dataconfig series2 -colour magenta
+		$s plot series2 [lindex $xx 0] [expr [lindex $xx 0] * $b + $a]
+		$s plot series2 [lindex $xx $lll] [expr [lindex $xx $lll] * $b + $a]
+	}
 }
 
 proc doResize {} {
@@ -215,9 +280,10 @@ grid columnconfigure $p { 1 4 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
 # Раздел "График"
-set p [ttk::labelframe $w.nb.m.c -text " График сопротивления " -pad 2]
+set p [ttk::labelframe $w.nb.m.c -text " Временная зависимость " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
-pack [canvas $p.c -background gray -width 400 -height 200] -fill both -expand 1
+pack [canvas $p.c -width 400 -height 200] -fill both -expand 1
+#pack [canvas $p.c -background gray -width 400 -height 200] -fill both -expand 1
 bind $p.c <Configure> {doResize}
 
 # Закладка "Параметры измерения"
@@ -234,16 +300,17 @@ grid columnconfigure $w.nb.ms { 0 1 } -weight 1
 set p [ttk::labelframe $w.nb.ms.l.curr -text " Питание образца " -pad 10]
 
 grid [ttk::label $p.lmanualPower -text "Ручное управление:"] -row 0 -column 0 -sticky w
-grid [ttk::checkbutton $p.manualPower -variable settings(manualPower)] -row 0 -column 1 -sticky w
+grid [ttk::checkbutton $p.manualPower -variable settings(manualPower) -command togglePowerControls] -row 0 -column 1 -sticky w
+bind $p.manualPower <Configure> {doResize}
 
 grid [ttk::label $p.lstart -text "Начальный ток, мА:"] -row 1 -column 0 -sticky w
-grid [spinbox $p.start -textvariable measure(startCurrent) -from 0 -to 2200 -increment 10 -validate key -vcmd {string is double %P}] -row 1 -column 1 -sticky we
+grid [ttk::spinbox $p.start -textvariable measure(startCurrent) -from 0 -to 2200 -increment 10 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky we
 
 grid [ttk::label $p.lend -text "Конечный ток, мА:"] -row 2 -column 0 -sticky w
-grid [spinbox $p.end -textvariable measure(endCurrent) -from 0 -to 2200 -increment 10 -validate key -vcmd {string is double %P}] -row 2 -column 1 -sticky we
+grid [ttk::spinbox $p.end -textvariable measure(endCurrent) -from 0 -to 2200 -increment 10 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky we
 
 grid [ttk::label $p.lstep -text "Приращение, мА:"] -row 3 -column 0 -sticky w
-grid [spinbox $p.step -textvariable measure(currentStep) -from -2200 -to 2200 -increment 10 -validate key -vcmd {string is double %P}] -row 3 -column 1 -sticky we
+grid [ttk::spinbox $p.step -textvariable measure(currentStep) -from -2200 -to 2200 -increment 10 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky we
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3} -pad 5
@@ -258,7 +325,7 @@ grid [ttk::label $p.lnplc -text "Циклов 50 Гц на измерение:"]
 grid [ttk::combobox $p.nplc -textvariable settings(nplc) -state readonly -values $hardware::agilent::mm34410a::nplcs ] -row 0 -column 1 -sticky we
 
 grid [ttk::label $p.lnsamples -text "Измерений на точку:"] -row 1 -column 0 -sticky w
-grid [spinbox $p.nsamples -textvariable measure(numberOfSamples) -from 1 -to 50000 -increment 10 -validate key -vcmd {string is integer %P}] -row 1 -column 1 -sticky we
+grid [ttk::spinbox $p.nsamples -textvariable measure(numberOfSamples) -from 1 -to 50000 -increment 10 -validate key -validatecommand {string is integer %P}] -row 1 -column 1 -sticky we
 
 grid [ttk::label $p.lswitchVoltage -text "Переполюсовка напряжения:"] -row 2 -column 0 -sticky w
 grid [ttk::checkbutton $p.switchVoltage -variable measure(switchVoltage)] -row 2 -column 1 -sticky w
@@ -266,8 +333,11 @@ grid [ttk::checkbutton $p.switchVoltage -variable measure(switchVoltage)] -row 2
 grid [ttk::label $p.lswitchCurrent -text "Переполюсовка тока:"] -row 3 -column 0 -sticky w
 grid [ttk::checkbutton $p.switchCurrent -variable measure(switchCurrent)] -row 3 -column 1 -sticky w
 
+grid [ttk::label $p.lsystError -text "Игнорировать инстр. погрешность:"] -row 4 -column 0 -sticky w
+grid [ttk::checkbutton $p.systError -variable settings(noSystErr)] -row 4 -column 1 -sticky w
+
 grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3} -pad 5
+grid rowconfigure $p {0 1 2 3 4} -pad 5
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
@@ -279,10 +349,10 @@ set p [ttk::labelframe $w.nb.ms.r.msr -text " Файл результатов " 
 
 grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.name -textvariable measure(fileName)] -row 0 -column 1 -sticky we
-grid [ttk::button $p.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $w.nb.ms.file.name"] -row 1 -column 1 -sticky e
+grid [ttk::button $p.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $p.name" -image ::img::open] -row 0 -column 2 -sticky w
 
 grid [ttk::label $p.lformat -text "Формат файла:"] -row 2 -column 0 -sticky w
-grid [ttk::combobox $p.format -textvariable measure(fileFormat) -state readonly -values [list TXT CSV]] -row 2 -column 1 -sticky we
+grid [ttk::combobox $p.format -textvariable measure(fileFormat) -state readonly -values [list TXT CSV]] -row 2 -column 1 -columnspan 2 -sticky we
 
 grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 3 -column 0 -sticky w
 grid [ttk::checkbutton $p.rewrite -variable measure(fileRewrite)] -row 3 -column 1 -sticky w
@@ -298,40 +368,41 @@ grid rowconfigure $w.nb.m {0 1} -pad 5
 
 # Закладка "Параметры установки"
 ttk::frame $w.nb.setup
-$w.nb add $w.nb.setup -text " Параметры " -padding 10
+$w.nb add $w.nb.setup -text " Параметры установки "
 
-grid [ttk::label $w.nb.setup.lrs485 -text "Порт для АС4:"] -row 0 -column 0 -sticky w
-ttk::combobox $w.nb.setup.rs485 -width 40 -textvariable settings(rs485Port) -values [measure::com::allPorts]
-grid $w.nb.setup.rs485 -row 0 -column 1 -sticky w
+set p [ttk::labelframe $w.nb.setup.m -text " Общие параметры " -pad 10]
+pack $p -fill x -padx 10 -pady 5
 
-grid [ttk::label $w.nb.setup.lswitchAddr -text "Сетевой адрес МВУ-8:"] -row 1 -column 0 -sticky w
-spinbox $w.nb.setup.switchAddr -width 40 -textvariable settings(switchAddr) -from 1 -to 2040 -width 10 -validate key -vcmd {string is integer %P}
-grid $w.nb.setup.switchAddr -row 1 -column 1 -sticky w
+grid [ttk::label $p.lrs485 -text "Порт для АС4:"] -row 0 -column 0 -sticky w
+grid [ttk::combobox $p.rs485 -width 40 -textvariable settings(rs485Port) -values [measure::com::allPorts]] -row 0 -column 1 -sticky we
 
-grid [ttk::label $w.nb.setup.lps -text "VISA адрес источника питания:"] -row 2 -column 0 -sticky w
-ttk::combobox $w.nb.setup.ps -width 40 -textvariable settings(psAddr) -values [measure::visa::allInstruments]
-grid $w.nb.setup.ps -row 2 -column 1 -sticky w
+grid [ttk::label $p.lswitchAddr -text "Сетевой адрес МВУ-8:"] -row 1 -column 0 -sticky w
+grid [ttk::spinbox $p.switchAddr -width 40 -textvariable settings(switchAddr) -from 1 -to 2040 -width 10 -validate key -validatecommand {string is integer %P}] -row 1 -column 1 -sticky we
 
-grid [ttk::label $w.nb.setup.lmm -text "VISA адрес вольтметра:"] -row 4 -column 0 -sticky w
-ttk::combobox $w.nb.setup.mm -width 40 -textvariable settings(mmAddr) -values [measure::visa::allInstruments]
-grid $w.nb.setup.mm -row 4 -column 1 -sticky w
+grid [ttk::label $p.lps -text "VISA адрес источника питания:"] -row 2 -column 0 -sticky w
+grid [ttk::combobox $p.ps -width 40 -textvariable settings(psAddr) -values [measure::visa::allInstruments]] -row 2 -column 1 -sticky we
 
-grid [ttk::label $w.nb.setup.lcmm -text "VISA адрес амперметра:"] -row 5 -column 0 -sticky w
-ttk::combobox $w.nb.setup.cmm -width 40 -textvariable settings(cmmAddr) -values [measure::visa::allInstruments]
-grid $w.nb.setup.cmm -row 5 -column 1 -sticky w
+grid [ttk::label $p.lmm -text "VISA адрес вольтметра на образце:"] -row 4 -column 0 -sticky w
+grid [ttk::combobox $p.mm -width 40 -textvariable settings(mmAddr) -values [measure::visa::allInstruments]] -row 4 -column 1 -sticky we
 
-grid [ttk::label $w.nb.setup.lbeepOnExit -text "Звуковой сигнал по окончании:"] -row 7 -column 0 -sticky w
-grid [checkbutton $w.nb.setup.beepOnExit -variable settings(beepOnExit) -relief flat] -row 7 -column 1 -sticky w
+grid [ttk::label $p.lcmm -text "VISA адрес вольтметра на эталоне:"] -row 5 -column 0 -sticky w
+grid [ttk::combobox $p.cmm -width 40 -textvariable settings(cmmAddr) -values [measure::visa::allInstruments]] -row 5 -column 1 -sticky we
 
-grid [ttk::label $w.nb.setup.lsystError -text "Не учитывать инстр. погрешность:"] -row 8 -column 0 -sticky w
-grid [checkbutton $w.nb.setup.systError -variable settings(noSystErr) -relief flat] -row 8 -column 1 -sticky w
+grid [ttk::label $p.lbeepOnExit -text "Звуковой сигнал по окончании:"] -row 7 -column 0 -sticky w
+grid [ttk::checkbutton $p.beepOnExit -variable settings(beepOnExit)] -row 7 -column 1 -sticky w
 
-grid columnconfigure $w.nb.setup {0 1} -pad 5
-grid rowconfigure $w.nb.setup {0 1 2 3 4 5 6 7 8} -pad 5
-grid rowconfigure $w.nb.setup 5 -pad 20
+grid columnconfigure $p { 0 1 } -pad 5
+grid columnconfigure $p { 1 } -weight 1
+grid rowconfigure $p { 0 1 2 3 4 5 6 7 8 } -pad 5
 
 # Кнопка закрытия приложения
 ::measure::widget::exit-button $w
+
+# Читаем настройки
+measure::config::read
+
+# Настраиваем элементы управления
+togglePowerControls
 
 # Запускаем тестер
 startTester
