@@ -9,3 +9,7 @@ package ifneeded measure::interop 0.1.0 [list source [file join $dir interop.tcl
 package ifneeded startfile 0.1.0 [list source [file join $dir startfile.tcl]]
 package ifneeded measure::sigma 0.1.0 [list source [file join $dir sigma.tcl]]
 
+set maindir $dir
+set dir [file join $maindir widget]; source [file join $dir pkgIndex.tcl]
+unset maindir
+

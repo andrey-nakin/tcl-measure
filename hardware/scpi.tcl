@@ -151,6 +151,20 @@ proc scpi::checkError { channel } {
 }
 
 proc isRs232 { channel } {
+	if { ![catch {
+		# try to use VISA to detect interface type
+		package require tclvisa
+
+		if { [visa::get-attribute $channel $visa::ATTR_INTF_TYPE] == $visa::INTF_ASRL } {
+			set res 1
+		} else {
+			set res 0
+		}
+	} ] } {
+		return $res
+	}
+
+	# try to read COM port mode
     if { [ catch { fconfigure $channel -mode } ] } {
         return 0
     } else {
