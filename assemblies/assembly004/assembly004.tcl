@@ -135,27 +135,18 @@ proc quit {} {
 	exit
 }
 
-proc setDisabledInverse { value args } {
-	foreach ctrl $args {
-		if { $value } {
-			$ctrl configure -state disabled
-		} else {
-			$ctrl configure -state normal
-		}
-	}
+# Процедура разрешает/запрещает элементы управления током
+proc togglePowerControls { } {
+	global w
+	set p "$w.nb.ms.l.curr"
+	::measure::widget::setDisabledByVarInv settings(manualPower) $p.start $p.lstart $p.lend $p.end $p.step $p.lstep
 }
 
-proc togglePowerControls { } {
-	global settings w
-
-	if { [info exists settings(manualPower)] } {
-		set v $settings(manualPower)
-	} else {
-		set v 0
-	}
-
-	set p "$w.nb.ms.l.curr"
-	setDisabledInverse $v $p.start $p.lstart $p.lend $p.end $p.step $p.lstep
+# Процедура разрешает/запрещает элементы ввода эталонного сопротивления
+proc toggleTestResistance {} {
+	global w
+	set p "$w.nb.ms.r.curr"
+	::measure::widget::setDisabledByVar settings(useTestResistance) $p.r $p.lr
 }
 
 proc addValueToChart { v } {
@@ -338,11 +329,29 @@ pack $p -fill x -padx 10 -pady 5
 
 # Правая колонка
 
-# Раздел настроек коммутации
-set p [ttk::labelframe $w.nb.ms.r.comm -text " Коммутация " -pad 10]
+# Раздел настроек метода измерения тока
+set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения тока " -pad 10]
 
-grid [ttk::label $p.lend -text "Эталонное сопротивление, Ом:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.end -width 10 -textvariable settings(testResistance) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky e
+grid [ttk::label $p.lamp -text "Амперметром:"] -row 0 -column 0 -sticky w
+grid [ttk::radiobutton $p.amp -value 0 -variable settings(useTestResistance) -command toggleTestResistance] -row 0 -column 1 -sticky e
+
+grid [ttk::label $p.lvolt -text "Напряжением на эталоне:"] -row 1 -column 0 -sticky w
+grid [ttk::radiobutton $p.volt -value 1 -variable settings(useTestResistance) -command toggleTestResistance] -row 1 -column 1 -sticky e
+
+grid [ttk::label $p.lr -text "Эталонное сопротивление, Ом:"] -row 2 -column 0 -sticky w
+grid [ttk::spinbox $p.r -width 10 -textvariable settings(testResistance) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
+
+grid columnconfigure $p {0 1} -pad 5
+grid rowconfigure $p {0 1 2 3} -pad 5
+grid columnconfigure $p { 1 } -weight 1
+
+pack $p -fill x -padx 10 -pady 5
+
+grid columnconfigure $w.nb.m {0 1} -pad 5
+grid rowconfigure $w.nb.m {0 1} -pad 5
+
+# Раздел настроек переполюсовок
+set p [ttk::labelframe $w.nb.ms.r.comm -text " Переполюсовки " -pad 10]
 
 grid [ttk::label $p.lswitchVoltage -text "Переполюсовка напряжения:"] -row 1 -column 0 -sticky w
 grid [ttk::checkbutton $p.switchVoltage -variable settings(switchVoltage)] -row 1 -column 1 -sticky e
@@ -418,6 +427,7 @@ measure::config::read
 
 # Настраиваем элементы управления
 togglePowerControls
+toggleTestResistance
 
 # Запускаем тестер
 startTester

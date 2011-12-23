@@ -13,6 +13,7 @@ package require Ttk
 package require measure::widget::images
 
 namespace eval ::measure::widget {
+  namespace export setDisabledByVar
 }
 
 #source "exit-button.tcl"
@@ -33,11 +34,74 @@ proc ::measure::widget::fileSaveDialog { w ent } {
 	}
 }
 
+proc ::measure::widget::setDisabled { v args } {
+	foreach ctrl $args {
+		if { $v } {
+			$ctrl configure -state normal
+		} else {
+			$ctrl configure -state disabled
+		}
+	}
+}
+
+proc ::measure::widget::setDisabledByVar { varName args } {
+	set v [getVarValue $varName]
+	foreach ctrl $args {
+		if { $v } {
+			$ctrl configure -state normal
+		} else {
+			$ctrl configure -state disabled
+		}
+	}
+}
+
+proc ::measure::widget::setDisabledInv { v args } {
+	foreach ctrl $args {
+		if { $v } {
+			$ctrl configure -state disabled
+		} else {
+			$ctrl configure -state normal
+		}
+	}
+}
+
+proc ::measure::widget::setDisabledByVarInv { varName args } {
+	set v [getVarValue $varName]
+	foreach ctrl $args {
+		if { $v } {
+			$ctrl configure -state disabled
+		} else {
+			$ctrl configure -state normal
+		}
+	}
+}
+
+proc ::measure::widget::getVarValue { varName } {
+	set globalName $varName
+	set p [string first "(" $globalName]
+	if { $p > 0 } {
+		set globalName [string range $globalName 0 [expr $p - 1]]
+	}
+	global $globalName
+
+	if { [info exists $varName] } {
+		eval "set v \$$varName"
+	} else {
+		set v 0
+	}
+
+	return $v
+}
+
 if { [info commands ttk::spinbox] == "" } {
 	proc ::ttk::spinbox args {
 		set cmd "set res \[::spinbox $args\]"
 		eval $cmd
 		return $res
 	}
+}
+
+if { $tcl_platform(platform) == "unix" } {
+	ttk::setTheme "clam"
 }
 
