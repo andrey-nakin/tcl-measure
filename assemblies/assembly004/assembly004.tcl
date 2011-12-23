@@ -419,8 +419,8 @@ grid columnconfigure $p { 0 1 } -pad 5
 grid columnconfigure $p { 1 } -weight 1
 grid rowconfigure $p { 0 1 2 3 4 5 6 7 8 } -pad 5
 
-# Кнопка закрытия приложения
-::measure::widget::exit-button $w
+# Стандартная панель
+::measure::widget::std-bottom-panel $w
 
 # Читаем настройки
 measure::config::read

@@ -11,6 +11,7 @@ package require Tcl 8.4
 package require Tk
 package require Ttk
 package require measure::widget::images
+package require startfile
 
 namespace eval ::measure::widget {
   namespace export setDisabledByVar
@@ -22,6 +23,17 @@ proc ::measure::widget::exit-button { w } {
 	frame $w.fr
 	pack $w.fr -fill x -side bottom
 	pack [ttk::button $w.fr.bexit -text "\u0412\u044b\u0445\u043e\u0434" -image ::img::delete -compound left -command quit] -padx 5 -pady {20 5} -side right
+}
+
+proc ::measure::widget::std-bottom-panel { w } {
+	frame $w.fr
+	pack $w.fr -fill x -side bottom
+	pack [ttk::button $w.fr.bexit -text "\u0412\u044b\u0445\u043e\u0434" -image ::img::delete -compound left -command quit] -padx 5 -pady {20 5} -side right
+
+	set manual [file join [file dirname [info script]] doc manual.pdf]
+	if { [file exists $manual] } {
+		pack [ttk::button $w.fr.bmanual -text "\u0421\u043f\u0440\u0430\u0432\u043a\u0430" -image ::img::pdf -compound left -command [list startfile::start $manual]] -padx 5 -pady {20 5} -side left
+	}
 }
 
 proc ::measure::widget::fileSaveDialog { w ent } {
