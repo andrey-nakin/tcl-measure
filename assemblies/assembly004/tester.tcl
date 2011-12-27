@@ -82,10 +82,17 @@ proc setupCMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init -noFrontCheck $cmm
 
-	# Настраиваем мультиметр для измерения постоянного тока
-	hardware::agilent::mm34410a::configureDcCurrent \
-		-nplc $settings(nplc) \
-		 $cmm
+	if { $settings(useTestResistance) } {
+    	# Настраиваем мультиметр для измерения постоянного напряжения
+    	hardware::agilent::mm34410a::configureDcVoltage \
+    		-nplc $settings(nplc) \
+    		 $cmm
+	} else {
+    	# Настраиваем мультиметр для измерения постоянного тока
+    	hardware::agilent::mm34410a::configureDcCurrent \
+    		-nplc $settings(nplc) \
+    		 $cmm
+    }
 }
 
 # Инициализируем устройства
@@ -127,21 +134,8 @@ proc run {} {
 		# Снимаем показания
 		lassign [measureVoltage] v sv c sc r sr
 
-		set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
-		set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
-		set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
-		set pf [format "%0.3g" [expr 0.001 * abs($c * $v)]]
-
-		if { [measure::interop::isAlone] } {
-		    # Выводим результаты в консоль
-			puts "Current=$cf\tVoltage=$vf\tResistance=$rf\tPower=$pf"
-		} else {
-		    # Выводим результаты в окно программы
-			measure::interop::setVar runtime(current) $cf
-			measure::interop::setVar runtime(voltage) $vf
-			measure::interop::setVar runtime(resistance) $rf
-			measure::interop::setVar runtime(power) $pf
-		}
+        # Выводим результаты в окно программы
+        display $v $sv $c $sc $r $sr          
 
 		# Выдерживаем паузу
 		measure::interop::sleep [expr int(500 - ([clock milliseconds] - $tm))]

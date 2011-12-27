@@ -100,6 +100,7 @@ proc measure::interop::waitForWorkerThreads {} {
 				${log}::error "Error joining thread $tid: $rc"
 			}
 		}
+		tsv::set interop workers [list]
 	}
 }
 
@@ -127,6 +128,19 @@ proc measure::interop::setVar { varName value } {
 	if { [info exists mainThreadId_] } {
 		if { [catch { thread::send -async $mainThreadId_ "set $varName \"$value\"" } rc] } {
 			${log}::error "setVar $varName $value"
+		}
+	}
+}
+
+# Runs a command asynchronously in the context of the main thread
+# Arguments:
+#   cmd - command to run
+proc measure::interop::cmd { cmd } {
+	global log mainThreadId_
+
+	if { [info exists mainThreadId_] } {
+		if { [catch { thread::send -async $mainThreadId_ $cmd } rc] } {
+			${log}::error "Error executing command `$cmd': $rc"
 		}
 	}
 }

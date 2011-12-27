@@ -40,7 +40,7 @@ proc startfile::start { fileName args } {
 # Start file in 32- and -64-bit Windows
 proc startfile::startWin { fileName args } {
 	package require registry
-	global env
+	global env log
 
 	set cmd [getCommandFromRegistry [file extension $fileName]]
 	if { $cmd != "" } {
@@ -48,7 +48,7 @@ proc startfile::startWin { fileName args } {
 		# substitute arguments
 		while { [regexp "\%(\[0-9\\*\]+)" $cmd m v] } {
 			if { $v == 1 } {
-				set cmd [regsub "\%$v" $cmd $fileName ]
+				set cmd [regsub "\%$v" $cmd "\"$fileName\"" ]
 				continue
 			}
 			if { $v == "*" } {
@@ -57,6 +57,12 @@ proc startfile::startWin { fileName args } {
 			}
 			set cmd [regsub "\%$v" $cmd [lindex $args [expr $v - 2]]]
 		}
+		
+		if { [string first $fileName $cmd] == -1 } {
+		  append cmd " \""
+		  append cmd $fileName
+		  append cmd "\""
+        }
 
 		# substitute environment variables
 		while { [regexp "\%(\[^\%\]+)\%" $cmd m v] } {

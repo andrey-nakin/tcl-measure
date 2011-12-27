@@ -128,18 +128,27 @@ proc setupCMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $cmm
 
-	# Настраиваем мультиметр для измерения постоянного тока
-	hardware::agilent::mm34410a::configureDcCurrent \
-		-nplc $settings(nplc) \
-		-autoZero ONCE	\
-		-sampleCount $settings(numberOfSamples)	\
-		 $cmm
+	if { $settings(useTestResistance) } {
+    	# Настраиваем мультиметр для измерения постоянного напряжения
+    	hardware::agilent::mm34410a::configureDcVoltage \
+    		-nplc $settings(nplc) \
+    		-autoZero ONCE	\
+    		-sampleCount $settings(numberOfSamples)	\
+    		 $cmm
+	} else {
+    	# Настраиваем мультиметр для измерения постоянного тока
+    	hardware::agilent::mm34410a::configureDcCurrent \
+    		-nplc $settings(nplc) \
+    		-autoZero ONCE	\
+    		-sampleCount $settings(numberOfSamples)	\
+    		 $cmm
+    }
 }
 
 # Процедура производит одно измерение со всеми нужными переполюсовками
 #   и сохраняет результаты в файле результатов
 proc makeMeasurement {} {
-	global mm cmm connectors
+	global mm cmm connectors settings
 
 	set vs [list]; set svs [list]
 	set cs [list]; set scs [list]
@@ -164,22 +173,9 @@ proc makeMeasurement {} {
 		lappend vs $v; lappend svs $sv
 		lappend cs $c; lappend scs $sc
 		lappend rs $r; lappend srs $sr
-          
-        set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
-        set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
-        set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
-        set pf [format "%0.3g" [expr 0.001 * $c * $v]]    
-          
-		if { [measure::interop::isAlone] } {
-		    # Выводим результаты в консоль
-			puts "Current=$cf\tVoltage=$vf\tResistance=$rf\tPower=$pf"
-		} else {
-		    # Выводим результаты в окно программы
-			measure::interop::setVar runtime(current) $cf
-			measure::interop::setVar runtime(voltage) $vf
-			measure::interop::setVar runtime(resistance) $rf
-			measure::interop::setVar runtime(power) $pf
-		}
+
+        # Выводим результаты в окно программы
+        display $v $sv $c $sc $r $sr          
 	}
 
 	# Вычисляем средние значения

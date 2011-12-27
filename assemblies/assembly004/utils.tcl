@@ -54,15 +54,15 @@ proc setConnectors { conns } {
 
 	# размыкаем цепь
     hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 6 {1000}
-	after 500
+	#after 500
 
 	# производим переключение полярности
     hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 0 $conns
-	after 500
+	#after 500
 
 	# замыкаем цепь
     hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 6 {0}
-	after 500
+	#after 500
 }
 
 # Подключает/отключает тестовое сопротивление от схемы 
@@ -75,7 +75,7 @@ proc connectTestResistance { } {
 	} else {
 	    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 4 {1000 1000}
 	}
-	after 500
+	#after 500
 }
 
 # Инициализация источника питания
@@ -96,10 +96,11 @@ proc setupPs {} {
 
 # Завершаем работу установки, матчасть в исходное.
 proc finish {} {
-    global rm ps mm cmm
+    global rm ps mm cmm log
 
     if { [info exists ps] } {
     	# Переводим ИП в исходный режим
+        ${log}::debug "ps=$ps"    	
     	hardware::agilent::pse3645a::done $ps
     	close $ps
     	unset ps
@@ -131,3 +132,21 @@ proc finish {} {
 	after 1000
 }
 
+proc display { v sv c sc r sr } {
+    set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
+    set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
+    set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
+    set pf [format "%0.3g" [expr 0.001 * $c * $v]]    
+      
+	if { [measure::interop::isAlone] } {
+	    # Выводим результаты в консоль
+		puts "Current=$cf\tVoltage=$vf\tResistance=$rf\tPower=$pf"
+	} else {
+	    # Выводим результаты в окно программы
+		measure::interop::setVar runtime(current) $cf
+		measure::interop::setVar runtime(voltage) $vf
+		measure::interop::setVar runtime(resistance) $rf
+		measure::interop::setVar runtime(power) $pf
+		measure::interop::cmd "addValueToChart $r"
+	}
+}
