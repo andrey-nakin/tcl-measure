@@ -28,10 +28,7 @@ proc startfile::start { fileName args } {
 	}
 
 	if { $tcl_platform(platform) == "unix" } {
-		# not implemented yet
-		foreach n [array names tcl_platform] {
-			puts "$n=$tcl_platform($n)"
-		}
+		return [startfile::startUnix $fileName $args]
 	}
 
 	return -2
@@ -93,5 +90,10 @@ proc startfile::getCommandFromRegistry { ext } {
 	}
 
 	return ""
+}
+
+# Start file in 32- and -64-bit Windows
+proc startfile::startUnix { fileName args } {
+	exec evince $fileName &
 }
 
