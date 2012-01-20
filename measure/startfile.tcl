@@ -20,7 +20,7 @@ namespace eval startfile {
 #   0 - file is started
 #   -1 - file type is not detected
 #   -2 - platform is not supported
-proc startfile::start { fileName args } {
+proc startfile::start { fileName { args "" } } {
 	global tcl_platform
 
 	if { $tcl_platform(platform) == "windows" } {
@@ -36,25 +36,37 @@ proc startfile::start { fileName args } {
 
 # Start file in 32- and -64-bit Windows
 proc startfile::startWin { fileName args } {
+	global log
+
+	if { ![catch {
+		package require twapi
+		twapi::shell_execute -path $fileName -params $args
+	} rc] } {
+		return
+	} else {
+	}
+
 	package require registry
 	global env log
 
 	set cmd [getCommandFromRegistry [file extension $fileName]]
 	if { $cmd != "" } {
 
+		${log}::debug "DEBUG 10 {$cmd} {$fileName}"
 		# substitute arguments
 		while { [regexp "\%(\[0-9\\*\]+)" $cmd m v] } {
 			if { $v == 1 } {
-				set cmd [regsub "\%$v" $cmd "\"$fileName\"" ]
+				set cmd [string map [list "%$v" $fileName] $cmd]
 				continue
 			}
 			if { $v == "*" } {
-				set cmd [regsub "\%\\$v" $cmd $args ]
+				set cmd [string map [list "%*" $args] $cmd]
 				continue
 			}
-			set cmd [regsub "\%$v" $cmd [lindex $args [expr $v - 2]]]
+			set cmd [string map [list "%$v" [lindex $args [expr $v - 2]]] $cmd]
 		}
 		
+		${log}::debug "DEBUG 20 {$cmd} {$fileName}"
 		if { [string first $fileName $cmd] == -1 } {
 		  append cmd " \""
 		  append cmd $fileName
