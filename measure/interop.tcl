@@ -191,6 +191,16 @@ proc measure::interop::isAlone {} {
 	return [expr [info exists mainThreadId_] ? 0 : 1]
 }
 
+# Stop thread work
+# If thread is "alone", stops entire application
+proc measure::interop::exit {} {
+	if { [isAlone] } {
+		exit
+	} else {
+		thread::exit
+	}
+}
+
 ##############################################################################
 # Internal usage procedures
 ##############################################################################
