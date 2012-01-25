@@ -9,6 +9,7 @@
 package require Tcl 8.4
 package provide measure::thermocouple 0.1.0
 
+package require math::interpolate
 package require measure::bsearch
 
 namespace eval measure::thermocouple {
@@ -1545,14 +1546,21 @@ proc measure::thermocouple::calc { tc fixedT v } {
 
 	set idx [expr int(floor(($fixedT - $minT) / $step))]
 	set t0 [expr $minT + $step * $idx]
-	if { $idx < $maxIdx - 1} {
+	if { $idx > 0 && $idx < $maxIdx - 2 } {
+		# cubic spline interpolation
+		set coeffs [::math::interpolate::prepare-cubic-splines [list [expr $t0 - $step] $t0 [expr $t0 + $step] [expr $t0 + 2.0 * $step]] [lrange $data $idx-1 $idx+2]]
+		set base [::math::interpolate::interp-cubic-splines $coeffs $fixedT]
+	} elseif { $idx < $maxIdx - 1} {
+		# linear interpolation
 		set v0 [lindex $data $idx]
 		set v1 [lindex $data $idx+1]
+		set base [expr $v0 + ($v1 - $v0) * ($fixedT - $t0) / $step]
 	} else {
+		# linear interpolation
 		set v0 [lindex $data $idx-1]
 		set v1 [lindex $data $idx]
+		set base [expr $v0 + ($v1 - $v0) * ($fixedT - $t0) / $step]
 	}
-	set base [expr $v0 + ($v1 - $v0) * ($fixedT - $t0) / $step]
 	set v [expr $base + 1000.0 * $v]
 
 	set idx [::measure::bsearch::lowerBound $data $v]
@@ -1561,14 +1569,22 @@ proc measure::thermocouple::calc { tc fixedT v } {
 	}
 
 	set t0 [expr $idx * $step + $minT]
-	if { $idx < $maxIdx - 1} {
+	if { $idx > 0 && $idx < $maxIdx - 2 } {
+		# cubic spline interpolation
+		set coeffs [::math::interpolate::prepare-cubic-splines [lrange $data $idx-1 $idx+2] [list [expr $t0 - $step] $t0 [expr $t0 + $step] [expr $t0 + 2.0 * $step]] ]
+		set t [::math::interpolate::interp-cubic-splines $coeffs $v]
+	} elseif { $idx < $maxIdx - 1 } {
+		# linear interpolation
 		set v0 [lindex $data $idx]
 		set v1 [lindex $data $idx+1]
+		set t [expr $t0 + $step * ($v - $v0) / ($v1 - $v0)]
 	} else {
+		# linear interpolation
 		set v0 [lindex $data $idx-1]
 		set v1 [lindex $data $idx]
+		set t [expr $t0 + $step * ($v - $v0) / ($v1 - $v0)]
 	}
-	return [expr $t0 + $step * ($v - $v0) / ($v1 - $v0)]
+	return $t
 }
 
 
@@ -1627,5 +1643,6 @@ proc measure::thermocouple::makeTcData { fileName } {
 }
 
 #measure::thermocouple::makeTcData [lindex $argv 0]
-#puts "[measure::thermocouple::calcKelvin K 77.4 -0.0002 0.00001]"
+#puts "[measure::thermocouple::calcCelsius K 1.5 0.030 0.0001]"
+#puts "[measure::thermocouple::calcKelvin K 77.4 0.0001 0.00001]"
 
