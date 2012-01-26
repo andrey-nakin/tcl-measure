@@ -1,3 +1,4 @@
+#!/usr/bin/tclsh
 # scpi.tcl --
 #
 #   Utilities working with SCPI devices
@@ -8,12 +9,56 @@
 package require Tcl 8.5
 package provide hardware::scpi 0.1.0
 
+package require cmdline
+
 namespace eval scpi {
 	namespace export query setAndQuery validateIdn clear readError checkError
 }
 
+set scpi::ADDR_PREFIX_VISA "visa:"
+
+set scpi::DELAY_SERIAL 500
+set scpi::DELAY_DEFAULT 5
+
 array set scpi::commandTimes {}
 array set scpi::commandDelays {}
+array set scpi::serialChannels {}
+set scpi::visaChannels [list]
+
+# Opens a device and returns channel instance.
+# Arguments
+#   -mode mode - serial device mode
+#   addr - device address
+#   access - access level required
+# Return
+#   channel instance
+proc scpi::open { args } {
+	global scpi::ADDR_PREFIX_VISA
+
+	set opts {
+		{mode.arg	""	"serial device mode"}
+	}
+
+	set usage ": scpi::open \[options] addr ?access?\noptions:"
+	array set options [::cmdline::getoptions args $opts $usage]
+
+	set access rw
+	lassign $args addr access
+
+	if { [string first $ADDR_PREFIX_VISA $addr] == 0 || [isVisaAddr $addr]} {
+		# this is a VISA instrument
+		set channel [openVisaChannel $addr $access]
+	} else {
+		# open as a system device
+		set channel [open $addr $access]
+	}
+
+	if { $options(mode) != "" && [isSerialChannel $channel] } {
+		fconfigure $channel -mode $options(mode)
+	}
+
+	return $channel
+}
 
 # Send a command to SCPI device. Does not wait for any answer.
 # Checks when previous command was sent to the same device and makes a delay if needed.
@@ -22,7 +67,7 @@ array set scpi::commandDelays {}
 #   command - command to send. Should not end with "new line" character.
 #   ?delay? - delay between commands to the same device
 proc scpi::cmd { channel command { delay -1 } } {
-	global scpi::commandTimes scpi::commandDelays
+	global scpi::commandTimes scpi::commandDelays scpi::DELAY_SERIAL scpi::DELAY_DEFAULT
 
 	# Check what time the prev. command was sent to the device
 	if { [info exists commandTimes($channel)] } {
@@ -35,12 +80,12 @@ proc scpi::cmd { channel command { delay -1 } } {
 		}
 	} else {
 	   # determine delay for this channel
-	   if { [isRs232 $channel] } {
+	   if { [isSerialChannel $channel] } {
 	       # default delay for RS-232 connection type
-	       set commandDelays($channel) 500 
+	       set commandDelays($channel) $DELAY_SERIAL
        } else {
 	       # default delay for other connection types
-	       set commandDelays($channel) 5 
+	       set commandDelays($channel) $DELAY_DEFAULT
        }
     }
 
@@ -150,7 +195,18 @@ proc scpi::checkError { channel } {
 	}
 }
 
-proc isRs232 { channel } {
+# Determines whether a given channel represents serial port device
+# Arguments
+#   channel - channel to check
+# Return
+#   0 - channel is not a serial port device
+proc scpi::isSerialChannel { channel } {
+	global scpi::serialChannels
+
+	if { [info exists serialChannels($channel)] } {
+		return $serialChannels($channel)
+	}
+
 	if { ![catch {
 		# try to use VISA to detect interface type
 		package require tclvisa
@@ -161,14 +217,72 @@ proc isRs232 { channel } {
 			set res 0
 		}
 	} ] } {
+		set serialChannels($channel) $res
 		return $res
 	}
 
 	# try to read COM port mode
     if { [ catch { fconfigure $channel -mode } ] } {
-        return 0
+        set res 0
     } else {
-        return 1
+        set res 1
     }
+
+	set serialChannels($channel) $res
+	return $res
+}
+
+##############################################################################
+# private
+##############################################################################
+
+proc scpi::isVisaAddr { addr } {
+	set parts [split $addr "::"]
+	if { [llength $parts] >= 2 } {
+		set itypes { INSTR INTFC SERVANT BACKPLANE MEMACC SOCKET }
+		set t [lindex $parts [llength $parts]-1]
+		if { [lsearch -nocase -exact $itypes $t] < 0 } {
+			return 0
+		}
+
+		set btypes { ASRL TCPIP "GPIB-VXI" GPIB VXI PXI }
+		set t [lindex $parts 0]
+		foreach bt $btypes {
+			if { [regexp -nocase "^$bt\[0-9a-f\]*\$" $t] } {
+				return 1
+			}
+		}
+	}
+
+	return 0
+}
+
+proc scpi::openVisaChannel { addr mode } {
+	global scpi::ADDR_PREFIX_VISA scpi::visaResourceManager scpi::visaChannels
+	global scpi::commandDelays scpi::DELAY_SERIAL scpi::DELAY_DEFAULT scpi::serialChannels
+
+	package require tclvisa
+
+	if { ![info exists visaResourceManager] } {
+		set visaResourceManager [visa::open-default-rm]
+	}
+
+	if { [string first $ADDR_PREFIX_VISA $addr] == 0 } {
+		set addr [string range $addr [string length $ADDR_PREFIX_VISA] end]
+	}
+
+	set channel [visa::open $visaResourceManager $addr $visa::EXCLUSIVE_LOCK]
+	if { [visa::get-attribute $channel $visa::ATTR_INTF_TYPE] == $visa::INTF_ASRL } {
+		# default delay for serial bus type
+		set commandDelays($channel) $DELAY_SERIAL
+		set serialChannels($channel) 1
+	} else {
+		# default delay for other bus types
+		set commandDelays($channel) $DELAY_DEFAULT
+		set serialChannels($channel) 0
+	}
+
+	lappend visaChannels $channel
+	return $channel
 }
 
