@@ -12,6 +12,17 @@ namespace eval measure::com {
   namespace export allPorts
 }
 
+# Standard baud rates
+set measure::com::bauds {1200 2400 4800 9600 14400 19200 38400 57600 115200}
+
+# Standard word lengths
+set measure::com::wordLengths { 7 8 }
+
+# Standard stop bit numbers
+set measure::com::stopBits { 1 2 }
+
+set measure::com::parities { n s m e o }
+
 # Returns list with addresses of all COM ports available
 proc measure::com::allPorts { } {
 	set res [list]
@@ -20,4 +31,6 @@ proc measure::com::allPorts { } {
 	}
 	return $res
 }
+
+
 

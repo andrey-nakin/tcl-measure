@@ -10,6 +10,7 @@ package ifneeded startfile 0.1.0 [list source [file join $dir startfile.tcl]]
 package ifneeded measure::sigma 0.1.0 [list source [file join $dir sigma.tcl]]
 package ifneeded measure::chart 0.1.0 [list source [file join $dir chart.tcl]]
 package ifneeded measure::bsearch 0.1.0 [list source [file join $dir bsearch.tcl]]
+package ifneeded measure::expr 0.1.0 [list source [file join $dir expr.tcl]]
 package ifneeded measure::thermocouple 0.1.0 [list source [file join $dir thermocouple.tcl]]
 
 set maindir $dir

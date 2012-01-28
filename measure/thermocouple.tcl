@@ -6,11 +6,12 @@
 #   Copyright (c) 2012 by Andrey V. Nakin <andrey.nakin@gmail.com>
 #
 
-package require Tcl 8.4
+package require Tcl 8.5
 package provide measure::thermocouple 0.1.0
 
 package require math::interpolate
 package require measure::bsearch
+package require measure::expr
 
 namespace eval measure::thermocouple {
 	namespace export getTcTypes calcKelvin calcCelsius
@@ -29,14 +30,22 @@ proc measure::thermocouple::getTcTypes {} {
 #   fixedT - temperature of "cold") junction, K
 #   v - voltage on thermocouple (volts)
 #   vErr - voltage measurement error (volts), optional
+#   correction - expression that corrects temperature calculated
 # Return
 #   temperature and error in Kelvins
-proc measure::thermocouple::calcKelvin { tc fixedT v { vErr 0.0 } } {
+proc measure::thermocouple::calcKelvin { tc fixedT v { vErr 0.0 } { correction "" } } {
 	set t [calc $tc $fixedT $v]
+	if { $correction != "" } {
+		set t [measure::expr::eval $correction $t]
+	}
 
 	set vErr [expr abs($vErr)]
 	if { $vErr > 0.0 } {
-		set tErr [expr [calc $tc $fixedT [expr $v + $vErr]] - $t]
+		set t2 [calc $tc $fixedT [expr $v + $vErr]]
+		if { $correction != "" } {
+			set t2 [measure::expr::eval $correction $t2]
+		}
+		set tErr [expr abs($t2 - $t)]
 	} else {
 		set tErr 0.0
 	}
@@ -50,12 +59,29 @@ proc measure::thermocouple::calcKelvin { tc fixedT v { vErr 0.0 } } {
 #   fixedT - temperature of "cold") junction, C
 #   v - voltage on thermocouple (volts)
 #   vErr - voltage measurement error (volts), optional
+#   correction - expression that corrects temperature calculated
 # Return
 #   temperature and error in celsiuses
-proc measure::thermocouple::calcCelsius { tc fixedT v { vErr 0.0 } } {
+proc measure::thermocouple::calcCelsius { tc fixedT v { vErr 0.0 } { correction "" } } {
 	global measure::thermocouple::ZERO_CELCIUM
-	lassign [calcKelvin $tc [expr $fixedT + $ZERO_CELCIUM] $v $vErr] t tErr
-	return [list [expr $t - $ZERO_CELCIUM] $tErr]
+
+	set t [expr [calc $tc [expr $fixedT + $ZERO_CELCIUM] $v] - $ZERO_CELCIUM]
+	if { $correction != "" } {
+		set t [measure::expr::eval $correction $t]
+	}
+
+	set vErr [expr abs($vErr)]
+	if { $vErr > 0.0 } {
+		set t2 [expr [calc $tc [expr $fixedT + $ZERO_CELCIUM] [expr $v + $vErr]] - $ZERO_CELCIUM]
+		if { $correction != "" } {
+			set t2 [measure::expr::eval $correction $t2]
+		}
+		set tErr [expr abs($t2 - $t)]
+	} else {
+		set tErr 0.0
+	}
+
+	return [list $t $tErr]
 }
 
 ##############################################################################
@@ -1643,6 +1669,7 @@ proc measure::thermocouple::makeTcData { fileName } {
 }
 
 #measure::thermocouple::makeTcData [lindex $argv 0]
-#puts "[measure::thermocouple::calcCelsius K 1.5 0.030 0.0001]"
+#puts "[measure::thermocouple::calcCelsius K 1.5 0.030 0.0001 {2*t - 700}]"
+#puts "[measure::thermocouple::calcKelvin K 77.4 0.0001 0.00001 {(t - 77,4)*1,1+77,4}]"
 #puts "[measure::thermocouple::calcKelvin K 77.4 0.0001 0.00001]"
 
