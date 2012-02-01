@@ -11,6 +11,7 @@ package provide hardware::agilent::mm34410a 0.1.0
 
 package require cmdline
 package require hardware::scpi
+package require hardware::agilent::utils
 
 namespace eval hardware::agilent::mm34410a {
   namespace export \
@@ -25,6 +26,8 @@ namespace eval hardware::agilent::mm34410a {
 }
 
 set hardware::agilent::mm34410a::IDN "Agilent Technologies,34410A"
+
+set hardware::agilent::mm34410a::baudRates {  300 600 1200 2400 4800 9600 }
 
 # 90 Day, Tcal ± 5 °C, NPLC = 100
 set hardware::agilent::mm34410a::dcvReadingErrors {
@@ -261,6 +264,11 @@ proc hardware::agilent::mm34410a::systematicError { value readingErrors rangeErr
 	set rangeErr [expr $maxval * ($err + $adder)]
 
 	return [expr $readingErr + $rangeErr]
+}
+
+# Производит открытие устройства
+proc hardware::agilent::mm34410a::open { args } {
+	return hardware::agilent::utils::open "e" $args
 }
 
 # Производит инициализацию и опрос устройства

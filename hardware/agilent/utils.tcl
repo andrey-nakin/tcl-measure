@@ -34,3 +34,26 @@ proc hardware::agilent::utils::query { channel cmd } {
 proc hardware::agilent::utils::clearReadBuffer { channel } {
     catch { read $channel }
 }
+
+# Производит открытие порта для связи с устройством
+proc hardware::agilent::utils::open { defParity args } {
+	set opts {
+		{baud.arg	"9600"	"Baud rate"}
+		{parity.arg	""		"Parity"}
+	}
+
+	set usage ": hardware::agilent::mm34410a::open \[options]\noptions:"
+	array set options [::cmdline::getoptions args $opts $usage]
+	set addr [lindex args 0]
+
+	set len 8
+	if { $options(parity) == "" } {
+		set options(parity) $defParity
+	}
+	set parity [string tolower [string range $options(parity) 0 0]]
+	if { $parity != "n" } {
+		set len 7
+	}
+	return scpi::open -mode "$options(baud),$parity,$len,2" -handshake dtrdsr $addr
+}
+

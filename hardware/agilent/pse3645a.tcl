@@ -9,6 +9,7 @@ package require Tcl 8.4
 package provide hardware::agilent::pse3645a 0.1.0
 
 package require hardware::scpi
+package require hardware::agilent::utils
 
 namespace eval hardware::agilent::pse3645a {
 	namespace export \
@@ -18,6 +19,14 @@ namespace eval hardware::agilent::pse3645a {
 }
 
 set hardware::agilent::pse3645a::IDN "Agilent Technologies,E3645A"
+
+set hardware::agilent::pse3645a::MAX_CURRENT_LOW_VOLTAGE 2.2
+set hardware::agilent::pse3645a::MAX_CURRENT_HIGH_VOLTAGE 1.3
+
+# Производит открытие устройства
+proc hardware::agilent::pse3645a::open { args } {
+	return hardware::agilent::utils::open "n" $args
+}
  
 # Производит инициализацию и опрос устройства.
 # Также переводит устройство в режим дистанционного управления.

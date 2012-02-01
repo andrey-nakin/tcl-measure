@@ -1,3 +1,4 @@
+#!/usr/bin/tclsh
 # com.tcl --
 #
 #   COM related utilities
@@ -7,6 +8,7 @@
 
 package require Tcl 8.4
 package provide measure::com 0.1.0
+package require cmdline
 
 namespace eval measure::com {
   namespace export allPorts
@@ -21,7 +23,7 @@ set measure::com::wordLengths { 7 8 }
 # Standard stop bit numbers
 set measure::com::stopBits { 1 2 }
 
-set measure::com::parities { n s m e o }
+set measure::com::parities { None Even Odd Mark Space }
 
 # Returns list with addresses of all COM ports available
 proc measure::com::allPorts { } {
@@ -32,5 +34,21 @@ proc measure::com::allPorts { } {
 	return $res
 }
 
+# Returns string with correct serial port mode
+# Arguments
+#  args - list of options
+proc measure::com::makeMode { args } {
+	set opts {
+		{baud.arg	9600	"Baud rate"}
+		{parity.arg	n		"Parity: n s m e o"}
+		{length.arg	8		"word length: 7 8"}
+		{stop.arg	1		"stop bits: 1 2"}
+	}
 
+	set usage ": measure::com::makeMode \[options]\noptions:"
+	array set options [::cmdline::getoptions args $opts $usage]
+
+	set parity [string tolower [string range $options(parity) 0 0]]
+	return "$options(baud),$parity,$options(length),$options(stop)"	
+}
 

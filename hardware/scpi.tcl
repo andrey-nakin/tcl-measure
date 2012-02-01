@@ -36,7 +36,8 @@ proc scpi::open { args } {
 	global scpi::ADDR_PREFIX_VISA
 
 	set opts {
-		{mode.arg	""	"serial device mode"}
+		{mode.arg		""	"serial device mode"}
+		{handshake.arg	""	"serial device handshake"}
 	}
 
 	set usage ": scpi::open \[options] addr ?access?\noptions:"
@@ -51,10 +52,18 @@ proc scpi::open { args } {
 	} else {
 		# open as a system device
 		set channel [open $addr $access]
+		# configure channel for SCPI message protocol
+		configure $channel
 	}
 
-	if { $options(mode) != "" && [isSerialChannel $channel] } {
-		fconfigure $channel -mode $options(mode)
+	if { [isSerialChannel $channel] } {
+		# configure serial-specific options
+		if { $options(mode) != "" } {
+			fconfigure $channel -mode $options(mode)
+		}
+		if { $options(handshake) != "" } {
+			fconfigure $channel -handshake $options(handshake)
+		}
 	}
 
 	return $channel
