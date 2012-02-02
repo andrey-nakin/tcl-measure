@@ -7,7 +7,7 @@
 #
 
 package require Tcl 8.5
-package provide hardware::scpi 0.1.0
+package provide scpi 0.1.0
 
 package require cmdline
 
@@ -17,7 +17,7 @@ namespace eval scpi {
 
 set scpi::ADDR_PREFIX_VISA "visa:"
 
-set scpi::DELAY_SERIAL 500
+set scpi::DELAY_SERIAL 50
 set scpi::DELAY_DEFAULT 5
 
 array set scpi::commandTimes {}
@@ -158,6 +158,21 @@ proc scpi::validateIdn { channel idn } {
     }
 }
 
+# Requests device SCPI version and compares it to min required one
+# Throws an exception if version is not available or less than required
+# Arguments
+#   channel - device channel
+#   minVer - min version required as real number, e.g. 1994.0
+proc scpi::validateScpiVersion { channel minVer } {
+    set ans [query $channel "SYSTEM:VERSION?"]
+    if { $ans == "" } {
+        error "Cannot determine instrument version on channel $channel"
+    }
+    if { $ans < $minVer } {
+        error "SCPI version `$ans` is less than required `$minVer` on channel $channel"
+    }
+}
+
 # Sets basic SCPI-compatible settings for channel
 # Arguments
 #   channel - device channel
@@ -254,7 +269,7 @@ proc scpi::isVisaAddr { addr } {
 			return 0
 		}
 
-		set btypes { ASRL TCPIP "GPIB-VXI" GPIB VXI PXI }
+		set btypes { ASRL USB TCPIP "GPIB-VXI" GPIB VXI PXI }
 		set t [lindex $parts 0]
 		foreach bt $btypes {
 			if { [regexp -nocase "^$bt\[0-9a-f\]*\$" $t] } {

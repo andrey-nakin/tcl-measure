@@ -51,7 +51,7 @@ proc ::measure::logger::server { {logfile "measure.log"} } {
 				puts $f $msg
 				close $f
 			}
-			puts stderr $msg
+			catch {puts stderr $msg}
 		}
 
 		# enter to event loop

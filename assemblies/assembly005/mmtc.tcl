@@ -8,7 +8,7 @@
 
 package require measure::logger
 package require measure::config
-package require hardware::scpi
+package require scpi
 package require hardware::agilent::mm34410a
 package require measure::thermocouple
 package require measure::com
@@ -28,13 +28,12 @@ proc measureVoltage { } {
 	# считываем значение напряжения
 	set v [scpi::query $mm "READ?"]
 
-	if { [measure::config::get mmtc.tc.negate] } {
+	if { [measure::config::get mmtc.tc.negate 0] } {
 		set v [expr -1.0 * $v]
 	}
 
 	# определяем инструментальную погрешность
 	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mmtc.mm.nplc]]
-	${log}::debug "measureVoltage step1 v=$v vErr=$vErr"
 
 	# Возвращаем результат
 	return [list $v $vErr]
@@ -58,8 +57,8 @@ proc setupMM {} {
 	]
 
     # Иниализируем и опрашиваем ММ
-	${log}::debug "setupMM: initializing multimeter"
-    hardware::agilent::mm34410a::init $mm
+	${log}::debug "setupMM: initializing multimeter $mm"
+    hardware::agilent::mm34410a::init -noFrontCheck $mm
 
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	${log}::debug "setupMM: setting multimeter up"
@@ -73,7 +72,7 @@ proc setupMM {} {
 ###############################################################################
 
 # Процедура вызывается при инициализации модуля
-proc init {} {
+proc init { senderId senderCallback } {
 	global log
 
 	# Читаем настройки программы
@@ -90,7 +89,10 @@ proc init {} {
 
 	# Холостое измерение для "прогрева" мультиметра
 	${log}::debug "init: dummy measure"
-	measureVoltage
+	measureVoltage 
+
+	# Отправляем сообщение в поток управления
+	thread::send -async $senderId [list $senderCallback [thread::id]]
 }
 
 # Процедура вызывается при завершени работы модуля
@@ -98,17 +100,20 @@ proc init {} {
 proc finish {} {
     global mm log
 
-    if { [info exists mm] } {
-    	# Переводим вольтметр в исходный режим
-		${log}::debug "finish: closing multimeter"
-    	hardware::agilent::mm34410a::done $mm
-    	close $mm
-    	unset mm
+    ${log}::debug "finish: enter"
+    
+    catch {
+        if { [info exists mm] } {
+        	# Переводим вольтметр в исходный режим
+    		${log}::debug "finish: closing multimeter"
+        	hardware::agilent::mm34410a::done $mm
+        	close $mm
+        	unset mm
+        }
     }
 
-	# выдержим паузу
-	after 500
-
+    ${log}::debug "finish: exit"
+    
 	# завершаем работу потока
 	thread::exit
 }
@@ -120,18 +125,13 @@ proc finish {} {
 proc getTemperature { senderId senderCallback } {
 	global log
 
-	${log}::debug "getTemperature: entering {$senderId $senderCallback}"
-
 	# Измеряем напряжение
-	${log}::debug "getTemperature: measuring voltage"
 	lassign [measureVoltage] v vErr
 
 	# Переводим напряжение на термопаре в температуру
-	${log}::debug "getTemperature: calculating temperature from {$v $vErr}"
 	lassign [calcTemperature $v $vErr] t tErr
 
 	# Отправляем сообщение в поток управления
-	${log}::debug "getTemperature: sending temperature {$t $tErr}"
 	thread::send -async $senderId [list $senderCallback $t $tErr]
 }
 
@@ -140,7 +140,7 @@ proc getTemperature { senderId senderCallback } {
 ###############################################################################
 
 # Инициализируем протоколирование
-set log [measure::logger::init scpi]
+set log [measure::logger::init mmtc]
 
 # Входим в цикл обработки сообщений
 thread::wait

@@ -6,7 +6,7 @@ if {[lsearch -exact $::auto_path $dir] == -1} {
     lappend ::auto_path $dir
 }
 
-package ifneeded hardware::scpi 0.1.0 [list source [file join $dir scpi.tcl]]
+package ifneeded scpi 0.1.0 [list source [file join $dir scpi.tcl]]
 
 set maindir $dir
 set dir [file join $maindir owen] ;	 source [file join $dir pkgIndex.tcl]

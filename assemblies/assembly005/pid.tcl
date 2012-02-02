@@ -62,47 +62,85 @@ proc createChildThread { scriptName } {
 
 	${log}::debug "createChildThread: sending `start' to thread $tid"
 	thread::send -async $tid "_start [thread::id] [file join [file dirname [info script]] ${scriptName}.tcl]"
-	thread::send -async $tid init
+	thread::send -async $tid [list init [thread::id] childInitialized]
 
 	return $tid
 }
 
-proc createChildren { } {
-	global log temperatureThreadId powerThreadId
+proc childThreadError { tid errorInfo } {
+    global log childFailed
+    
+    ${log}::error "Error $errorInfo in thread $tid"
+    set childFailed 1
+}
 
+proc createChildren { } {
+	global log temperatureThreadId powerThreadId validNum mutexVar childFailed
+
+    set validNum 0
+    set childFailed 0
+    
+    thread::errorproc childThreadError 
+    
 	${log}::debug "createChildren: creating temperature module"
 	set temperatureThreadId [createChildThread [measure::config::get tempmodule mmtc]]
 
 	${log}::debug "createChildren: creating power module"
 	set powerThreadId [createChildThread [measure::config::get powermodule ps]]
+	
+	# Ожидаем завершения инициализации
+	while { !$childFailed && $validNum < 2 } {
+	   update
+	   after 100
+    }
+}
+
+proc finishChild { threadId } {
+	global log
+
+	if { [catch {
+		${log}::debug "finishChild: sending `finish' to $threadId"
+		thread::send -async $threadId "finish"
+	} rc] } {
+		${log}::error "destroyChild: error finishing thread $threadId: $rc"
+	}
 }
 
 proc destroyChild { threadId } {
 	global log
 
 	if { [catch {
-		${log}::debug "destroyChild: sending `finish' to $threadId"
-		thread::send -async $threadId "finish"
-
-		${log}::debug "destroyChildren: joining $threadId"
+		${log}::debug "destroyChild: joining $threadId"
 		thread::join $threadId
+		${log}::debug "destroyChild: $threadId joined"
 	} rc] } {
 		${log}::error "destroyChild: error finishing thread $threadId: $rc"
 	}
 }
 
 proc destroyChildren {} {
-	global temperatureThreadId log powerThreadId
+	global log
 	
-	if { [info exists powerThreadId] } {
-		${log}::debug "destroyChildren: destroying power module $powerThreadId"
-		destroyChild $powerThreadId
-	}
-
-	if { [info exists temperatureThreadId] } {
-		${log}::debug "destroyChildren: destroying temperature module $temperatureThreadId"
-		destroyChild $temperatureThreadId
-	}
+	set vars { powerThreadId temperatureThreadId }
+	
+	# Отправим сообщение `finish` в дочерние модули
+	foreach var $vars {
+	   global $var
+    	if { [info exists $var] } {
+    		eval "finishChild \$$var"
+    	}
+    }
+	
+	# Ожидаем завершение дочерних модулей
+	foreach var $vars {
+	   global $var
+    	if { [info exists $var] } {
+    		eval "destroyChild \$$var"
+    	}
+    }
+	
+	# выдержим паузу
+	after 500
 }
 
 # процедура, реализующая алгоритм ПИД
@@ -139,14 +177,6 @@ proc calcCurrent {} {
 
 		# определим новое значение тока питания
 		set result [pidCalc $dt]
-		
-		# проверим правильность тока
-		if { $result < 0.0 } {
-			set result 0.0
-		}
-		if { [info exists settings(pid.maxCurrent)] && $settings(pid.maxCurrent) > 0 && $result > $settings(pid.maxCurrent) } {
-			set result $settings(pid.maxCurrent)
-		}
 	} else {
 		# это первое измерение
 		set result 0.0
@@ -163,12 +193,24 @@ proc finish {} {
 	# закрываем дочерние модули
 	destroyChildren
 
-	after 2000
+	if { [measure::interop::isAlone] } {
+    	after 2000
+    }
 }
 
 ###############################################################################
 # Обработчики событий
 ###############################################################################
+
+# Процедура вызывается при завершении инициализации дочернего модуля
+proc childInitialized { childId } {
+    global log validNum
+    
+    ${log}::debug "childInitialized: enter childId=$childId" 
+
+    # увеличим счётчик проинициализированных модулей
+    incr validNum
+}
 
 # Процедура вызывается модулем измерения температуры
 proc setTemperature { t tErr } {
@@ -186,7 +228,7 @@ proc setTemperature { t tErr } {
 proc currentSet { current voltage } {
 	global mutexVar log
 
-	${log}::debug "currentSet: enter"
+	${log}::debug "currentSet: enter, c=$current, v=$voltage"
 
 	# Изменяем значение переменной синхронизации для остановки ожидания
 	incr mutexVar
@@ -205,7 +247,7 @@ proc childError { childId err } {
 		}
 		exit
 	} else {
-		${log}::debug "childError: trasnlate error to parent module"
+		${log}::debug "childError: translate error to parent module"
 		error $err
 	}
 }
@@ -243,18 +285,19 @@ setPoint 300.0
 
 # Основной цикл регулировки
 ${log}::debug "starting main loop"
-while { ![measure::interop::isTerminated] } {
+while { !$childFailed && ![measure::interop::isTerminated] } {
 	# отправляем команду на измерение текущей температуры
-	${log}::debug "requesting temperature"
 	thread::send -async $temperatureThreadId [list getTemperature $thisId setTemperature]
 
 	# отправляем команду на установление тока питания
-	${log}::debug "setting current"
 	thread::send -async $powerThreadId [list setCurrent [calcCurrent] $thisId currentSet]
 
 	# ждём изменения переменной синхронизации дважды от двух источников событий
-	${log}::debug "wait for answers"
 	vwait mutexVar; vwait mutexVar
+
+	if { $mutexVar > 40 } {
+		break
+	}
 }
 
 # Завершаем работу

@@ -6,6 +6,7 @@
 #   Copyright (c) 2011 by Andrey V. Nakin <andrey.nakin@gmail.com>
 #
 
+package require Tcl 8.5
 package provide hardware::agilent::utils 0.1.0
 
 namespace eval hardware::agilent::utils {
@@ -44,7 +45,7 @@ proc hardware::agilent::utils::open { defParity args } {
 
 	set usage ": hardware::agilent::mm34410a::open \[options]\noptions:"
 	array set options [::cmdline::getoptions args $opts $usage]
-	set addr [lindex args 0]
+	lassign $args addr
 
 	set len 8
 	if { $options(parity) == "" } {
@@ -54,6 +55,6 @@ proc hardware::agilent::utils::open { defParity args } {
 	if { $parity != "n" } {
 		set len 7
 	}
-	return scpi::open -mode "$options(baud),$parity,$len,2" -handshake dtrdsr $addr
+	return [scpi::open -mode "$options(baud),$parity,$len,2" -handshake dtrdsr $addr]
 }
 

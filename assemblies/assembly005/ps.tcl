@@ -39,7 +39,10 @@ proc setupPs {} {
     scpi::cmd $ps "VOLTAGE:RANGE HIGH"
     
 	# Задаём пределы по напряжению и току
-    scpi::cmd $ps "APPLY 60.000,0.001"
+    scpi::cmd $ps "APPLY 60.000,0.0"
+    
+    # включаем подачу напряжения на выходы ИП
+    hardware::agilent::pse3645a::setOutput $ps 1
 }
 
 ###############################################################################
@@ -47,7 +50,7 @@ proc setupPs {} {
 ###############################################################################
 
 # Процедура вызывается при инициализации модуля
-proc init {} {
+proc init { senderId senderCallback } {
 	global log settings
 
 	# Читаем настройки программы
@@ -59,7 +62,11 @@ proc init {} {
 	validateSettings
 
 	# Инициализируем ИП
-	setupPs
+	${log}::debug "init: setting PS up"
+    setupPs
+
+	# Отправляем сообщение в поток управления
+	thread::send -async $senderId [list $senderCallback [thread::id]]
 }
 
 # Процедура вызывается при завершени работы модуля
@@ -67,16 +74,19 @@ proc init {} {
 proc finish {} {
     global log ps
 
-    if { [info exists ps] } {
-    	# Переводим ИП в исходный режим
-    	hardware::agilent::pse3645a::done $ps
-    	close $ps
-    	unset ps
+    ${log}::debug "finish: enter"
+
+    catch {    
+        if { [info exists ps] } {
+        	# Переводим ИП в исходный режим
+        	hardware::agilent::pse3645a::done $ps
+        	close $ps
+        	unset ps
+        }
     }
 	
-	# выдержим паузу
-	after 500
-
+    ${log}::debug "finish: exit"
+    
 	# завершаем работу потока
 	thread::exit
 }
@@ -89,21 +99,21 @@ proc finish {} {
 proc setCurrent { current senderId senderCallback } {
 	global log ps hardware::agilent::pse3645a::MAX_CURRENT_HIGH_VOLTAGE
 
-	${log}::debug "setCurrent: entering {$current $senderId $senderCallback}"
-
+	set maxc [expr 0.001 * [measure::config::get ps.maxCurrent 0]]
+	if { $maxc > 0.0 && $current > $maxc } {
+	   set current $maxc 
+    } 
 	if { $current > $MAX_CURRENT_HIGH_VOLTAGE } {
 		set current $MAX_CURRENT_HIGH_VOLTAGE
 	}
 
-	# Задаём выходной ток с переводом из мА в А
-    scpi::cmd $ps "CURRENT $current"
-
+	# Задаём выходной ток
 	# Измеряем напряжение на выходах ИП
-    set v [scpi::query $ps "MEASURE:VOLTAGE?"
+    set res [scpi::query $ps "CURRENT $current;MEASURE:VOLTAGE?;CURR?"]
+    lassign [split [string trim $res] ";"] v c
 
 	# Отправляем сообщение в поток управления
-	${log}::debug "setCurrent: sending response"
-	thread::send -async $senderId [list $senderCallback $current $v]
+	thread::send -async $senderId [list $senderCallback $c $v]
 }
 
 ###############################################################################

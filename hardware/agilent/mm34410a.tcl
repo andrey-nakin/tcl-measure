@@ -10,7 +10,7 @@ package require Tcl 8.4
 package provide hardware::agilent::mm34410a 0.1.0
 
 package require cmdline
-package require hardware::scpi
+package require scpi
 package require hardware::agilent::utils
 
 namespace eval hardware::agilent::mm34410a {
@@ -26,6 +26,8 @@ namespace eval hardware::agilent::mm34410a {
 }
 
 set hardware::agilent::mm34410a::IDN "Agilent Technologies,34410A"
+
+set hardware::agilent::mm34410a::SCPI_VERSION 1994.0
 
 set hardware::agilent::mm34410a::baudRates {  300 600 1200 2400 4800 9600 }
 
@@ -268,14 +270,14 @@ proc hardware::agilent::mm34410a::systematicError { value readingErrors rangeErr
 
 # Производит открытие устройства
 proc hardware::agilent::mm34410a::open { args } {
-	return hardware::agilent::utils::open "e" $args
+	return [hardware::agilent::utils::open "e" {*}$args]
 }
 
 # Производит инициализацию и опрос устройства
 # Аргументы
 #   channel - канал с открытым портом для связи с устройством
 proc hardware::agilent::mm34410a::init { args } {
-    global hardware::agilent::mm34410a::IDN
+    global hardware::agilent::mm34410a::SCPI_VERSION log
 
 	set options {
 		{noFrontCheck			""	""}
@@ -290,12 +292,21 @@ proc hardware::agilent::mm34410a::init { args } {
 	#scpi::clear $channel
 
     # производим опрос устройства
-	scpi::validateIdn $channel $IDN
+    scpi::validateScpiVersion $channel $SCPI_VERSION 
 
 	# в исходное состояние
     scpi::cmd $channel "*RST;*CLS"
+    after 500
 
-    if { ![info exists params(noFrontCheck)] || !$params(noFrontCheck) } {
+    if { [scpi::isSerialChannel $channel] } {
+    	# включаем удалённый доступ
+        scpi::cmd $channel "SYSTEM:REMOTE"
+    }
+    
+    # включаем режим совместимости с Agilent 34401A
+    scpi::cmd $channel {SYSTEM:LANGUAGE "34401A"}
+    
+    if { !$params(noFrontCheck) } {
     	# Проверяем состояние переключателя front/rear
     	hardware::agilent::mm34410a::checkFrontRear $channel
     } 
