@@ -37,8 +37,21 @@ package require measure::thermocouple
 # Процедуры
 ###############################################################################
 
+# Процедура вызывается при завершении работы модуля термостатирования
+proc thermostatStopped {} {
+	global w
+
+	# Запрещаем кнопку "Стоп"
+	$w.fr.stop configure -state disabled
+
+	# Разрешаем кнопку "Старт"
+	$w.fr.start configure -state normal
+}
+
 # Запускаем модуль термостатирования
 proc startThermostat {} {
+	global w
+
 	# Сохраняем параметры программы
 	measure::config::write
 
@@ -46,13 +59,31 @@ proc startThermostat {} {
     measure::interop::clearTerminated
 
 	# Запускаем на выполнение фоновый поток	с процедурой измерения
-	measure::interop::startWorker [list source [file join [file dirname [info script]] pid.tcl] ] {} {}
+	measure::interop::startWorker [list source [file join [file dirname [info script]] pid.tcl] ] {thermostatStopped} {}
+
+	# Запрещаем кнопку "Старт"
+	$w.fr.start configure -state disabled
+
+	# Разрешаем кнопку "Стоп"
+	$w.fr.stop configure -state normal
 }
 
 # Прерываем работу модуля термостатирования
-proc stopThermostat {} {
-	# Посылаем в измерительный поток сигнал об останове
-	measure::interop::waitForWorkerThreads
+proc stopThermostat { { wait 0} } {
+	global w
+
+	# Запрещаем кнопку "Стоп"
+	$w.fr.stop configure -state disabled
+
+	if { $wait } {
+		# Посылаем в измерительный поток сигнал об останове
+		# и ждём завершения
+		measure::interop::waitForWorkerThreads
+	} else {
+		# Посылаем в измерительный поток сигнал об останове
+		# без ожидания завершения
+		measure::interop::terminate
+	}
 }
 
 # Завершение работы программы
@@ -61,7 +92,7 @@ proc quit {} {
 	measure::config::write
 
 	# завершаем работу модуля термостатирования
-	stopThermostat
+	stopThermostat 1
 
 	exit
 }
@@ -281,11 +312,16 @@ bind $p.c <Configure> {doResize}
 # Стандартная панель
 ::measure::widget::std-bottom-panel $w
 
+pack [ttk::button $w.fr.start -text "Старт" -command startThermostat -image ::img::start -compound left] -padx 5 -pady {20 5} -side left
+pack [ttk::button $w.fr.stop -text "Стоп" -command stopThermostat -state disabled -image ::img::stop -compound left] -padx 5 -pady {20 5} -side left
+
 # Читаем настройки
 measure::config::read
 
 # Запускаем модуль термостатирования
-startThermostat
+if { [measure::config::get autoStart 0] } {
+	startThermostat
+}
 
 #vwait forever
 thread::wait
