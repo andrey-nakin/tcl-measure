@@ -42,18 +42,10 @@ proc createChildThread { scriptName } {
 			global log
 
 			${log}::debug "createChildThread: starting child [thread::id] from script file $scriptFileName"
-			if { [catch { source $scriptFileName } rc] } {
-				${log}::error "Error executing child thread [thread::id]: $rc"
-				
-			    if { [catch { finish } rc2] } {
-    				${log}::error "Error executing finalizer for thread [thread::id]: $rc2"
-                }
+			source $scriptFileName
+		}
 
-				${log}::debug "createChildThread: notifying parent about error in thread [thread::id]"
-				thread::send -async $senderId "childError [thread::id] { $rc }"
-			}
-
-			${log}::debug "createChildThread: exiting child [thread::id]"
+		proc _stop {} {
 			thread::exit
 		}
 
@@ -62,25 +54,18 @@ proc createChildThread { scriptName } {
 
 	${log}::debug "createChildThread: sending `start' to thread $tid"
 	thread::send -async $tid "_start [thread::id] [file join [file dirname [info script]] ${scriptName}.tcl]"
+	${log}::debug "createChildThread: sending `init' to thread $tid"
 	thread::send -async $tid [list init [thread::id] childInitialized]
 
 	return $tid
 }
 
-proc childThreadError { tid errorInfo } {
-    global log childFailed
-    
-    ${log}::error "Error $errorInfo in thread $tid"
-    set childFailed 1
-}
-
 proc createChildren { } {
-	global log temperatureThreadId powerThreadId validNum mutexVar childFailed
+	global log temperatureThreadId powerThreadId validNum mutexVar
 
     set validNum 0
-    set childFailed 0
     
-    thread::errorproc childThreadError 
+	${log}::debug "createChildren: enter, this thread id = [thread::id]"
     
 	${log}::debug "createChildren: creating temperature module"
 	set temperatureThreadId [createChildThread [measure::config::get tempmodule mmtc]]
@@ -89,7 +74,7 @@ proc createChildren { } {
 	set powerThreadId [createChildThread [measure::config::get powermodule ps]]
 	
 	# Ожидаем завершения инициализации
-	while { !$childFailed && $validNum < 2 } {
+	while { $validNum < 2 } {
 	   update
 	   after 100
     }
@@ -100,7 +85,9 @@ proc finishChild { threadId } {
 
 	if { [catch {
 		${log}::debug "finishChild: sending `finish' to $threadId"
-		thread::send -async $threadId "finish"
+		thread::send -async $threadId finish
+		${log}::debug "finishChild: sending `_stop' to $threadId"
+		thread::send -async $threadId _stop
 	} rc] } {
 		${log}::error "destroyChild: error finishing thread $threadId: $rc"
 	}
@@ -122,6 +109,7 @@ proc destroyChildren {} {
 	global log
 	
 	set vars { powerThreadId temperatureThreadId }
+    thread::errorproc measure::interop::suppressedError
 	
 	# Отправим сообщение `finish` в дочерние модули
 	foreach var $vars {
@@ -133,7 +121,6 @@ proc destroyChildren {} {
 	
 	# Ожидаем завершение дочерних модулей
 	foreach var $vars {
-	   global $var
     	if { [info exists $var] } {
     		eval "destroyChild \$$var"
     	}
@@ -192,10 +179,6 @@ proc finish {} {
 
 	# закрываем дочерние модули
 	destroyChildren
-
-	if { [measure::interop::isAlone] } {
-    	after 2000
-    }
 }
 
 ###############################################################################
@@ -220,6 +203,9 @@ proc setTemperature { t tErr } {
 
 	set pidState(currentTemperature) $t
 
+	# Выводим температуру в окне
+	measure::interop::cmd [list setTemperature $t $tErr [expr $pidState(setPoint) - $t]]
+
 	# Изменяем значение переменной синхронизации для остановки ожидания
 	incr mutexVar
 }
@@ -230,33 +216,21 @@ proc currentSet { current voltage } {
 
 	${log}::debug "currentSet: enter, c=$current, v=$voltage"
 
+	# Выводим параметры питания в окне
+	measure::interop::cmd [list setPower $current $voltage]
+
 	# Изменяем значение переменной синхронизации для остановки ожидания
 	incr mutexVar
 }
 
-# Процедуры вызывается при возникновении ошибки в дочернем модуле
-proc childError { childId err } {
-	global log
-
-	${log}::debug "childError: entering from child $childId by error $err"
-
-	if { [measure::interop::isAlone] } {
-		${log}::debug "childError: finishing module"
-		if { [catch { finish } rc] } {
-			${log}::error "childError: error finishing module: $rc"
-		}
-		exit
-	} else {
-		${log}::debug "childError: translate error to parent module"
-		error $err
-	}
-}
-
 # Процедура изменяет значение уставки
 proc setPoint { t } {
-	global pidState
+	global pidState log
 
+	${log}::debug "setPoint: enter, t=$t"
 	set pidState(setPoint) $t
+
+	measure::interop::setVar runtime(setPoint) [format "%0.1f" $t]
 }
 
 ###############################################################################
@@ -264,7 +238,7 @@ proc setPoint { t } {
 ###############################################################################
 
 # Эта команда будет вызваться в случае преждевременной остановки потока
-measure::interop::registerFinalization { finish }
+measure::interop::start { finish }
 
 # Читаем настройки программы
 measure::config::read
@@ -280,12 +254,12 @@ createChildren
 
 set thisId [thread::id]
 
-# имитация уставки
-setPoint 300.0
+# Текущее значение уставки
+setPoint [measure::config::get newSetPoint 0.0]
 
 # Основной цикл регулировки
 ${log}::debug "starting main loop"
-while { !$childFailed && ![measure::interop::isTerminated] } {
+while { ![measure::interop::isTerminated] } {
 	# отправляем команду на измерение текущей температуры
 	thread::send -async $temperatureThreadId [list getTemperature $thisId setTemperature]
 
@@ -301,5 +275,5 @@ while { !$childFailed && ![measure::interop::isTerminated] } {
 }
 
 # Завершаем работу
-finish
+measure::interop::exit
 

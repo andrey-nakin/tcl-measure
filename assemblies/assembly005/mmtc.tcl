@@ -67,6 +67,16 @@ proc setupMM {} {
 		 $mm
 }
 
+# Приведение мультиметра в исходное состояние
+proc closeMM {} {
+	global log mm
+
+	${log}::debug "finish: closing multimeter"
+	hardware::agilent::mm34410a::done $mm
+
+	close $mm
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
@@ -102,23 +112,15 @@ proc finish {} {
 
     ${log}::debug "finish: enter"
     
-    catch {
-        if { [info exists mm] } {
-        	# Переводим вольтметр в исходный режим
-    		${log}::debug "finish: closing multimeter"
-        	hardware::agilent::mm34410a::done $mm
-        	close $mm
-        	unset mm
-        }
+    if { [info exists mm] } {
+    	# Переводим вольтметр в исходный режим
+		closeMM
     }
 
     ${log}::debug "finish: exit"
-    
-	# завершаем работу потока
-	thread::exit
 }
 
-# Процедура вызываетя для чтения температуры
+# Процедура вызывается для чтения температуры
 # Аргументы:
 #   senderId - идентификатор управляющего потока
 #   senderCallback - название процедуры-обработчика события для вызова
@@ -141,7 +143,4 @@ proc getTemperature { senderId senderCallback } {
 
 # Инициализируем протоколирование
 set log [measure::logger::init mmtc]
-
-# Входим в цикл обработки сообщений
-thread::wait
 

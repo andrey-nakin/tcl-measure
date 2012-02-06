@@ -13,7 +13,7 @@ package require logger
 package require Thread
 
 namespace eval ::measure::logger {
-  namespace export init	server
+  namespace export init	server shutdown
 }
 
 # Use this procedure in place of logger::init with the same semantics
@@ -35,11 +35,15 @@ proc ::measure::logger::init { service } {
 # Arguments
 #   ?logfile? - name of the disk file to write log into.
 proc ::measure::logger::server { {logfile "measure.log"} } {
-	set t [thread::create {
+	set t [thread::create -joinable {
 
 		proc setLogFile { fn } {
 			global logfile
 			set logfile $fn
+		}
+
+		proc stop {} {
+			thread::exit
 		}
 
 		proc log { level txt } {
@@ -60,6 +64,21 @@ proc ::measure::logger::server { {logfile "measure.log"} } {
 
 	thread::send $t [list setLogFile $logfile]
 	tsv::set measure-logger loggerThread $t
+}
+
+proc ::measure::logger::shutdown { } {
+	if { [tsv::exists measure-logger loggerThread] } {
+		global log
+
+		if { [info exists log] } {
+			${log}::debug "Shutting log server down"
+		}
+
+		set tid [tsv::get measure-logger loggerThread]
+		thread::send -async $tid stop
+		thread::join $tid
+		tsv::unset measure-logger loggerThread
+	}
 }
 
 # INTERNAL PROCEDURES

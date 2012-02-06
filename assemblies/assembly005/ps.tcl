@@ -45,6 +45,16 @@ proc setupPs {} {
     hardware::agilent::pse3645a::setOutput $ps 1
 }
 
+# Приведение ИП в исходное состояние
+proc closePs {} {
+	global ps
+
+	# Переводим ИП в исходный режим
+	hardware::agilent::pse3645a::done $ps
+
+	close $ps
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
@@ -76,19 +86,13 @@ proc finish {} {
 
     ${log}::debug "finish: enter"
 
-    catch {    
-        if { [info exists ps] } {
-        	# Переводим ИП в исходный режим
-        	hardware::agilent::pse3645a::done $ps
-        	close $ps
-        	unset ps
-        }
+    if { [info exists ps] } {
+		# ИП в исходное состояние
+	    ${log}::debug "finish: closing PS"
+		closePs
     }
 	
     ${log}::debug "finish: exit"
-    
-	# завершаем работу потока
-	thread::exit
 }
 
 # Процедура вызываетя для установки тока питания
@@ -107,10 +111,10 @@ proc setCurrent { current senderId senderCallback } {
 		set current $MAX_CURRENT_HIGH_VOLTAGE
 	}
 
-	# Задаём выходной ток
-	# Измеряем напряжение на выходах ИП
+	# Задаём силу тока
+	# После чего измеряем актуальные напряжение и силу тока на выходах ИП
     set res [scpi::query $ps "CURRENT $current;MEASURE:VOLTAGE?;CURR?"]
-    lassign [split [string trim $res] ";"] v c
+    scan $res "%f;%f" v c
 
 	# Отправляем сообщение в поток управления
 	thread::send -async $senderId [list $senderCallback $c $v]
@@ -122,7 +126,4 @@ proc setCurrent { current senderId senderCallback } {
 
 # Инициализируем протоколирование
 set log [measure::logger::init ps]
-
-# Входим в цикл обработки сообщений
-thread::wait
 
