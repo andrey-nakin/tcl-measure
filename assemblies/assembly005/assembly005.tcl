@@ -13,7 +13,6 @@
 package require Tcl 8.5
 package require Tk 8.5
 package require Ttk 8.5
-package require Plotchart
 package require Thread
 package require inifile
 package require math::statistics
@@ -108,21 +107,6 @@ proc quit {} {
 	exit
 }
 
-proc addValueToChart { v } {
-	global chartValues
-
-	if { ![info exists chartValues] } {
-		set chartValues [list]
-	}
-
-	if { [llength $chartValues] >= 200 } {
-		set chartValues [lrange $chartValues [expr [llength $chartValues] - 199] end]
-	}
-	lappend chartValues $v
-
-	doPlot	
-}
-
 # Изменяем значение уставки
 proc setPoint {} {
 	global thermoThreadId settings
@@ -138,10 +122,12 @@ proc setPoint {} {
 
 # Последняя измеренная температура
 proc setTemperature { t tErr err } {
-	global runtime
+	global runtime canvas
 
 	set runtime(value) [format "%0.2f \u00b1 %0.2f" $t $tErr]
 	set runtime(error) [format "%0.2f \u00b1 %0.2f" $err $tErr]
+
+	measure::chart::${canvas}::addPoint $t
 }
 
 # Ток и напряжение питания печки
@@ -150,7 +136,7 @@ proc setPower { current voltage } {
 
 	set runtime(current) [format "%0.4g" [expr 1000.0 * $current]]
 	set runtime(voltage) [format "%0.4g" [expr 1.0 * $voltage]]
-	set runtime(power) [format "%0.4g" [expr 1.0 * $current * $voltage]]
+	set runtime(power) [format "%0.2g" [expr 1.0 * $current * $voltage]]
 }
 
 ###############################################################################
@@ -178,65 +164,13 @@ ttk::notebook::enableTraversal $w.nb
 ttk::frame $w.nb.m
 $w.nb add $w.nb.m -text " Работа "
 
-proc doPlot {} {
-	global w
-	global chartValues chartBgColor
-
-    $w.nb.m.c.c delete all
-	if { ![info exists chartValues] } {
-		return
-	}
-
-	set stats [::math::statistics::basic-stats $chartValues]
-	set s [::Plotchart::createXYPlot $w.nb.m.c.c { 0 200 20 } [measure::chart::limits [lindex $stats 1] [lindex $stats 2]]]
-
-	$s dataconfig series1 -colour green
-	$s ytext "R, \u03a9"
-
-	if { ![info exists chartBgColor] } {
-		set chartBgColor [$w.nb.m.c.c cget -bg]
-	}
-	$s background plot black
-	$s background axes $chartBgColor
-
-	set x 0
-	set xx [list]
-	foreach y $chartValues {
-		$s plot series1 $x $y
-		lappend xx $x
-		incr x
-	}
-
-	if { [llength $xx] > 10 } {
-		lassign [::math::statistics::linear-model $xx $chartValues] a b
-		set lll [expr [llength $xx] - 1]
-		$s dataconfig series2 -colour magenta
-		$s plot series2 [lindex $xx 0] [expr [lindex $xx 0] * $b + $a]
-		$s plot series2 [lindex $xx $lll] [expr [lindex $xx $lll] * $b + $a]
-	}
-}
-
-proc doResize {} {
-    global redo
-
-    #
-    # To avoid redrawing the plot many times during resizing,
-    # cancel the callback, until the last one is left.
-    #
-    if { [info exists redo] } {
-        after cancel $redo
-    }
-
-    set redo [after 50 doPlot]
-}
-
 # Раздел "Управление"
 set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
 grid [ttk::label $p.lsp -text "Новая уставка, К:"] -row 0 -column 0 -sticky w
 grid [ttk::spinbox $p.sp -width 10 -textvariable settings(newSetPoint) -from 0 -to 2000 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky w
-grid [ttk::button $p.ssp -text "Установить" -command setPoint] -row 0 -column 2 -sticky w
+grid [ttk::button $p.ssp -text "Установить" -command setPoint -state disabled] -row 0 -column 2 -sticky w
 
 grid columnconfigure $p { 0 1 2 } -pad 5
 
@@ -268,11 +202,11 @@ grid columnconfigure $p { 1 4 7 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
 # Раздел "График"
-set p [ttk::labelframe $w.nb.m.c -text " Временная зависимость " -pad 2]
+set p [ttk::labelframe $w.nb.m.c -text " График температуры " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
-pack [canvas $p.c -width 400 -height 200] -fill both -expand 1
-#pack [canvas $p.c -background gray -width 400 -height 200] -fill both -expand 1
-bind $p.c <Configure> {doResize}
+set canvas [canvas $p.c -width 400 -height 200]
+pack $canvas -fill both -expand 1
+measure::chart::movingChart -ylabel "T, К" $canvas
 
 ##############################################################################
 # Закладка "Параметры"

@@ -138,6 +138,9 @@ proc pidCalc { dt } {
 		return 0.0
 	}
 
+#!!!
+	return [expr 0.001 * $pidState(setPoint)]
+
 	# текущее значение невязки	
 	set err [expr $pidState(setPoint) - $pidState(currentTemperature)]
 
@@ -269,9 +272,9 @@ while { ![measure::interop::isTerminated] } {
 	# ждём изменения переменной синхронизации дважды от двух источников событий
 	vwait mutexVar; vwait mutexVar
 
-	if { $mutexVar > 40 } {
-		break
-	}
+#	if { $mutexVar > 100 } {
+#		break
+#	}
 }
 
 # Завершаем работу
