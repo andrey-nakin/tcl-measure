@@ -103,6 +103,10 @@ proc finish {} {
 proc setCurrent { current senderId senderCallback } {
 	global log ps hardware::agilent::pse3645a::MAX_CURRENT_HIGH_VOLTAGE
 
+    if { $current < 0.0 } {
+        set current 0.0
+    }
+
 	set maxc [expr 0.001 * [measure::config::get ps.maxCurrent 0]]
 	if { $maxc > 0.0 && $current > $maxc } {
 	   set current $maxc 

@@ -41,7 +41,7 @@ proc measureVoltage { } {
 
 # Вычисляем температуру по напряжению на термопаре
 proc calcTemperature { v vErr } {
-	return [measure::thermocouple::calcKelvin [measure::config::get mmtc.tc.type K] [measure::config::get mmtc.tc.fixedT 77.4]) $v $vErr]
+	return [measure::thermocouple::calcKelvin [measure::config::get mmtc.tc.type K] [measure::config::get mmtc.tc.fixedT 77.4] $v $vErr]
 }
 
 # Инициализация вольтметра

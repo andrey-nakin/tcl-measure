@@ -1671,5 +1671,5 @@ proc measure::thermocouple::makeTcData { fileName } {
 #measure::thermocouple::makeTcData [lindex $argv 0]
 #puts "[measure::thermocouple::calcCelsius K 1.5 0.030 0.0001 {2*t - 700}]"
 #puts "[measure::thermocouple::calcKelvin K 77.4 0.0001 0.00001 {(t - 77,4)*1,1+77,4}]"
-#puts "[measure::thermocouple::calcKelvin K 77.4 0.0001 0.00001]"
+#puts "[measure::thermocouple::calcKelvin K 77.4 0.005997886940000001 4.7399154776e-6]"
 

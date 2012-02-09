@@ -19,7 +19,7 @@ package require measure::interop
 set mutexVar 0
 
 # Переменная для хранения состояния ПИД-регулятора
-array set pidState [list lastError 0.0 lastResult 0.0 setPoint 0.0]
+array set pidState [list lastError 0.0 lastResult 0.0 setPoint 0.0 iaccum 0.0 currentTemperature 0.0]
 
 set lastTime ""
 
@@ -132,19 +132,42 @@ proc destroyChildren {} {
 
 # процедура, реализующая алгоритм ПИД
 proc pidCalc { dt } {
-	global pidState settings
+	global pidState settings log
 
-	if { ![info exists pidState(currentTemperature)] || ![info exists pidState(setPoint)] } {
+	if { ![info exists pidState(currentTemperature)] || ![info exists pidState(setPoint)] || ![info exists pidState(lastTemperature)] } {
 		return 0.0
 	}
 
 #!!!
-	return [expr 0.001 * $pidState(setPoint)]
+#	return [expr 0.001 * $pidState(setPoint)]
 
 	# текущее значение невязки	
 	set err [expr $pidState(setPoint) - $pidState(currentTemperature)]
 
-	set result [expr $settings(pid.tp) * $err]
+    # calculate the proportional term
+    set pTerm [expr $settings(pid.tp) * $err]
+    
+    # calculate the integral state with appropriate limiting
+    set pidState(iaccum) [expr $pidState(iaccum) + $err]
+    set maxi [measure::config::get pid.maxi]
+    if { $maxi != "" } {
+        if { $pidState(iaccum) > $maxi } {
+            set pidState(iaccum) $maxi 
+        } 
+        if { $pidState(iaccum) < -$maxi } {
+            set pidState(iaccum) [expr -1.0 * $maxi] 
+        } 
+    }
+    
+    # calculate the integral term
+    set iTerm [expr $settings(pid.ti) * $pidState(iaccum)]
+    
+    # calculate differential term
+    set dTerm [expr $settings(pid.td) * ($pidState(currentTemperature) - $pidState(lastTemperature))]
+    set pidState(lastTemperature) $pidState(currentTemperature)  
+
+	set result [expr $pTerm + $iTerm - $dTerm]
+    ${log}::debug "pidCalc result:\t$result\t$pTerm\t$iTerm\t$dTerm"
 
 	# сохраним невязку для использования на следующем шаге
 	set pidState(lastError) $err
@@ -174,7 +197,7 @@ proc calcCurrent {} {
 
 	set lastTime $curTime
 
-	return $result
+	return [expr 0.001 * $result]
 }
 
 proc finish {} {
@@ -202,8 +225,7 @@ proc childInitialized { childId } {
 proc setTemperature { t tErr } {
 	global mutexVar pidState log
 
-	${log}::debug "setTemperature: enter {$t $tErr}"
-
+    set pidState(lastTemperature) $pidState(currentTemperature)
 	set pidState(currentTemperature) $t
 
 	# Выводим температуру в окне
@@ -216,8 +238,6 @@ proc setTemperature { t tErr } {
 # Процедура вызывается модулем регулировки тока питания печки
 proc currentSet { current voltage } {
 	global mutexVar log
-
-	${log}::debug "currentSet: enter, c=$current, v=$voltage"
 
 	# Выводим параметры питания в окне
 	measure::interop::cmd [list setPower $current $voltage]
@@ -232,8 +252,19 @@ proc setPoint { t } {
 
 	${log}::debug "setPoint: enter, t=$t"
 	set pidState(setPoint) $t
+	set pidState(iaccum) 0.0
 
 	measure::interop::setVar runtime(setPoint) [format "%0.1f" $t]
+}
+
+# Процедура изменяет параметры ПИДа
+proc setPid { tp td ti maxi } {
+    global settings
+    
+    set settings(pid.tp) $tp
+    set settings(pid.td) $td
+    set settings(pid.ti) $ti
+    set settings(pid.maxi) $maxi 
 }
 
 ###############################################################################

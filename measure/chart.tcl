@@ -39,17 +39,21 @@ proc measure::chart::limits { min max } {
 		set max [expr $min + 1.0e-100]
 	}
 
-	if { $min < 0.0 } {
-		set lower [expr -1.0 * [calcHigherLimit [expr -1.0 * $min]]]
-	} else {
-		set lower [calcLowerLimit $min]
-	}
-	
-	if { $max < 0.0 } {
-		set upper [expr -1.0 * [calcLowerLimit [expr -1.0 * $max]]]
-	} else {
-		set upper [calcHigherLimit $max]
-	}
+    if { $max >= 0 && $min >= 0 } {
+        lassign [calcLimits $min $max] lower upper
+    } else {
+    	if { $min < 0.0 && $max < 0.0 } {
+    		set lower [expr -1.0 * [calcHigherLimit [expr -1.0 * $min]]]
+    	} else {
+    		set lower [calcLowerLimit $min]
+    	}
+    	
+    	if { $max < 0.0 } {
+    		set upper [expr -1.0 * [calcLowerLimit [expr -1.0 * $max]]]
+    	} else {
+    		set upper [calcHigherLimit $max]
+    	}
+    }
 
 	return [list $lower $upper [expr 0.2 * ($upper - $lower)]]
 }
@@ -158,7 +162,13 @@ proc measure::chart::movingChart { args } {
 # Internal procedures
 ###############################################################################
 
+proc measure::chart::calcLimits { min max } {
+    set diff [expr $max - $min]
+    return [list [expr floor($min - 1)] [expr floor($max + 1)] ]
+} 
+
 proc measure::chart::calcHigherLimit { v } {
+    return [expr $v * 1.1]
 	set step [expr 10 ** floor(log10($v))]
 	set res $step
 	while { $res < $v } {
@@ -168,6 +178,7 @@ proc measure::chart::calcHigherLimit { v } {
 }
 
 proc measure::chart::calcLowerLimit { v } {
+    return [expr $v * 0.9]
 	set step [expr 10 ** floor(log10($v))]
 	set res [expr $step * 9]
 	while { $res > $v } {
