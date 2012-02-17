@@ -16,3 +16,15 @@ proc validateSettings {} {
 	}
 }
 
+# Процедура возвращает список всех температурных схем, 
+# обнаруженных в текущей директории
+proc tschemeNames {} {
+	set files [glob "./*.tsc"]
+	set result [list]
+	foreach f $files {
+		set f [file tail $f]
+		set ext [file extension $f]
+		lappend result [string range $f 0 end-[string length $ext]]
+	}
+	return $result
+}

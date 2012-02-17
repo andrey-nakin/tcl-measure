@@ -28,6 +28,9 @@ package require startfile
 package require hardware::agilent::mm34410a
 package require measure::thermocouple
 
+# Подгружаем модель с процедурами общего назначения
+source [file join [file dirname [info script]] utils.tcl]
+
 ###############################################################################
 # Константы
 ###############################################################################
@@ -41,13 +44,13 @@ proc thermostatStopped {} {
 	global w thermoThreadId
 
 	# Запрещаем кнопку "Стоп"
-	$w.fr.stop configure -state disabled
+	$w.nb.m.ctl.stop configure -state disabled
 
 	# Запрещаем кнопку "Уставка"
 	$w.nb.m.ctl.ssp configure -state disabled
 
 	# Разрешаем кнопку "Старт"
-	$w.fr.start configure -state normal
+	$w.nb.m.ctl.start configure -state normal
 
 	unset thermoThreadId
 }
@@ -66,10 +69,10 @@ proc startThermostat {} {
 	set thermoThreadId [measure::interop::startWorker [list source [file join [file dirname [info script]] pid.tcl] ] {thermostatStopped}]
 
 	# Запрещаем кнопку "Старт"
-	$w.fr.start configure -state disabled
+	$w.nb.m.ctl.start configure -state disabled
 
 	# Разрешаем кнопку "Стоп"
-	$w.fr.stop configure -state normal
+	$w.nb.m.ctl.stop configure -state normal
 
 	# Разрешаем кнопку "Уставка"
 	$w.nb.m.ctl.ssp configure -state normal
@@ -80,7 +83,7 @@ proc stopThermostat { { wait 0} } {
 	global w
 
 	# Запрещаем кнопку "Стоп"
-	$w.fr.stop configure -state disabled
+	$w.nb.m.ctl.stop configure -state disabled
 
 	if { $wait } {
 		# Посылаем в измерительный поток сигнал об останове
@@ -179,8 +182,11 @@ pack $p -fill x -side bottom -padx 10 -pady 5
 grid [ttk::label $p.lsp -text "Новая уставка, К:"] -row 0 -column 0 -sticky w
 grid [ttk::spinbox $p.sp -width 10 -textvariable settings(newSetPoint) -from 0 -to 2000 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky w
 grid [ttk::button $p.ssp -text "Установить" -command setPoint -state disabled] -row 0 -column 2 -sticky w
+grid [ttk::button $p.start -text "Старт" -command startThermostat -image ::img::start -compound left] -row 0 -column 4 -sticky e
+grid [ttk::button $p.stop -text "Стоп" -command stopThermostat -state disabled -image ::img::stop -compound left] -row 0 -column 5 -sticky e
 
-grid columnconfigure $p { 0 1 2 } -pad 5
+grid columnconfigure $p { 0 1 2 3 4 5 } -pad 5
+grid columnconfigure $p { 3 } -weight 1
 
 # Раздел "Текущее состояние"
 set p [ttk::labelframe $w.nb.m.v -text " Текущее состояние " -pad 10]
@@ -257,9 +263,12 @@ grid [ttk::spinbox $p.ti -width 10 -textvariable settings(pid.ti) -from 0 -to 10
 grid [ttk::label $p.lmaxi -text "Макс. интегральное накопление:"] -row 1 -column 3 -sticky w
 grid [ttk::spinbox $p.maxi -width 10 -textvariable settings(pid.maxi) -from 0 -to 100000000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 4 -sticky w
 
+grid [ttk::label $p.ltcName -text "Температурная схема:"] -row 2 -column 0 -sticky w
+grid [ttk::combobox $p.tcName -textvariable settings(pid.tcName) -values [tschemeNames]] -row 2 -column 1 -columnspan 2 -sticky we
+
 grid [ttk::button $p.ssp -text "Применить" -command setPid] -row 2 -column 4 -sticky e
 
-grid columnconfigure $p { 0 1 2 3 } -pad 5
+grid columnconfigure $p { 0 1 2 3 4 } -pad 5
 grid columnconfigure $p { 2 } -weight 1 -pad 20
 grid rowconfigure $p { 0 1 } -pad 5
 grid rowconfigure $p { 2 } -pad 10
@@ -320,11 +329,88 @@ grid columnconfigure $p { 0 3 6 } -pad 5
 grid columnconfigure $p { 2 5 } -weight 1
 grid rowconfigure $p { 0 1 2 3 4 5 6 7 8 } -pad 5
 
+##############################################################################
+# Закладка "Запись температурной схемы"
+##############################################################################
+
+set frm $w.nb.stc
+ttk::frame $frm
+$w.nb add $frm -text " Запись T-схемы "
+
+# Раздел "Управление"
+set p [ttk::labelframe $w.nb.stc.ctl -text " Управление " -pad 10]
+pack $p -fill x -side bottom -padx 10 -pady 5
+
+grid [ttk::button $p.start -text "Старт" -command startThermostat -image ::img::start -compound left] -row 0 -column 4 -sticky e
+grid [ttk::button $p.stop -text "Стоп" -command stopThermostat -state disabled -image ::img::stop -compound left] -row 0 -column 5 -sticky e
+
+grid columnconfigure $p { 0 1 2 3 4 5 } -pad 5
+grid columnconfigure $p { 3 } -weight 1
+
+# Раздел "Текущее состояние"
+set p [ttk::labelframe $w.nb.stc.v -text " Текущее состояние " -pad 10]
+pack $p -fill x -side bottom -padx 10 -pady 5
+
+grid [ttk::label $p.lsp -text "Температура, К:"] -row 0 -column 0 -sticky w
+grid [ttk::entry $p.esp -textvariable runtime(value) -state readonly] -row 0 -column 1 -sticky we
+
+grid [ttk::label $p.lvl -text "Тренд, мК/дел:"] -row 0 -column 3 -sticky w
+grid [ttk::entry $p.evl -textvariable runtime(trend) -state readonly] -row 0 -column 4 -sticky we
+
+grid [ttk::label $p.le -text "Отклонение, мК:"] -row 0 -column 6 -sticky w
+grid [ttk::entry $p.ee -textvariable runtime(std) -state readonly] -row 0 -column 7 -sticky we
+
+grid [ttk::label $p.lc -text "Ток питания, мА:"] -row 1 -column 0 -sticky w
+grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 1 -column 1 -sticky we
+
+grid [ttk::label $p.lv -text "Напряжение, В:"] -row 1 -column 3 -sticky w
+grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 1 -column 4 -sticky we
+
+grid [ttk::label $p.lp -text "Мощность, Вт:"] -row 1 -column 6 -sticky w
+grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 1 -column 7 -sticky we
+
+grid columnconfigure $p { 0 1 3 4 6 7 } -pad 5
+grid columnconfigure $p { 2 5 } -minsize 20
+grid columnconfigure $p { 1 4 7 } -weight 1
+grid rowconfigure $p { 0 1 } -pad 5
+
+# Раздел "Параметры"
+
+set p [ttk::labelframe $w.nb.stc.setup -text " Параметры " -pad 10]
+pack $p -fill x -side bottom -padx 10 -pady 5
+
+grid [ttk::label $p.lstart -text "Начальный ток, мА:"] -row 0 -column 0 -sticky w
+grid [ttk::spinbox $p.start -width 10 -textvariable settings(stc.start) -from 0 -to 2200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky w
+
+grid [ttk::label $p.lend -text "Конечный ток, мА:"] -row 0 -column 3 -sticky w
+grid [ttk::spinbox $p.end -width 10 -textvariable settings(stc.end) -from 0 -to 2200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 4 -sticky w
+
+grid [ttk::label $p.lstep -text "Шаг изменения, мА:"] -row 0 -column 6 -sticky w
+grid [ttk::spinbox $p.step -width 10 -textvariable settings(stc.step) -from 0 -to 2200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 7 -sticky w
+
+grid [ttk::label $p.lmaxTrend -text "Пороговый тренд, мК/дел:"] -row 1 -column 0 -sticky w
+grid [ttk::spinbox $p.maxTrend -width 10 -textvariable settings(stc.maxTrend) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky w
+
+grid [ttk::label $p.lname -text "Название схемы:"] -row 1 -column 3 -sticky w
+grid [ttk::combobox $p.name -textvariable settings(stc.name) -values [tschemeNames]] -row 1 -column 4 -columnspan 4 -sticky we
+
+grid columnconfigure $p { 0 1 3 4 6 7 } -pad 5
+grid columnconfigure $p { 2 5 } -weight 1 -minsize 20
+grid rowconfigure $p { 0 1 } -pad 5
+
+# Раздел "График"
+set p [ttk::labelframe $w.nb.stc.c -text " График температуры " -pad 2]
+pack $p -fill both -padx 10 -pady 5 -expand 1
+set canvas [canvas $p.c -width 400 -height 200]
+pack $canvas -fill both -expand 1
+measure::chart::movingChart -linearTrend -ylabel "T, К" $canvas
+
+##############################################################################
+# Закладки закончились
+##############################################################################
+
 # Стандартная панель
 ::measure::widget::std-bottom-panel $w
-
-pack [ttk::button $w.fr.start -text "Старт" -command startThermostat -image ::img::start -compound left] -padx 5 -pady {20 5} -side left
-pack [ttk::button $w.fr.stop -text "Стоп" -command stopThermostat -state disabled -image ::img::stop -compound left] -padx 5 -pady {20 5} -side left
 
 # Читаем настройки
 measure::config::read
