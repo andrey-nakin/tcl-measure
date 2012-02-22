@@ -150,6 +150,17 @@ proc setPower { current voltage } {
 	set runtime(power) [format "%0.2g" [expr 1.0 * $current * $voltage]]
 }
 
+# Последняя измеренная температура
+proc setTsTemperature { t tErr err trend std } {
+	global runtime canvas
+
+	set runtime(value) [format "%0.2f \u00b1 %0.2f" $t $tErr]
+	set runtime(trend) [format "%0.2f" $trend]
+	set runtime(std) [format "%0.2f" $std]
+
+	measure::chart::${canvas}::addPoint $t
+}
+
 ###############################################################################
 # Начало скрипта
 ###############################################################################
@@ -354,7 +365,7 @@ pack $p -fill x -side bottom -padx 10 -pady 5
 grid [ttk::label $p.lsp -text "Температура, К:"] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.esp -textvariable runtime(value) -state readonly] -row 0 -column 1 -sticky we
 
-grid [ttk::label $p.lvl -text "Тренд, мК/дел:"] -row 0 -column 3 -sticky w
+grid [ttk::label $p.lvl -text "Тренд, мК/с:"] -row 0 -column 3 -sticky w
 grid [ttk::entry $p.evl -textvariable runtime(trend) -state readonly] -row 0 -column 4 -sticky we
 
 grid [ttk::label $p.le -text "Отклонение, мК:"] -row 0 -column 6 -sticky w
@@ -388,7 +399,7 @@ grid [ttk::spinbox $p.end -width 10 -textvariable settings(stc.end) -from 0 -to 
 grid [ttk::label $p.lstep -text "Шаг изменения, мА:"] -row 0 -column 6 -sticky w
 grid [ttk::spinbox $p.step -width 10 -textvariable settings(stc.step) -from 0 -to 2200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 7 -sticky w
 
-grid [ttk::label $p.lmaxTrend -text "Пороговый тренд, мК/дел:"] -row 1 -column 0 -sticky w
+grid [ttk::label $p.lmaxTrend -text "Пороговый тренд, мК/с:"] -row 1 -column 0 -sticky w
 grid [ttk::spinbox $p.maxTrend -width 10 -textvariable settings(stc.maxTrend) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky w
 
 grid [ttk::label $p.lname -text "Название схемы:"] -row 1 -column 3 -sticky w
