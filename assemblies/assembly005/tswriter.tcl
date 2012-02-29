@@ -10,6 +10,8 @@ package require math::statistics
 package require measure::logger
 package require measure::config
 package require measure::interop
+package require measure::tmap
+package require measure::sigma
 package require measure::datafile
 
 ###############################################################################
@@ -18,6 +20,9 @@ package require measure::datafile
 
 # кол-во точек, по которым определяется стационарность
 set N 50
+
+# Имя файла для регистрации температурной зависимости
+set tFileName "ts.txt"
 
 # Переменная, используемая для синхронизации
 set mutexVar 0
@@ -48,15 +53,12 @@ proc finish {} {
 
 # Процедура вызывается модулем измерения температуры
 proc setTemperature { t tErr } {
-	global mutexVar log N tvalues timevalues
+	global mutexVar log N tvalues terrvalues timevalues startTime
 
 	# добавим значение температуры в список
-	if { [llength $tvalues] == $N } {
-		set tvalues [lrange $tvalues 1 end]
-		set timevalues [lrange $timevalues 1 end]
-	}
-	lappend tvalues $t
-	lappend timevalues [clock milliseconds]
+	measure::listutils::lappend tvalues $t $N
+	measure::listutils::lappend terrvalues $tErr $N
+	measure::listutils::lappend timevalues [expr [clock milliseconds] - $startTime] $N
 
 	# Изменяем значение переменной синхронизации для остановки ожидания
 	incr mutexVar
@@ -91,16 +93,19 @@ createChildren
 
 set thisId [thread::id]
 
-set resultFileName "$settings(stc.name).tsc"
-
 # Создаём файл с результатами измерений
-measure::datafile::create $resultFileName TXT 1 [list "I (mA)" "T (K)"]
+set resultFileName [measure::tmap::create $settings(stc.name)]
+
+measure::datafile::create $tFileName TXT 1 [list "I (mA)" "T (K)" "Terr (K)" "Trend (K/min)" "Std (mK)"]
+
+# В этой переменной храним время начала работы в мс
+set startTime [clock milliseconds]
 
 # Главный цикл, обходим все значения тока нагрева печки
+set start [measure::config::get stc.start 0.0]
+set end  [measure::config::get stc.end 100.0]
 set step [measure::config::get stc.step 100.0]
-for { set c [measure::config::get stc.start 0.0] }
-    { $c < [measure::config::get stc.end 100.0] + 0.5 * $step && ![measure::interop::isTerminated] }
-    { set c [expr $c + $step] } {
+for { set c $start } { $c < $end + 0.5 * $step && ![measure::interop::isTerminated] } { set c [expr $c + $step] } {
 
 	# в переменной c - ток в мА
 	# отправляем команду на установление тока питания
@@ -108,6 +113,7 @@ for { set c [measure::config::get stc.start 0.0] }
 
 	# очищаем список измеренных температур
 	set tvalues [list]
+	set terrvalues [list]
 	set timevalues [list]
 
 	# ожидаем установления стационарного режима
@@ -118,26 +124,35 @@ for { set c [measure::config::get stc.start 0.0] }
 		# ждём изменения переменной синхронизации
 		vwait mutexVar
 
+        if { [llength $tvalues] > 3 } {
+    		# вычислим наклон тренда
+        	lassign [::math::statistics::linear-model $timevalues $tvalues] a b
+			# переведём степень наклона в К/мин
+			set b [expr 1.0e3 * 60.0 * $b]
+        } else {
+            set b 0.0
+        }
+        
+        set std [expr 1000.0 * [math::statistics::pstdev $tvalues]]
+    	
 		if { [llength $tvalues] == $N } {
-			# вычислим наклон тренда
-			lassign [::math::statistics::linear-model $timevalues $tvalues] a b
-			
-			# переведём степень наклона в мК/сек
-			set b [expr 1.0e6 * $b]
-
-			# Выводим температуру в окне
-			measure::interop::cmd [list setTsTemperature $t 0.0 $b [math::statistics::pstdev $tvalues]]
-
 			# проверим наличие стационарности
-			if { abs($b) <= [measure::config::get stc.maxTrend 1.0] } {
-				# если значение тренда меньше порогового, завершаем цикл
+			if { abs($b) <= [measure::config::get stc.maxTrend 1.0] && $std <= [measure::config::get stc.maxStd 1.0] } {
+				# если значения тренда и отклонения меньше пороговых, завершаем цикл
 				break
 			}
 		}
+		
+		measure::datafile::write $tFileName TXT [list $c [lindex $tvalues end] [lindex $terrvalues end] $b $std]
+		
+		# Выводим температуру в окне
+		measure::interop::cmd [list setTsTemperature [lindex $tvalues end] [lindex $terrvalues end] $b $std]
 	}
 
-	# Выводим результаты в результирующий файл
-	measure::datafile::write $resultFileName TXT [list $c [lindex $tvalues end]]
+    if { ![measure::interop::isTerminated] } {
+    	# Выводим результаты в результирующий файл
+    	measure::tmap::append $resultFileName $c [::math::statistics::mean $tvalues] [measure::sigma::add $std [::math::statistics::mean $terrvalues]]
+    }
 }
 
 # Завершаем работу модуля

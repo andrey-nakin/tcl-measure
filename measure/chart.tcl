@@ -9,6 +9,7 @@ package require Tcl 8.5
 package provide measure::chart 0.1.0
 package require cmdline
 package require Plotchart
+package require measure::listutils
 
 namespace eval measure::chart {
   namespace export limits
@@ -62,6 +63,7 @@ proc measure::chart::movingChart { args } {
 	set opts {
 		{linearTrend	""	"add linear trend line"}
 		{ylabel.arg		""	"Y-axis label"}
+		{xpoints.arg	"200"	"Number of points on X-axis"}
 	}
 
 	set usage ": measure::chart::movingChart \[options] canvas\noptions:"
@@ -78,15 +80,13 @@ proc measure::chart::movingChart { args } {
 
 	proc ::measure::chart::${canvas}::addPoint { v } {
 		variable chartValues
+		variable options
 
 		if { ![info exists chartValues] } {
 			set chartValues [list]
 		}
 
-		if { [llength $chartValues] >= 200 } {
-			set chartValues [lrange $chartValues [expr [llength $chartValues] - 199] end]
-		}
-		lappend chartValues $v
+		measure::listutils::lappend chartValues $v $options(xpoints)
 
 		doPlot	
 	}
@@ -106,7 +106,7 @@ proc measure::chart::movingChart { args } {
 			set ylimits {0.0 1.0}
 		}
 
-		set s [::Plotchart::createXYPlot $canvas { 0 200 20 } [measure::chart::limits [lindex $ylimits 0] [lindex $ylimits 1]]]
+		set s [::Plotchart::createXYPlot $canvas [list 0 $options(xpoints) 20] [measure::chart::limits [lindex $ylimits 0] [lindex $ylimits 1]]]
 		$s dataconfig series1 -colour green
 		$s ytext $options(ylabel)
 		$s yconfig -format %2g

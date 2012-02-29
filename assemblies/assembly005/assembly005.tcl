@@ -27,6 +27,7 @@ package require measure::chart
 package require startfile
 package require hardware::agilent::mm34410a
 package require measure::thermocouple
+package require measure::tmap
 
 # Подгружаем модель с процедурами общего назначения
 source [file join [file dirname [info script]] utils.tcl]
@@ -127,16 +128,68 @@ proc setPid {} {
 	}
 }
 
+# Процедура вызывается при завершении работы модуля записи температуной схемы
+proc tsWriterStopped {} {
+	global w tsThreadId
+
+	# Запрещаем кнопку "Стоп"
+	$w.nb.stc.ctl.stop configure -state disabled
+
+	# Разрешаем кнопку "Старт"
+	$w.nb.stc.ctl.start configure -state normal
+
+	unset tsThreadId
+}
+
+# Запускаем модуль записи температурной схемы
+proc startTsWriter {} {
+	global w tsThreadId
+
+	# Сохраняем параметры программы
+	measure::config::write
+
+    # Сбрасываем сигнал "прерван"
+    measure::interop::clearTerminated
+
+	# Запускаем на выполнение фоновый поток	с процедурой измерения
+	set tsThreadId [measure::interop::startWorker [list source [file join [file dirname [info script]] tswriter.tcl] ] {tsWriterStopped}]
+
+	# Запрещаем кнопку "Старт"
+	$w.nb.stc.ctl.start configure -state disabled
+
+	# Разрешаем кнопку "Стоп"
+	$w.nb.stc.ctl.stop configure -state normal
+}
+
+# Прерываем работу модуля записи температурной схемы
+proc stopTsWriter { { wait 0} } {
+	global w
+
+	# Запрещаем кнопку "Стоп"
+	$w.nb.stc.ctl.stop configure -state disabled
+
+	if { $wait } {
+		# Посылаем в измерительный поток сигнал об останове
+		# и ждём завершения
+		measure::interop::waitForWorkerThreads
+	} else {
+		# Посылаем в измерительный поток сигнал об останове
+		# без ожидания завершения
+		measure::interop::terminate
+	}
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
 
 # Последняя измеренная температура
-proc setTemperature { t tErr err } {
+proc setTemperature { t tErr err trend } {
 	global runtime canvas
 
 	set runtime(value) [format "%0.2f \u00b1 %0.2f" $t $tErr]
 	set runtime(error) [format "%0.2f \u00b1 %0.2f" $err $tErr]
+	set runtime(trend) [format "%0.3f" $trend]
 
 	measure::chart::${canvas}::addPoint $t
 }
@@ -150,15 +203,33 @@ proc setPower { current voltage } {
 	set runtime(power) [format "%0.2g" [expr 1.0 * $current * $voltage]]
 }
 
+proc setPidTerms { pTerm iTerm dTerm } {
+	global runtime
+
+    set sum [expr $pTerm + $iTerm + $dTerm]
+	set runtime(pterm) [format "%0.1f (%0.0f%%)" $pTerm [expr 100.0 * ($pTerm/$sum)]]
+	set runtime(iterm) [format "%0.1f (%0.0f%%)" $iTerm [expr 100.0 * ($iTerm/$sum)]]
+	set runtime(dterm) [format "%0.1f (%0.0f%%)" $dTerm [expr 100.0 * ($dTerm/$sum)]]
+}
+
+# Ток и напряжение питания печки
+proc setTsPower { current voltage } {
+	global runtime
+
+	set runtime(current) [format "%0.4g" [expr 1000.0 * $current]]
+	set runtime(voltage) [format "%0.4g" [expr 1.0 * $voltage]]
+	set runtime(power) [format "%0.2g" [expr 1.0 * $current * $voltage]]
+}
+
 # Последняя измеренная температура
-proc setTsTemperature { t tErr err trend std } {
-	global runtime canvas
+proc setTsTemperature { t tErr trend std } {
+	global runtime tsCanvas
 
 	set runtime(value) [format "%0.2f \u00b1 %0.2f" $t $tErr]
-	set runtime(trend) [format "%0.2f" $trend]
+	set runtime(trend) [format "%0.3f" $trend]
 	set runtime(std) [format "%0.2f" $std]
 
-	measure::chart::${canvas}::addPoint $t
+	measure::chart::${tsCanvas}::addPoint $t
 }
 
 ###############################################################################
@@ -212,6 +283,9 @@ grid [ttk::entry $p.evl -textvariable runtime(value) -state readonly] -row 0 -co
 grid [ttk::label $p.le -text "Невязка, К:"] -row 0 -column 6 -sticky w
 grid [ttk::entry $p.ee -textvariable runtime(error) -state readonly] -row 0 -column 7 -sticky we
 
+grid [ttk::label $p.letrend -text "Тренд, К/мин:"] -row 0 -column 9 -sticky w
+grid [ttk::entry $p.etrend -textvariable runtime(trend) -state readonly] -row 0 -column 10 -sticky we
+
 grid [ttk::label $p.lc -text "Ток питания, мА:"] -row 1 -column 0 -sticky w
 grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 1 -column 1 -sticky we
 
@@ -221,17 +295,26 @@ grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 1 -c
 grid [ttk::label $p.lp -text "Мощность, Вт:"] -row 1 -column 6 -sticky w
 grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 1 -column 7 -sticky we
 
-grid columnconfigure $p { 0 1 3 4 6 7 } -pad 5
-grid columnconfigure $p { 2 5 } -minsize 20
-grid columnconfigure $p { 1 4 7 } -weight 1
-grid rowconfigure $p { 0 1 } -pad 5
+grid [ttk::label $p.lpterm -text "ПЧ, мА:"] -row 2 -column 0 -sticky w
+grid [ttk::entry $p.pterm -textvariable runtime(pterm) -state readonly] -row 2 -column 1 -sticky we
+
+grid [ttk::label $p.literm -text "ИЧ, мА:"] -row 2 -column 3 -sticky w
+grid [ttk::entry $p.iterm -textvariable runtime(iterm) -state readonly] -row 2 -column 4 -sticky we
+
+grid [ttk::label $p.ldterm -text "ДЧ, мА:"] -row 2 -column 6 -sticky w
+grid [ttk::entry $p.dterm -textvariable runtime(dterm) -state readonly] -row 2 -column 7 -sticky we
+
+grid columnconfigure $p { 0 1 3 4 6 7 9 10 } -pad 5
+grid columnconfigure $p { 2 5 8 } -minsize 20
+grid columnconfigure $p { 1 4 7 10 } -weight 1
+grid rowconfigure $p { 0 1 2 } -pad 5
 
 # Раздел "График"
 set p [ttk::labelframe $w.nb.m.c -text " График температуры " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
 set canvas [canvas $p.c -width 400 -height 200]
 pack $canvas -fill both -expand 1
-measure::chart::movingChart -ylabel "T, К" $canvas
+measure::chart::movingChart -ylabel "T, К" -xpoints 500 $canvas
 
 ##############################################################################
 # Закладка "Параметры"
@@ -243,21 +326,7 @@ $w.nb add $frm -text " Параметры "
 set p [ttk::labelframe $frm.ps -text " Источник тока " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 
-grid [ttk::label $p.laddr -text "Адрес:"] -row 0 -column 0 -sticky w
-grid [ttk::combobox $p.addr -textvariable settings(ps.addr) -values [measure::visa::allInstruments]] -row 0 -column 1 -columnspan 7 -sticky we
-
-grid [ttk::label $p.lmode -text "Скорость RS-232:"] -row 1 -column 0 -sticky w
-grid [ttk::combobox $p.mode -width 6 -textvariable settings(ps.baud) -state readonly -values $hardware::agilent::mm34410a::baudRates] -row 1 -column 1 -sticky w
-
-grid [ttk::label $p.lparity -text "Чётность RS-232:"] -row 1 -column 3 -sticky w
-grid [ttk::combobox $p.parity -width 6 -textvariable settings(ps.parity) -state readonly -values $measure::com::parities] -row 1 -column 4 -sticky w
-
-grid [ttk::label $p.lnplc -text "Максимальный ток, мА:"] -row 1 -column 6 -sticky w
-grid [ttk::spinbox $p.fixedT -width 6 -textvariable settings(ps.maxCurrent) -from 0 -to 1300 -increment 100 -validate key -validatecommand {string is double %P}] -row 1 -column 7 -sticky w
-
-grid columnconfigure $p { 0 1 2 3 4 5 6 } -pad 5
-grid columnconfigure $p { 2 5 } -weight 1
-grid rowconfigure $p { 0 1 } -pad 5
+::measure::widget::psControls $p ps
 
 set p [ttk::labelframe $frm.pid -text " ПИД-регулятор " -pad 10]
 pack $p -fill x -padx 10 -pady 5
@@ -274,10 +343,18 @@ grid [ttk::spinbox $p.ti -width 10 -textvariable settings(pid.ti) -from 0 -to 10
 grid [ttk::label $p.lmaxi -text "Макс. интегральное накопление:"] -row 1 -column 3 -sticky w
 grid [ttk::spinbox $p.maxi -width 10 -textvariable settings(pid.maxi) -from 0 -to 100000000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 4 -sticky w
 
-grid [ttk::label $p.ltcName -text "Температурная схема:"] -row 2 -column 0 -sticky w
-grid [ttk::combobox $p.tcName -textvariable settings(pid.tcName) -values [tschemeNames]] -row 2 -column 1 -columnspan 2 -sticky we
-
 grid [ttk::button $p.ssp -text "Применить" -command setPid] -row 2 -column 4 -sticky e
+
+grid columnconfigure $p { 0 1 2 3 4 } -pad 5
+grid columnconfigure $p { 2 } -weight 1 -pad 20
+grid rowconfigure $p { 0 1 } -pad 5
+grid rowconfigure $p { 2 } -pad 10
+
+set p [ttk::labelframe $frm.http -text " Управление по HTTP " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+
+grid [ttk::label $p.lport -text "Порт:"] -row 0 -column 0 -sticky w
+grid [ttk::spinbox $p.port -width 10 -textvariable settings(http.port) -from 1 -to 65534 -increment 1 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
 
 grid columnconfigure $p { 0 1 2 3 4 } -pad 5
 grid columnconfigure $p { 2 } -weight 1 -pad 20
@@ -304,21 +381,7 @@ $w.nb add $frm -text " Параметры вольметра и термопар
 set p [ttk::labelframe $frm.mm -text " Вольтметр " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 
-grid [ttk::label $p.laddr -text "Адрес:"] -row 0 -column 0 -sticky w
-grid [ttk::combobox $p.addr -textvariable settings(mmtc.mm.addr) -values [measure::visa::allInstruments]] -row 0 -column 1 -columnspan 7 -sticky we
-
-grid [ttk::label $p.lmode -text "Скорость RS-232:"] -row 1 -column 0 -sticky w
-grid [ttk::combobox $p.mode -width 6 -textvariable settings(mmtc.mm.baud) -state readonly -values $hardware::agilent::mm34410a::baudRates] -row 1 -column 1 -sticky w
-
-grid [ttk::label $p.lparity -text "Чётность RS-232:"] -row 1 -column 3 -sticky w
-grid [ttk::combobox $p.parity -width 6 -textvariable settings(mmtc.mm.parity) -state readonly -values $measure::com::parities] -row 1 -column 4 -sticky w
-
-grid [ttk::label $p.lnplc -text "Циклов 50 Гц на измерение:"] -row 1 -column 6 -sticky w
-grid [ttk::combobox $p.nplc -width 6 -textvariable settings(mmtc.mm.nplc) -state readonly -values $hardware::agilent::mm34410a::nplcs ] -row 1 -column 7 -sticky w
-
-grid columnconfigure $p { 0 1 3 4 6 } -pad 5
-grid columnconfigure $p { 2 5 } -weight 1
-grid rowconfigure $p { 0 1 2 3 4 5 6 7 8 } -pad 5
+::measure::widget::mmControls $p mmtc.mm
 
 set p [ttk::labelframe $frm.tc -text " Термопара " -pad 10]
 pack $p -fill x -padx 10 -pady 5
@@ -352,8 +415,8 @@ $w.nb add $frm -text " Запись T-схемы "
 set p [ttk::labelframe $w.nb.stc.ctl -text " Управление " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
-grid [ttk::button $p.start -text "Старт" -command startThermostat -image ::img::start -compound left] -row 0 -column 4 -sticky e
-grid [ttk::button $p.stop -text "Стоп" -command stopThermostat -state disabled -image ::img::stop -compound left] -row 0 -column 5 -sticky e
+grid [ttk::button $p.start -text "Старт" -command startTsWriter -image ::img::start -compound left] -row 0 -column 4 -sticky e
+grid [ttk::button $p.stop -text "Стоп" -command stopTsWriter -state disabled -image ::img::stop -compound left] -row 0 -column 5 -sticky e
 
 grid columnconfigure $p { 0 1 2 3 4 5 } -pad 5
 grid columnconfigure $p { 3 } -weight 1
@@ -365,7 +428,7 @@ pack $p -fill x -side bottom -padx 10 -pady 5
 grid [ttk::label $p.lsp -text "Температура, К:"] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.esp -textvariable runtime(value) -state readonly] -row 0 -column 1 -sticky we
 
-grid [ttk::label $p.lvl -text "Тренд, мК/с:"] -row 0 -column 3 -sticky w
+grid [ttk::label $p.lvl -text "Тренд, К/мин:"] -row 0 -column 3 -sticky w
 grid [ttk::entry $p.evl -textvariable runtime(trend) -state readonly] -row 0 -column 4 -sticky we
 
 grid [ttk::label $p.le -text "Отклонение, мК:"] -row 0 -column 6 -sticky w
@@ -399,11 +462,14 @@ grid [ttk::spinbox $p.end -width 10 -textvariable settings(stc.end) -from 0 -to 
 grid [ttk::label $p.lstep -text "Шаг изменения, мА:"] -row 0 -column 6 -sticky w
 grid [ttk::spinbox $p.step -width 10 -textvariable settings(stc.step) -from 0 -to 2200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 7 -sticky w
 
-grid [ttk::label $p.lmaxTrend -text "Пороговый тренд, мК/с:"] -row 1 -column 0 -sticky w
-grid [ttk::spinbox $p.maxTrend -width 10 -textvariable settings(stc.maxTrend) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky w
+grid [ttk::label $p.lmaxTrend -text "Пороговый тренд, К/мин:"] -row 1 -column 0 -sticky w
+grid [ttk::spinbox $p.maxTrend -width 10 -textvariable settings(stc.maxTrend) -from 0 -to 100 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky w
 
-grid [ttk::label $p.lname -text "Название схемы:"] -row 1 -column 3 -sticky w
-grid [ttk::combobox $p.name -textvariable settings(stc.name) -values [tschemeNames]] -row 1 -column 4 -columnspan 4 -sticky we
+grid [ttk::label $p.lmaxStd -text "Пороговое отклонение, мК:"] -row 1 -column 3 -sticky w
+grid [ttk::spinbox $p.maxStd -width 10 -textvariable settings(stc.maxStd) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 4 -sticky w
+
+grid [ttk::label $p.lname -text "Название схемы:"] -row 1 -column 6 -sticky w
+grid [ttk::combobox $p.name -textvariable settings(stc.name) -values [measure::tmap::names]] -row 1 -column 7 -sticky we
 
 grid columnconfigure $p { 0 1 3 4 6 7 } -pad 5
 grid columnconfigure $p { 2 5 } -weight 1 -minsize 20
@@ -412,9 +478,9 @@ grid rowconfigure $p { 0 1 } -pad 5
 # Раздел "График"
 set p [ttk::labelframe $w.nb.stc.c -text " График температуры " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
-set canvas [canvas $p.c -width 400 -height 200]
-pack $canvas -fill both -expand 1
-measure::chart::movingChart -linearTrend -ylabel "T, К" $canvas
+set tsCanvas [canvas $p.c -width 400 -height 200]
+pack $tsCanvas -fill both -expand 1
+measure::chart::movingChart -linearTrend -ylabel "T, К" -xpoints 500 $tsCanvas
 
 ##############################################################################
 # Закладки закончились

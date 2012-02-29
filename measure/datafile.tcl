@@ -92,8 +92,17 @@ proc measure::datafile::write { fileName format data } {
         } else {
             puts -nonewline $f $separator 
         }
+        
+        if { $v == "TIMESTAMP" } {
+            set v [makeDateTime]
+        }
+        
         puts -nonewline $f $v
     }
     puts $f ""
     close $f
+}
+
+proc measure::datafile::makeDateTime {} {
+    return [clock format [clock seconds] -format %Y-%m-%dT%H:%M:%S]
 }

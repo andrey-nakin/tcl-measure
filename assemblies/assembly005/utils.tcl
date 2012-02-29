@@ -16,19 +16,6 @@ proc validateSettings {} {
 	}
 }
 
-# Процедура возвращает список всех температурных схем, 
-# обнаруженных в текущей директории
-proc tschemeNames {} {
-	set files [glob "./*.tsc"]
-	set result [list]
-	foreach f $files {
-		set f [file tail $f]
-		set ext [file extension $f]
-		lappend result [string range $f 0 end-[string length $ext]]
-	}
-	return $result
-}
-
 proc createChildThread { scriptName } {
 	global log
 
@@ -60,7 +47,7 @@ proc createChildThread { scriptName } {
 }
 
 proc createChildren { } {
-	global log temperatureThreadId powerThreadId validNum mutexVar
+	global log temperatureThreadId powerThreadId httpThreadId validNum mutexVar
 
     set validNum 0
     
@@ -72,8 +59,11 @@ proc createChildren { } {
 	${log}::debug "createChildren: creating power module"
 	set powerThreadId [createChildThread [measure::config::get powermodule ps]]
 	
+	${log}::debug "createChildren: creating http module"
+	set httpThreadId [createChildThread http]
+	
 	# Ожидаем завершения инициализации
-	while { $validNum < 2 } {
+	while { $validNum < 3 } {
 	   update
 	   after 100
     }
@@ -107,7 +97,7 @@ proc destroyChild { threadId } {
 proc destroyChildren {} {
 	global log
 	
-	set vars { powerThreadId temperatureThreadId }
+	set vars { powerThreadId temperatureThreadId httpThreadId }
     thread::errorproc measure::interop::suppressedError
 	
 	# Отправим сообщение `finish` в дочерние модули
