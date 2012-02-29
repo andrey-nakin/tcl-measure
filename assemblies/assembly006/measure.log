@@ -1,0 +1,25 @@
+[2012-01-11T00:03:08]	error	measure::config	Error executing worker thread: can't find package crc16
+[2012-01-11T00:03:08]	error	measure::config	Error executing finalizer: can't find package crc16
+[2012-01-11T00:03:52]	error	measure::config	Error executing worker thread: can't find package crc16
+[2012-01-11T00:03:52]	error	measure::config	Error executing finalizer: can't find package crc16
+[2012-02-28T21:04:37]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:15:15]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:15:26]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:16:26]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:18:38]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:19:01]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:19:16]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:22:30]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:23:38]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:23:53]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:28:29]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:30:26]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:31:40]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:34:43]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:38:13]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:38:48]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:46:25]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:46:47]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:47:12]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T21:47:48]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
+[2012-02-28T22:03:04]	error	measure::worker	Error executing worker thread: can't find package hardware::scpi
