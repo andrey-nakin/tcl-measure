@@ -122,7 +122,7 @@ proc measure::interop::waitForWorkerThreads {} {
 	}
 }
 
-# Sends "terminate" signal to all child threads
+# Sends "terminate" signal to all worker threads
 proc measure::interop::terminate {} {
     tsv::set interop stopped 1
 }
@@ -132,8 +132,55 @@ proc measure::interop::clearTerminated {} {
     tsv::set interop stopped 0
 }
 
+proc measure::interop::createChildren { scriptFiles } {
+	global log _validNum
+
+    set _validNum 0
+    
+	${log}::debug "createChildren: enter, this thread id = [thread::id]"
+
+    set result [list]
+    foreach scriptFile $scriptFiles {
+    	${log}::debug "createChildren: creating module $scriptFile"
+    	set tid [createChildThread $scriptFile]
+    	lappend result $tid
+    }     
+	
+	# Ожидаем завершения инициализации
+	while { $_validNum < [llength $result] } {
+	   update
+	   after 100
+    }
+    
+    return result
+}
+
+proc measure::interop::destroyChildren { vars } {
+	global log
+	
+    thread::errorproc measure::interop::suppressedError
+	
+	# Отправим сообщение `finish` в дочерние модули
+	foreach var $vars {
+	   global $var
+    	if { [info exists $var] } {               
+    		eval "finishChild \$$var"
+    	}
+    }
+	
+	# Ожидаем завершение дочерних модулей
+	foreach var $vars {
+    	if { [info exists $var] } {
+    		eval "destroyChild \$$var"
+    	}
+    }
+	
+	# выдержим паузу
+	after 500
+}
+
 ##############################################################################
-# Procedures for child threads
+# Procedures for worker threads
 ##############################################################################
 
 # Sets value of the global variable within parent thread
@@ -294,3 +341,67 @@ proc measure::interop::finalize { } {
 	}
 }
 
+# Процедура вызывается при завершении инициализации дочернего модуля
+proc measure::interop::childInitialized { childId } {
+    global log _validNum
+    
+    ${log}::debug "childInitialized: enter childId=$childId" 
+
+    # увеличим счётчик проинициализированных модулей
+    incr _validNum
+}
+
+proc measure::interop::createChildThread { scriptName } {
+	global log
+
+	${log}::debug "createChildThread: creating thread for script `$scriptName'"
+	set tid [thread::create -joinable { 
+		package require measure::logger
+		set log [measure::logger::init pid::child]
+
+		proc _start { senderId scriptFileName } {
+			global log
+
+			${log}::debug "createChildThread: starting child [thread::id] from script file $scriptFileName"
+			source $scriptFileName
+		}
+
+		proc _stop {} {
+			thread::exit
+		}
+
+		thread::wait
+	}]
+
+	${log}::debug "createChildThread: sending `start' to thread $tid"
+	thread::send -async $tid "_start [thread::id] [file join [file dirname [info script]] ${scriptName}.tcl]"
+	${log}::debug "createChildThread: sending `init' to thread $tid"
+	thread::send -async $tid [list init [thread::id] ::measure::interop::childInitialized]
+
+	return $tid
+}
+
+proc measure::interop::finishChild { threadId } {
+	global log
+
+	if { [catch {
+		${log}::debug "finishChild: sending `finish' to $threadId"
+		thread::send -async $threadId finish
+		${log}::debug "finishChild: sending `_stop' to $threadId"
+		thread::send -async $threadId _stop
+	} rc] } {
+		${log}::error "destroyChild: error finishing thread $threadId: $rc"
+	}
+}
+
+proc measure::interop::destroyChild { threadId } {
+	global log
+
+	if { [catch {
+		${log}::debug "destroyChild: joining $threadId"
+		thread::join $threadId
+		${log}::debug "destroyChild: $threadId joined"
+	} rc] } {
+		${log}::error "destroyChild: error finishing thread $threadId: $rc"
+	}
+}

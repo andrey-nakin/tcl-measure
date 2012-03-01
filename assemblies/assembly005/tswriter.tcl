@@ -13,6 +13,7 @@ package require measure::interop
 package require measure::tmap
 package require measure::sigma
 package require measure::datafile
+package require measure::listutils
 
 ###############################################################################
 # Константы
@@ -132,7 +133,7 @@ for { set c $start } { $c < $end + 0.5 * $step && ![measure::interop::isTerminat
         } else {
             set b 0.0
         }
-        
+
         set std [expr 1000.0 * [math::statistics::pstdev $tvalues]]
     	
 		if { [llength $tvalues] == $N } {
@@ -144,6 +145,9 @@ for { set c $start } { $c < $end + 0.5 * $step && ![measure::interop::isTerminat
 		}
 		
 		measure::datafile::write $tFileName TXT [list $c [lindex $tvalues end] [lindex $terrvalues end] $b $std]
+
+        # Сохраним последний отсчёт в разделяемых переменных 		
+    	tsv::array set tempState [list temperature [lindex $tvalues end] error [lindex $terrvalues end] trend $b timestamp [lindex $timevalues end]]
 		
 		# Выводим температуру в окне
 		measure::interop::cmd [list setTsTemperature [lindex $tvalues end] [lindex $terrvalues end] $b $std]

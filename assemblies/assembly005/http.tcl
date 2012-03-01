@@ -5,9 +5,18 @@
 # Модуль управления по протоколу HTTP 
 ###############################################################################
 
+package require Thread
 package require uri
 package require measure::logger
 package require measure::config
+package require measure::http::server
+
+###############################################################################
+# Глобальные переменные
+###############################################################################
+
+set SUPPORTED_CONTENT_TYPES { text/plain text/html text/xml text/json }
+set FORMAT_PARAM format    
 
 ###############################################################################
 # Подпрограммы
@@ -16,54 +25,74 @@ package require measure::config
 # Подгружаем модель с процедурами общего назначения
 source [file join [file dirname [info script]] utils.tcl]
 
-proc httpGet { channel query params } {
-    global log
+# Процедура вызывается при запросе текущей температуры
+proc measure::http::server::get::state { paramList headerList args } {
+    global log SUPPORTED_CONTENT_TYPES FORMAT_PARAM
     
-    ${log}::debug "httpGet $channel query=$query params=$params"
+    ${log}::debug "get::stat $paramList $headerList $args"
 
-    array set params $params
+    # Считываем последний отсчёт из разделяемых переменных
+    array set state [tsv::array get tempState]
+
+    # Определим формат, в котором нужно вернуть данные
+    set ct [measure::http::server::desiredContentType \
+        $paramList $headerList $SUPPORTED_CONTENT_TYPES $FORMAT_PARAM]
+        
+    switch -exact -- $ct {
+        text/plain {
+            append result "temperature\t$state(temperature)\n"
+            append result "error\t$state(error)\n"
+            append result "trend\t$state(trend)\n"
+            append result "timestamp\t$state(timestamp)\n"
+        }
+        
+        text/html {
+            append result "<html><body>"
+            append result "<p>Temperature:\t$state(temperature)\n"
+            append result "<p>Error:\t$state(error)\n"
+            append result "<p>Trend:\t$state(trend)\n"
+            append result "<p>Timestamp:\t$state(timestamp)\n"
+            append result "</body></html>"
+        }
+        
+        text/xml {
+            append result "<root><state>\n"
+            append result "<temperature>$state(temperature)</temperature>\n"
+            append result "<error>$state(error)</error>\n"
+            append result "<trend>$state(trend)</trend>\n"
+            append result "<timestamp>$state(timestamp)</timestamp>\n"
+            append result "</state></root>"
+        }
+        
+        text/json {
+            append result "{"
+            append result "temperature: $state(temperature)"
+            append result ",error:$state(error)"
+            append result ",trend:$state(trend)"
+            append result ",timestamp:$state(timestamp)"
+            append result "}"
+        }
+    }     
     
-    if { $query == "state" } {
-    }
+    return [list $ct $result]
 }
 
-proc httpPost { channel query } {
-}
- 
-proc httpStart { channel } {
-    global log
-
-    lassign [split [read $channel]] method url protocol
-    array set url [uri::split $url http]
-    ${log}::debug "httpStart [uri::split $url http]"
+# Процедура вызывается при измерении уставки
+proc measure::http::server::post::setpoint { paramList headerList args } {
+    global log parentThreadId
     
-    # read HTTP parameters
-    set params [list]
-    while {1} {
-        lassign [split [read $channel]] name value
-    }
-    lappend params $name; lappend params $value
+    ${log}::debug "post::setpoint $paramList $headerList $args"
     
-    if { $method == "GET" } {
-        httpGet $channel $url(path) $params
-    } elseif { $method == "POST" } {
-        httpPost $method $url(path) $params
-    }
-    close $channel
-}
-
-# Процедура вызывается при подключении клиента
-proc accept {channel clientaddr clientport} {
-    global log
-    ${log}::debug "Connection from $clientaddr registered"
-    
-    fconfigure $channel -buffering line -blocking 0
-    fileevent $channel readable [list httpStart $channel]
+    array set params $paramList
+    thread::send -async $parentThreadId [list setPoint $params(value)]
 }
 
 # Инициализируем HTTP-сервер
-proc createHttpServer {} {
-    socket -server accept [measure::config::get http.port 8080]
+proc createHttpServer { senderId } {
+    global parentThreadId
+    
+    measure::http::server::init [measure::config::get http.port 8080]
+    set parentThreadId $senderId 
 }
 
 ###############################################################################
@@ -72,7 +101,7 @@ proc createHttpServer {} {
 
 # Процедура вызывается при инициализации модуля
 proc init { senderId senderCallback } {
-	global log
+	global log 
 
 	# Читаем настройки программы
 	${log}::debug "init: reading settings"
@@ -83,7 +112,7 @@ proc init { senderId senderCallback } {
 	validateSettings
 
     # Создаём HTTP-сервер
-    createHttpServer
+    createHttpServer $senderId
     
 	# Отправляем сообщение в поток управления
 	thread::send -async $senderId [list $senderCallback [thread::id]]
@@ -105,3 +134,20 @@ proc finish {} {
 
 # Инициализируем протоколирование
 set log [measure::logger::init http]
+
+############################
+# отладка
+############################
+
+proc dummy { args } {
+}
+
+proc setPoint { vvv } {
+    global log
+    
+    ${log}::debug "SET POINT $vvv"
+}
+
+init [thread::id] dummy
+
+thread::wait 

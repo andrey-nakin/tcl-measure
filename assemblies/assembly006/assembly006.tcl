@@ -286,20 +286,14 @@ grid columnconfigure $w.nb.ms { 0 1 } -weight 1
 # Раздел управления питанием
 set p [ttk::labelframe $w.nb.ms.l.curr -text " Управление температурой " -pad 10]
 
-grid [ttk::label $p.lstart -text "Начальная, К:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.start -width 10 -textvariable settings(temp.start) -from 0 -to 1000 -increment 10 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky e
+grid [ttk::label $p.lprogram -text "Программа:"] -row 0 -column 0 -sticky w
+grid [text $p.program -width 20 -height 3] -row 0 -column 1 -sticky e
 
-grid [ttk::label $p.lend -text "Конечная, К:"] -row 1 -column 0 -sticky w
-grid [ttk::spinbox $p.end -width 10 -textvariable settings(temp.end) -from 0 -to 1000 -increment 10 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
+grid [ttk::label $p.lmaxerr -text "Пороговая ошибка, К:"] -row 1 -column 0 -sticky w
+grid [ttk::spinbox $p.maxerr -width 10 -textvariable settings(temp.maxErr) -from 0 -to 10 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
 
-grid [ttk::label $p.lstep -text "Приращение, К:"] -row 2 -column 0 -sticky w
-grid [ttk::spinbox $p.step -width 10 -textvariable settings(temp.step) -from -1000 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
-
-grid [ttk::label $p.lmaxerr -text "Пороговая ошибка, К:"] -row 3 -column 0 -sticky w
-grid [ttk::spinbox $p.maxerr -width 10 -textvariable settings(temp.maxErr) -from 0 -to 10 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
-
-grid [ttk::label $p.lmaxtrend -text "Пороговый тренд, К/мин:"] -row 4 -column 0 -sticky w
-grid [ttk::spinbox $p.maxtrend -width 10 -textvariable settings(temp.maxTrend) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 4 -column 1 -sticky e
+grid [ttk::label $p.lmaxtrend -text "Пороговый тренд, К/мин:"] -row 2 -column 0 -sticky w
+grid [ttk::spinbox $p.maxtrend -width 10 -textvariable settings(temp.maxTrend) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5
@@ -423,6 +417,19 @@ set p [ttk::labelframe $w.nb.setup.cmm -text " Амперметр/вольтме
 pack $p -fill x -padx 10 -pady 5
 
 ::measure::widget::mmControls $p cmm
+
+set p [ttk::labelframe $w.nb.setup.ts -text " Термостат " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+
+grid [ttk::label $p.laddr -text "TCP/IP адрес:"] -row 0 -column 0 -sticky w
+grid [ttk::combobox $p.addr -width 10 -textvariable settings(ts.addr) -values {localhost}] -row 0 -column 1 -sticky w
+
+grid [ttk::label $p.lport -text "TCP/IP порт:"] -row 0 -column 2 -sticky w
+grid [ttk::spinbox $p.port -width 10 -textvariable settings(ts.port) -from 1 -to 65534 -validate key -validatecommand {string is integer %P}] -row 0 -column 3 -sticky w
+
+grid columnconfigure $p { 0 1 2 3 } -pad 5
+grid columnconfigure $p { 1 3 } -weight 1
+grid rowconfigure $p { 0 1 } -pad 5
 
 set p [ttk::labelframe $w.nb.setup.m -text " Общие параметры " -pad 10]
 pack $p -fill x -padx 10 -pady 5

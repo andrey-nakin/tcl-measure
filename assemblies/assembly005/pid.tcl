@@ -141,14 +141,13 @@ proc finish {} {
 proc setTemperature { t tErr } {
 	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues NUM_OF_READINGS START_TIME
 
-	set pidState(currentTemperature) $t
-	set pidState(currentTemperatureError) $tErr
+	set tm [clock milliseconds]
 	
 	# Сохраняем отсчёты температуры и времени в списках для вычисления тренда
 	measure::listutils::lappend tvalues $t $NUM_OF_READINGS
 	measure::listutils::lappend terrvalues $tErr $NUM_OF_READINGS
-	measure::listutils::lappend timevalues [clock milliseconds] $NUM_OF_READINGS
-	measure::listutils::lappend rtimevalues [expr [clock milliseconds] - $START_TIME] $NUM_OF_READINGS
+	measure::listutils::lappend timevalues $tm $NUM_OF_READINGS
+	measure::listutils::lappend rtimevalues [expr $tm - $START_TIME] $NUM_OF_READINGS
 
     if { [llength $tvalues] > 2 } {
         # Вычислим линейную аппроксимацию графика функции температуры, т.е. тренд
@@ -158,10 +157,16 @@ proc setTemperature { t tErr } {
     }
   	
   	# Переведём наклон тренда в К/мин
-  	set pidState(currentTrend) [expr 1000.0 * 60.0 * $b]
+  	set b [expr 1000.0 * 60.0 * $b]
 
+    # Запишем в состояние ПИДа  	
+	set pidState(currentTemperature) $t
+
+	# Сохраняем отсчёт температуры и времени в разделяемых переменных 
+	tsv::array set tempState [list temperature $t error $tErr trend $b timestamp $tm]
+	
 	# Выводим температуру в окне
-	measure::interop::cmd [list setTemperature $t $tErr [expr $pidState(setPoint) - $t] $pidState(currentTrend)]
+	measure::interop::cmd [list setTemperature $t $tErr [expr $pidState(setPoint) - $t] $b]
 
 	# Изменяем значение переменной синхронизации для остановки ожидания
 	incr mutexVar
