@@ -18,6 +18,8 @@ namespace eval measure::http::server::get {
 namespace eval measure::http::server::post {
 }
 
+set measure::http::server::STD_HEADERS "Server: Embedded\nCache-Control: no-cache"
+
 # Creates HTTP server
 # Arguments:
 #   port - port number
@@ -140,22 +142,28 @@ proc measure::http::server::httpPost { sock path qparams headers } {
 
 proc measure::http::server::callHandler { sock handlerName qparams headers } {
     global log
+    variable STD_HEADERS
     
     if { [info procs $handlerName] eq "" } {
         ${log}::error "callHandler bad handler $handlerName"
         puts $sock "HTTP/1.0 404 Bad path"
+        puts $sock $STD_HEADERS
         return
     }
     
-    if { [catch { lassign [$handlerName $qparams $headers] ct body } rc] } {
+    if { [catch { lassign [$handlerName $qparams $headers] ct body } rc opt] } {
+        ${log}::error "error calling $handlerName: $rc\n$opt"
         puts $sock "HTTP/1.0 500 Internal Server Error"
         puts $sock "Content-Type: text/plain"
+        puts $sock $STD_HEADERS
         puts $sock ""
         puts $sock $rc
+        puts $sock $opt
     } else {
         puts $sock "HTTP/1.0 200 OK"
-        puts $sock "Content-Type: $ct"
-        puts $sock "Content-Length: [string length $body]"
+        puts $sock "Content-Type: $ct; charset=utf-8"
+        puts $sock "Content-Length: [string bytelength $body]"
+        puts $sock $STD_HEADERS
         puts $sock ""
         puts $sock $body
     }

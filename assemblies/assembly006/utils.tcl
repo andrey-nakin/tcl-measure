@@ -5,47 +5,24 @@
 # Процедуры общего назначения
 ###############################################################################
 
-# Устанавливает ток питания образца
-# curr - требуемый ток в мА
-proc setCurrent { curr } {
-    global ps
-
-	# Задаём выходной ток с переводом из мА в А
-    scpi::cmd $ps "CURRENT [expr 0.001 * $curr]"
-}
-
 # Процедура проверяет правильность настроек, при необходимости вносит поправки
 proc validateSettings {} {
     global settings
 
 	# Число измерений на одну точку результата
-	if { ![info exists settings(numberOfSamples)] || $settings(numberOfSamples) < 1 } {
+	if { ![info exists settings(measure.numOfSamples)] || $settings(measure.numOfSamples) < 1 } {
 		# Если не указано в настройках, по умолчанию равно 1
-		set settings(numberOfSamples) 1
+		set settings(measure.numOfSamples) 1
 	}
 
-	# Число циклов питание на одно измерение
-	if { ![info exists settings(nplc)] || $settings(nplc) < 0 } {
-		# Если не указано в настройках, по умолчанию равно 10
-		set settings(nplc) 10
-	}
-
-	# Ручное управление питанием
-	if { ![info exists settings(manualPower)] } {
-		# Если не указано в настройках, по умолчанию равно 0
-		set settings(manualPower) 0
-	}
-
-	if { ![info exists settings(useTestResistance)] } {
-		set settings(useTestResistance) 0
-	}
-
-	# Проверим правильность ввода номинала эталонного сопротивления
-	if { $settings(useTestResistance) } {
-		if { ![info exists settings(testResistance)] || !$settings(testResistance) } {
-			set settings(testResistance) 1.0
-		}
-	}
+    measure::config::validate {
+        current.method 0
+        result.fileName ""
+        result.format TXT
+        result.rewrite 1
+        switch.serialAddr COM1        
+        switch.rs485Addr 40
+    }	
 }
 
 # Устанавливает положение переключателей полярности
@@ -53,15 +30,15 @@ proc setConnectors { conns } {
     global settings
 
 	# размыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 6 {1000}
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 6 {1000}
 	#after 500
 
 	# производим переключение полярности
-    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 0 $conns
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
 	#after 500
 
 	# замыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 6 {0}
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 6 {0}
 	#after 500
 }
 
@@ -70,41 +47,19 @@ proc setConnectors { conns } {
 proc connectTestResistance { } {
     global settings
 	
-	if { $settings(useTestResistance) } {
-	    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 4 {0 0}
-	} else {
-	    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 4 {1000 1000}
-	}
-	#after 500
-}
-
-# Инициализация источника питания
-proc setupPs {} {
-    global ps rm settings
-    
-    # Подключаемся к источнику питания (ИП)
-    if { [catch { set ps [visa::open $rm $settings(psAddr)] } ] } {
-		error "Невозможно подключиться к источнику питания по адресу `$settings(psAddr)'"
-	}
-
-    # Иниализируем и опрашиваем ИП
-    hardware::agilent::pse3645a::init $ps
-    
-	# Задаём пределы по напряжению и току
-    scpi::cmd $ps "APPLY 35.000,0.001"
+	switch -exact -- $settings(current.method) {
+        0 {
+            hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000 1000}
+        }
+        1 {
+    	    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0 0}
+        }
+    }
 }
 
 # Завершаем работу установки, матчасть в исходное.
 proc finish {} {
-    global rm ps mm cmm log
-
-    if { [info exists ps] } {
-    	# Переводим ИП в исходный режим
-        ${log}::debug "ps=$ps"    	
-    	hardware::agilent::pse3645a::done $ps
-    	close $ps
-    	unset ps
-    }
+    global mm cmm log
 
     if { [info exists mm] } {
     	# Переводим вольтметр в исходный режим
@@ -120,11 +75,6 @@ proc finish {} {
     	unset cmm
     }
 	
-	if { [info exists rm] } {
-    	close $rm
-    	unset rm
-    }
-    
 	# реле в исходное
 	setConnectors { 0 0 0 0 }
 	

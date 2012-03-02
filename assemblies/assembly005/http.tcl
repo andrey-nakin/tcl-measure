@@ -15,9 +15,6 @@ package require measure::http::server
 # Глобальные переменные
 ###############################################################################
 
-set SUPPORTED_CONTENT_TYPES { text/plain text/html text/xml text/json }
-set FORMAT_PARAM format    
-
 ###############################################################################
 # Подпрограммы
 ###############################################################################
@@ -26,8 +23,8 @@ set FORMAT_PARAM format
 source [file join [file dirname [info script]] utils.tcl]
 
 # Процедура вызывается при запросе текущей температуры
-proc measure::http::server::get::state { paramList headerList args } {
-    global log SUPPORTED_CONTENT_TYPES FORMAT_PARAM
+proc ::measure::http::server::get::state { paramList headerList args } {
+    global log
     
     ${log}::debug "get::stat $paramList $headerList $args"
 
@@ -36,11 +33,12 @@ proc measure::http::server::get::state { paramList headerList args } {
 
     # Определим формат, в котором нужно вернуть данные
     set ct [measure::http::server::desiredContentType \
-        $paramList $headerList $SUPPORTED_CONTENT_TYPES $FORMAT_PARAM]
+        $paramList $headerList {text/plain text/html text/xml text/json} format]
         
     switch -exact -- $ct {
         text/plain {
             append result "temperature\t$state(temperature)\n"
+            append result "measureError\t$state(measureError)\n"
             append result "error\t$state(error)\n"
             append result "trend\t$state(trend)\n"
             append result "timestamp\t$state(timestamp)\n"
@@ -48,16 +46,18 @@ proc measure::http::server::get::state { paramList headerList args } {
         
         text/html {
             append result "<html><body>"
-            append result "<p>Temperature:\t$state(temperature)\n"
-            append result "<p>Error:\t$state(error)\n"
-            append result "<p>Trend:\t$state(trend)\n"
-            append result "<p>Timestamp:\t$state(timestamp)\n"
+            append result "<p>Температура (К):\t$state(temperature)\n"
+            append result "<p>Погрешность измерения (К):\t$state(measureError)\n"
+            append result "<p>Невязка (К):\t$state(error)\n"
+            append result "<p>Тренд (К/мин):\t$state(trend)\n"
+            append result "<p>Временная отметка (мс):\t$state(timestamp)\n"
             append result "</body></html>"
         }
         
         text/xml {
             append result "<root><state>\n"
             append result "<temperature>$state(temperature)</temperature>\n"
+            append result "<measureError>$state(measureError)</measureError>\n"
             append result "<error>$state(error)</error>\n"
             append result "<trend>$state(trend)</trend>\n"
             append result "<timestamp>$state(timestamp)</timestamp>\n"
@@ -67,6 +67,7 @@ proc measure::http::server::get::state { paramList headerList args } {
         text/json {
             append result "{"
             append result "temperature: $state(temperature)"
+            append result ",measureError:$state(measureError)"
             append result ",error:$state(error)"
             append result ",trend:$state(trend)"
             append result ",timestamp:$state(timestamp)"
@@ -148,6 +149,6 @@ proc setPoint { vvv } {
     ${log}::debug "SET POINT $vvv"
 }
 
-init [thread::id] dummy
+#init [thread::id] dummy
 
-thread::wait 
+#thread::wait 

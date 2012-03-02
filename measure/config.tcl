@@ -100,3 +100,12 @@ proc measure::config::get { args } {
 	}
 }
 
+proc measure::config::validate { lst } {
+    global settings
+    
+    foreach { name defValue } $lst {
+        if { ![info exists settings($name)] || $settings($name) == "" } {
+            set settings($name) $defValue
+        }
+    }
+}

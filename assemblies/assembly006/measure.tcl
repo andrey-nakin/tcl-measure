@@ -8,10 +8,8 @@
 package require measure::logger
 package require measure::config
 package require hardware::owen::mvu8
-package require hardware::scpi
-package require hardware::agilent::pse3645a
+package require scpi
 package require hardware::agilent::mm34410a
-package require tclvisa
 package require measure::datafile
 package require measure::interop
 package require measure::sigma
@@ -26,69 +24,108 @@ source [file join [file dirname [info script]] utils.tcl]
 
 # Измеряет ток и напряжение на образце
 # Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
-proc measureVoltage { } {
+proc doMeasure { } {
     global mm cmm settings
-    
+
+    # кол-во отсчётов
+	set n $settings(measure.numOfSamples)
+	
+    # сохраняем текущее значение таймаута и вычисляем новое
+	set timeout [fconfigure $mm -timeout]
+    set newTimeout [expr int(10000 * $n)]
+         
 	# запускаем измерение напряжения
 	scpi::cmd $mm "INIT"
+	fconfigure $mm -timeout $newTimeout 
 
-	# запускаем измерение тока
-	scpi::cmd $cmm "INIT"
+    if { [info exists cmm] } {
+    	# запускаем измерение тока
+    	scpi::cmd $cmm "INIT"
+    	fconfigure $cmm -timeout $newTimeout
+    }
 
-	# выставим нужный таймаут
-	set timeout [fconfigure $mm -timeout]
-	fconfigure $mm -timeout [expr int(10000 * $settings(numberOfSamples))]
-	fconfigure $cmm -timeout [expr int(10000 * $settings(numberOfSamples))]
-
-	# ждём завершения измерения напряжения
+	# ждём завершения измерения напряжения и восстанавливаем таймаут
 	scpi::query $mm "*OPC?"
-
-	# ждём завершения измерения тока
-	scpi::query $cmm "*OPC?"
-
-    # восстановим таймаут
 	fconfigure $mm -timeout $timeout
-	fconfigure $cmm -timeout $timeout
 
-	# считываем значения напряжения и тока
-	set n $settings(numberOfSamples)
-	set vs [split [scpi::query $mm "DATA:REMOVE? $n"] ","]
-	set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
-	
-	if { $settings(useTestResistance) } {
-		# пересчитаем падение напряжения на эталонном сопротивлении
-		# в силу тока
-		set newcs [list]
-		foreach c $cs {
-			lappend newcs [expr $c / $settings(testResistance)]
-		}
-		set cs $newcs
+    if { [info exists cmm] } {
+    	# ждём завершения измерения тока и восстанавливаем таймаут
+        scpi::query $cmm "*OPC?"
+    	fconfigure $cmm -timeout $timeout
 	}
+
+	# считываем значение напряжения и вычисляем погрешность измерений
+	set vs [split [scpi::query $mm "DATA:REMOVE? $n"] ","]
+puts "!!! vs=$vs"	
+	# среднее значение и погрешность измерения
+	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
+puts "!!! v=$v  sv=$sv"	
+	# инструментальная погрешность
+   	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mm.nplc]]
+puts "!!! vErr=$vErr"   	
+	
+	# определяем силу тока
+	switch -exact -- [measure::config::get current.method] {
+        0 {
+            # измеряем непосредственно ток
+            set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
+            # среднее значение и погрешность измерения
+        	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
+            # инструментальная погрешность
+            set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" [measure::config::get cmm.nplc]]
+        }
+        1 {
+            # измеряем падение напряжения на эталоне
+            set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
+            set vval [expr abs([math::statistics::mean $cs])] 
+    		set newcs [list]
+    		set rr [measure::config::get current.reference.resistance 1.0] 
+    		foreach c $cs {
+    			lappend newcs [expr $c / $rr]
+    		}
+    		set cs $newcs
+            # среднее значение и погрешность измерения
+        	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
+    		# инструментальная погрешность
+	    	set vvalErr [hardware::agilent::mm34410a::dcvSystematicError $vval "" [measure::config::get cmm.nplc]]
+    		set rrErr [measure::config::get current.reference.error 0.0] 
+	    	set cErr [measure::sigma::div $vval $vvalErr $rr $rrErr]
+        }
+        2 {
+            # ток измеряется вручную
+            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
+            set cs [list]
+            for { set i 0 } { $i < $n } { incr i } {
+                lappend cs $c
+            }
+            # погрешности измерения нет
+            set sc 0.0  
+            # инструментальная погрешность задаётся вручную
+            set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
+        }
+    }
+puts "!!! c=$c"
+puts "!!! sc=$sc"    
+puts "!!! cErr=$cErr"
 
 	# вычисляем сопротивление
 	set rs [list]
-	foreach v $vs c $cs {
-		lappend rs [expr $v / $c]
+	foreach vv $vs cc $cs {
+		lappend rs [expr $vv / $cc]
 	}
+puts "!!! rs=$rs"	
 
 	# вычисляем средние значения и сигмы
-	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
-	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
 	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]; if { $sr == ""} { set sr 0 }
+puts "!!! r=$r"
+puts "!!! sr=$sr"	
+   	set rErr [measure::sigma::div $v $vErr $c $cErr]
+puts "!!! rErr=$rErr"   	
 
-    if { ![info exists settings(noSystErr)] || !$settings(noSystErr) } {
-    	# определяем инструментальную погрешность
-    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
-		if { $settings(useTestResistance) } {
-	    	set cErr [hardware::agilent::mm34410a::dcvSystematicError [expr $c * $settings(testResistance)] "" $settings(nplc)]
-		} else {
-	    	set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(nplc)]
-		}
-    	set rErr [measure::sigma::div $v $vErr $c $cErr]
-    
+    if { ![measure::config::get measure.noSystErr 0] } {
     	# суммируем инструментальную и измерительную погрешности
-    	set sv [measure::sigma::add $vErr $sv]
-    	set sc [measure::sigma::add $cErr $sc]
+       	set sv [measure::sigma::add $vErr $sv]
+       	set sc [measure::sigma::add $cErr $sc]
     	set sr [measure::sigma::add $rErr $sr]
     }
 
@@ -98,50 +135,67 @@ proc measureVoltage { } {
 
 # Инициализация вольтметра
 proc setupMM {} {
-    global mm rm settings
+    global mm
     
     # Подключаемся к мультиметру (ММ)
-    if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
-		error "Невозможно подключиться к вольтметру по адресу `$settings(mmAddr)'"
-	}
+    set mm [hardware::agilent::mm34410a::open \
+		-baud [measure::config::get mm.baud] \
+		-parity [measure::config::get mm.parity] \
+		[measure::config::get -required mm.addr] \
+	]
 
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc $settings(nplc) \
+		-nplc [measure::config::get mm.nplc 10] \
 		-autoZero ONCE	\
-		-sampleCount $settings(numberOfSamples)	\
+		-sampleCount [measure::config::get measure.numOfSamples 1]	\
 		 $mm
 }
 
 # Инициализация амперметра
 proc setupCMM {} {
-    global cmm rm settings
+    global cmm
+    
+    # прочитаем из настроек режим измерения тока
+    set method [measure::config::get current.method 0]
+    
+    if { $method == 2 } {
+        # в ручном режиме второй мультиметр не используется
+        return
+    } 
     
     # Подключаемся к мультиметру (ММ)
-    if { [catch { set cmm [visa::open $rm $settings(cmmAddr)] } ] } {
-		error "Невозможно подключиться к амперметру по адресу `$settings(cmmAddr)'"
-	}
+    set cmm [hardware::agilent::mm34410a::open \
+		-baud [measure::config::get cmm.baud] \
+		-parity [measure::config::get cmm.parity] \
+		[measure::config::get -required cmm.addr] \
+	]
 
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $cmm
 
-	if { $settings(useTestResistance) } {
-    	# Настраиваем мультиметр для измерения постоянного напряжения
-    	hardware::agilent::mm34410a::configureDcVoltage \
-    		-nplc $settings(nplc) \
-    		-autoZero ONCE	\
-    		-sampleCount $settings(numberOfSamples)	\
-    		 $cmm
-	} else {
-    	# Настраиваем мультиметр для измерения постоянного тока
-    	hardware::agilent::mm34410a::configureDcCurrent \
-    		-nplc $settings(nplc) \
-    		-autoZero ONCE	\
-    		-sampleCount $settings(numberOfSamples)	\
-    		 $cmm
+    switch -exact -- $method {
+        0 {
+            # Ток измеряется непосредственно амперметром
+        	# Настраиваем мультиметр для измерения постоянного тока
+        	hardware::agilent::mm34410a::configureDcCurrent \
+        		-nplc [measure::config::get nplc 10] \
+        		-autoZero ONCE	\
+        		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+        		 $cmm
+        }
+        1 {
+            # Ток измеряется измерением надения напряжения на эталонном сопротивлении
+        	# Настраиваем мультиметр для измерения постоянного напряжения
+        	hardware::agilent::mm34410a::configureDcVoltage \
+        		-nplc [measure::config::get cmm.nplc 10] \
+        		-autoZero ONCE	\
+        		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+        		 $cmm
+        }
     }
 }
 
@@ -166,7 +220,7 @@ proc makeMeasurement {} {
 		after 1000
 
 		# Измеряем напряжение
-		set res [measureVoltage]
+		set res [doMeasure]
 
 		# Накапливаем суммы
 		lassign $res v sv c sc r sr
@@ -184,7 +238,7 @@ proc makeMeasurement {} {
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
 
     # Выводим результаты в результирующий файл
-	measure::datafile::write $settings(fileName) $settings(fileFormat) [list $c $sc $v $sv $r $sr]
+	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP 0.0 0.0 $c $sc $v $sv $r $sr]
 }
 
 ###############################################################################
@@ -204,15 +258,9 @@ measure::config::read
 validateSettings
 
 # Создаём файл с результатами измерений
-measure::datafile::create $settings(fileName) $settings(fileFormat) $settings(fileRewrite) [list "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
-
-# Подключаемся к менеджеру ресурсов VISA
-set rm [visa::open-default-rm]
+measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) [list "Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
 
 # Производим подключение к устройствам и их настройку
-if { !$settings(manualPower) } {
-	setupPs
-}
 setupMM
 setupCMM
 
@@ -222,14 +270,14 @@ connectTestResistance
 # Задаём наборы переполюсовок
 # Основное положение переключателей
 set connectors [list { 0 0 0 0 }]
-if { $settings(switchVoltage) } {
+if { [measure::config::get switch.voltage 0] } {
 	# Инверсное подключение вольтметра
 	lappend connectors {1000 1000 0 0} 
 }
-if { $settings(switchCurrent) } {
+if { [measure::config::get switch.current 0] } {
 	# Инверсное подключение источника тока
 	lappend connectors { 0 0 1000 1000 }
-	if { $settings(switchVoltage) } {
+	if { [measure::config::get switch.voltage 0] } {
 		# Инверсное подключение вольтметра и источника тока
 		lappend connectors { 1000 1000 1000 1000 } 
 	}
@@ -239,35 +287,10 @@ if { $settings(switchCurrent) } {
 # Основной цикл измерений
 ###############################################################################
 
-if { !$settings(manualPower) } {
-	# Устанавливаем выходной ток
-	setCurrent $settings(startCurrent)
-
-	# Включаем подачу тока на выходы ИП
-	hardware::agilent::pse3645a::setOutput $ps 1
-}
-
 # Холостое измерение для "прогрева" мультиметров
-measureVoltage
+doMeasure
 
-if { $settings(manualPower) } {
-	# Ручной режим управления питанием
-	# Просто делаем одно измерение и сохраняем результат в файл
-	makeMeasurement
-} else {
-	# Режим автоматического управления питанием
-	# Пробегаем по всем токам из заданного диапазона
-	for { set curr $settings(startCurrent) } { $curr <= $settings(endCurrent) + 0.1 * $settings(currentStep) } { set curr [expr $curr + $settings(currentStep)] } {
-		# проверим, не нажата ли кнопка остановки
-		measure::interop::checkTerminated
-		
-		# выставляем ток на ИП
-		setCurrent $curr
-
-		# Делаем очередное измерение из сохраняем результат в файл
-		makeMeasurement
-	}
-}
+makeMeasurement
 
 ###############################################################################
 # Завершение измерений

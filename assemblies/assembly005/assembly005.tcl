@@ -47,8 +47,9 @@ proc thermostatStopped {} {
 	# Запрещаем кнопку "Стоп"
 	$w.nb.m.ctl.stop configure -state disabled
 
-	# Запрещаем кнопку "Уставка"
+	# Запрещаем кнопки управления ПИД
 	$w.nb.m.ctl.ssp configure -state disabled
+	$w.nb.m.ctl.ria configure -state disabled
 
 	# Разрешаем кнопку "Старт"
 	$w.nb.m.ctl.start configure -state normal
@@ -75,8 +76,9 @@ proc startThermostat {} {
 	# Разрешаем кнопку "Стоп"
 	$w.nb.m.ctl.stop configure -state normal
 
-	# Разрешаем кнопку "Уставка"
+	# Разрешаем кнопки управления ПИД
 	$w.nb.m.ctl.ssp configure -state normal
+	$w.nb.m.ctl.ria configure -state normal
 }
 
 # Прерываем работу модуля термостатирования
@@ -117,6 +119,15 @@ proc setPoint {} {
 
 	if { [info exists thermoThreadId] } {
 		thread::send -async $thermoThreadId [list setPoint $settings(newSetPoint)]
+	}
+}
+
+# Сбрасываем интегральное накопление
+proc resetIAccum {} {
+	global thermoThreadId
+
+	if { [info exists thermoThreadId] } {
+		thread::send -async $thermoThreadId [list resetIAccum]
 	}
 }
 
@@ -264,6 +275,7 @@ pack $p -fill x -side bottom -padx 10 -pady 5
 grid [ttk::label $p.lsp -text "Новая уставка, К:"] -row 0 -column 0 -sticky w
 grid [ttk::spinbox $p.sp -width 10 -textvariable settings(newSetPoint) -from 0 -to 2000 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky w
 grid [ttk::button $p.ssp -text "Установить" -command setPoint -state disabled] -row 0 -column 2 -sticky w
+grid [ttk::button $p.ria -text "Сбросить интегральное накопление" -command resetIAccum -state disabled] -row 0 -column 3 -sticky w
 grid [ttk::button $p.start -text "Старт" -command startThermostat -image ::img::start -compound left] -row 0 -column 4 -sticky e
 grid [ttk::button $p.stop -text "Стоп" -command stopThermostat -state disabled -image ::img::stop -compound left] -row 0 -column 5 -sticky e
 

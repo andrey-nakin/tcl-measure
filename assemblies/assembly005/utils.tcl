@@ -17,13 +17,13 @@ proc validateSettings {} {
 }
 
 proc createChildren { } {
-	global temperatureThreadId powerThreadId httpThreadId
+	global log temperatureThreadId powerThreadId httpThreadId
 	
 	lassign [measure::interop::createChildren [list    \
 	   [measure::config::get tempmodule mmtc]  \
 	   [measure::config::get powermodule ps]   \
 	   http    \
-    ]] temperatureThreadId powerThreadId httpThreadId 
+    ]] temperatureThreadId powerThreadId httpThreadId
 }
 
 proc destroyChildren {} {

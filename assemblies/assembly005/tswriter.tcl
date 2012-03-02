@@ -147,7 +147,7 @@ for { set c $start } { $c < $end + 0.5 * $step && ![measure::interop::isTerminat
 		measure::datafile::write $tFileName TXT [list $c [lindex $tvalues end] [lindex $terrvalues end] $b $std]
 
         # Сохраним последний отсчёт в разделяемых переменных 		
-    	tsv::array set tempState [list temperature [lindex $tvalues end] error [lindex $terrvalues end] trend $b timestamp [lindex $timevalues end]]
+    	tsv::array set tempState [list temperature [lindex $tvalues end] measureError [lindex $terrvalues end] error 0.0 trend $b timestamp [lindex $timevalues end]]
 		
 		# Выводим температуру в окне
 		measure::interop::cmd [list setTsTemperature [lindex $tvalues end] [lindex $terrvalues end] $b $std]

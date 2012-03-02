@@ -152,7 +152,7 @@ proc measure::interop::createChildren { scriptFiles } {
 	   after 100
     }
     
-    return result
+    return $result
 }
 
 proc measure::interop::destroyChildren { vars } {

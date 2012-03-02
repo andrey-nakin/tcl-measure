@@ -19,7 +19,7 @@ package require measure::listutils
 ###############################################################################
 
 # Кол-во точек усреднения производной температуры по времени
-set DTN 50
+set DTN 5
 
 # Имя файла для регистрации температурной зависимости
 set tFileName "t.txt"
@@ -36,7 +36,7 @@ set derrs [list]
 set lastTime ""
 
 # Число отсчётов температуры, необходимых для вычисления тренда
-set NUM_OF_READINGS 10
+set NUM_OF_READINGS 15
 
 # Списки для хранения отсчётов температуры и времени
 set tvalues [list]
@@ -163,7 +163,7 @@ proc setTemperature { t tErr } {
 	set pidState(currentTemperature) $t
 
 	# Сохраняем отсчёт температуры и времени в разделяемых переменных 
-	tsv::array set tempState [list temperature $t error $tErr trend $b timestamp $tm]
+	tsv::array set tempState [list temperature $t measureError $tErr error [expr $pidState(setPoint) - $t] trend $b timestamp $tm]
 	
 	# Выводим температуру в окне
 	measure::interop::cmd [list setTemperature $t $tErr [expr $pidState(setPoint) - $t] $b]
@@ -191,6 +191,14 @@ proc setPoint { t } {
 	set pidState(setPoint) $t
 
 	measure::interop::setVar runtime(setPoint) [format "%0.1f" $t]
+}
+
+# Процедура сбрасывает интегральное накопление
+proc resetIAccum { } {
+	global pidState log
+
+	${log}::debug "resetIAccum: enter"
+	set pidState(iaccum) 0.0
 }
 
 # Процедура изменяет параметры ПИДа

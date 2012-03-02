@@ -137,12 +137,13 @@ proc quit {} {
 
 # Процедура разрешает/запрещает элементы ввода эталонного сопротивления
 proc toggleTestResistance {} {
-	global w settings
+	global w
 	set p "$w.nb.ms.r.curr"
-	::measure::widget::setDisabled [expr $settings(useTestResistance) == 1] $p.r $p.lr
-	::measure::widget::setDisabled [expr $settings(useTestResistance) == 1] $p.rerr $p.lrerr
-	::measure::widget::setDisabled [expr $settings(useTestResistance) == 2] $p.cur $p.lcur
-	::measure::widget::setDisabled [expr $settings(useTestResistance) == 2] $p.curerr $p.lcurerr
+	set mode [measure::config::get current.method 0]
+	::measure::widget::setDisabled [expr $mode == 1] $p.r $p.lr
+	::measure::widget::setDisabled [expr $mode == 1] $p.rerr $p.lrerr
+	::measure::widget::setDisabled [expr $mode == 2] $p.cur $p.lcur
+	::measure::widget::setDisabled [expr $mode == 2] $p.curerr $p.lcurerr
 }
 
 proc addValueToChart { v } {
@@ -287,13 +288,13 @@ grid columnconfigure $w.nb.ms { 0 1 } -weight 1
 set p [ttk::labelframe $w.nb.ms.l.curr -text " Управление температурой " -pad 10]
 
 grid [ttk::label $p.lprogram -text "Программа:"] -row 0 -column 0 -sticky w
-grid [text $p.program -width 20 -height 3] -row 0 -column 1 -sticky e
+grid [ttk::entry $p.program -width 20 -textvariable settings(ts.program)] -row 0 -column 1 -sticky e
 
-grid [ttk::label $p.lmaxerr -text "Пороговая ошибка, К:"] -row 1 -column 0 -sticky w
-grid [ttk::spinbox $p.maxerr -width 10 -textvariable settings(temp.maxErr) -from 0 -to 10 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
+grid [ttk::label $p.lmaxerr -text "Пороговая невязка, К:"] -row 1 -column 0 -sticky w
+grid [ttk::spinbox $p.maxerr -width 10 -textvariable settings(ts.maxErr) -from 0 -to 10 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
 
 grid [ttk::label $p.lmaxtrend -text "Пороговый тренд, К/мин:"] -row 2 -column 0 -sticky w
-grid [ttk::spinbox $p.maxtrend -width 10 -textvariable settings(temp.maxTrend) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
+grid [ttk::spinbox $p.maxtrend -width 10 -textvariable settings(ts.maxTrend) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5
@@ -305,10 +306,10 @@ pack $p -fill x -padx 10 -pady 5
 set p [ttk::labelframe $w.nb.ms.l.msr -text " Параметры измерения " -pad 10]
 
 grid [ttk::label $p.lnsamples -text "Измерений на точку:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.nsamples -width 10 -textvariable settings(numberOfSamples) -from 1 -to 50000 -increment 10 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky e
+grid [ttk::spinbox $p.nsamples -width 10 -textvariable settings(measure.numOfSamples) -from 1 -to 50000 -increment 10 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky e
 
 grid [ttk::label $p.lsystError -text "Игнорировать инстр. погрешность:"] -row 1 -column 0 -sticky w
-grid [ttk::checkbutton $p.systError -variable settings(noSystErr)] -row 1 -column 1 -sticky e
+grid [ttk::checkbutton $p.systError -variable settings(measure.noSystErr)] -row 1 -column 1 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5
