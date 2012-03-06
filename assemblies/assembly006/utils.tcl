@@ -22,6 +22,11 @@ proc validateSettings {} {
         result.rewrite 1
         switch.serialAddr COM1        
         switch.rs485Addr 40
+		switch.delay 500
+		ts.addr localhost
+		ts.port 8080
+		ts.maxErr 0.1
+		ts.maxTrend 0.5
     }	
 }
 
@@ -30,7 +35,7 @@ proc setConnectors { conns } {
     global settings
 
 	# размыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 6 {1000}
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
 	#after 500
 
 	# производим переключение полярности
@@ -38,23 +43,8 @@ proc setConnectors { conns } {
 	#after 500
 
 	# замыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 6 {0}
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
 	#after 500
-}
-
-# Подключает/отключает тестовое сопротивление от схемы 
-# в зависимости от конфигурации Установки
-proc connectTestResistance { } {
-    global settings
-	
-	switch -exact -- $settings(current.method) {
-        0 {
-            hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000 1000}
-        }
-        1 {
-    	    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0 0}
-        }
-    }
 }
 
 # Завершаем работу установки, матчасть в исходное.

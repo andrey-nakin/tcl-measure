@@ -5,15 +5,18 @@
 # Измерительный модуль
 ###############################################################################
 
+package require math::statistics
+package require http 2.7
+package require uri
+package require hardware::owen::mvu8
+package require hardware::agilent::mm34410a
 package require measure::logger
 package require measure::config
-package require hardware::owen::mvu8
-package require scpi
-package require hardware::agilent::mm34410a
 package require measure::datafile
 package require measure::interop
 package require measure::sigma
-package require math::statistics
+package require measure::ranges
+package require scpi
 
 ###############################################################################
 # Подпрограммы
@@ -65,7 +68,7 @@ puts "!!! v=$v  sv=$sv"
 puts "!!! vErr=$vErr"   	
 	
 	# определяем силу тока
-	switch -exact -- [measure::config::get current.method] {
+	switch -exact -- $settings(current.method) {
         0 {
             # измеряем непосредственно ток
             set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
@@ -76,20 +79,19 @@ puts "!!! vErr=$vErr"
         }
         1 {
             # измеряем падение напряжения на эталоне
-            set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
-            set vval [expr abs([math::statistics::mean $cs])] 
-    		set newcs [list]
+            set vvs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
+            set vv [expr abs([math::statistics::mean $vvs])] 
     		set rr [measure::config::get current.reference.resistance 1.0] 
-    		foreach c $cs {
-    			lappend newcs [expr $c / $rr]
+    		set cs [list]
+    		foreach c $vvs {
+    			lappend cs [expr $c / $rr]
     		}
-    		set cs $newcs
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
     		# инструментальная погрешность
-	    	set vvalErr [hardware::agilent::mm34410a::dcvSystematicError $vval "" [measure::config::get cmm.nplc]]
+	    	set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" [measure::config::get cmm.nplc]]
     		set rrErr [measure::config::get current.reference.error 0.0] 
-	    	set cErr [measure::sigma::div $vval $vvalErr $rr $rrErr]
+	    	set cErr [measure::sigma::div $vv $vvErr $rr $rrErr]
         }
         2 {
             # ток измеряется вручную
@@ -159,10 +161,7 @@ proc setupMM {} {
 proc setupCMM {} {
     global cmm
     
-    # прочитаем из настроек режим измерения тока
-    set method [measure::config::get current.method 0]
-    
-    if { $method == 2 } {
+    if { $settings(current.method) == 2 } {
         # в ручном режиме второй мультиметр не используется
         return
     } 
@@ -177,7 +176,7 @@ proc setupCMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $cmm
 
-    switch -exact -- $method {
+    switch -exact -- $settings(current.method) {
         0 {
             # Ток измеряется непосредственно амперметром
         	# Настраиваем мультиметр для измерения постоянного тока
@@ -217,7 +216,7 @@ proc makeMeasurement {} {
 		}
 
 		# Ждём окончания переходных процессов, 
-		after 1000
+		after $settings(switch.delay)
 
 		# Измеряем напряжение
 		set res [doMeasure]
@@ -241,6 +240,66 @@ proc makeMeasurement {} {
 	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP 0.0 0.0 $c $sc $v $sv $r $sr]
 }
 
+# Отправляем команду термостату 
+proc setPoint { t } {
+	global settings
+
+	# делаем три попытки связаться с термостатом
+	for { set i 0 } { $i < 3 } { incr i } {
+		# сформируем адрес запроса
+		set url [::uri::join \
+			scheme http \
+			host $settings(ts.addr) \
+			port $settings(ts.port) \
+			path setpoint ]
+		# отправим запрос и ждём завершения
+		set token [::http::geturl $url -query [::http::formatQuery value $t]]
+		set code [::http::ncode $token]
+		::http::cleanup $token
+
+		if { $code == 200 } {
+			# успешно
+			return
+		}
+
+		# выждем паузу перед повторной попыткой
+		after 3000
+	}
+
+	error "Cannot connect to thermostat via URL $url"
+}
+
+# считываем показания термометра
+proc getTsState {} {
+	global settings tsStateUrl 
+
+	if { ![info exists tsStateUrl] } {
+		# сформируем адрес запроса
+		set tsStateUrl [::uri::join \
+			scheme http \
+			host $settings(ts.addr) \
+			port $settings(ts.port) \
+			path state ]
+	}
+
+	# отправим запрос и ждём завершения
+	set token [::http::geturl $tsStateUrl -headers {accept text/plain}]
+	set code [::http::ncode $token]
+	set data [::http::data $token]
+	::http::cleanup $token
+
+	return $data
+}
+
+# Процедура определяет, вышли ли мы на нужные температурные условия
+proc canMeasure { stateArray setPoint } {
+	global settings
+	upvar $stateArray state
+
+	return [expr abs($setPoint - $state(temperature)) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
+}
+
+
 ###############################################################################
 # Начало работы
 ###############################################################################
@@ -261,11 +320,8 @@ validateSettings
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) [list "Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
 
 # Производим подключение к устройствам и их настройку
-setupMM
-setupCMM
-
-# подключаем тестовое сопротивление если требуется
-connectTestResistance
+#setupMM
+#setupCMM
 
 # Задаём наборы переполюсовок
 # Основное положение переключателей
@@ -288,9 +344,32 @@ if { [measure::config::get switch.current 0] } {
 ###############################################################################
 
 # Холостое измерение для "прогрева" мультиметров
-doMeasure
+#doMeasure
 
-makeMeasurement
+# Обходим все температурные точки, указанные в программе измерений
+foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
+	# Проверяем, не была ли нажата кнопка "Стоп"
+	measure::interop::checkTerminated
+
+	# Даём команду термостату на установление температуры
+	setPoint $t
+
+	while { 1 } {
+		# Проверяем, не была ли нажата кнопка "Стоп"
+		measure::interop::checkTerminated
+
+		# Считываем значение температуры
+		array set state [getTsState]
+
+		if { [canMeasure state $t] } {
+		# Производим измерения
+	#		makeMeasurement
+			break
+		}
+
+		measure::interop::sleep 1000
+	}
+}
 
 ###############################################################################
 # Завершение измерений

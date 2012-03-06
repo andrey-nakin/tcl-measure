@@ -158,6 +158,87 @@ proc measure::chart::movingChart { args } {
 
 }
 
+proc measure::chart::staticChart { args } {
+	set opts {
+		{xlabel.arg		""	"X-axis label"}
+		{ylabel.arg		""	"Y-axis label"}
+	}
+
+	set usage ": measure::chart::movingChart \[options] canvas\noptions:"
+	array set options [::cmdline::getoptions args $opts $usage]
+	lassign $args canvas
+
+	namespace eval ::measure::chart::${canvas} {
+        variable redo
+		variable xValues
+		variable yValues
+		variable chartBgColor
+		variable canvas
+		variable options
+
+		set xValues [list]
+		set yValues [list]
+	}
+
+	proc ::measure::chart::${canvas}::addPoint { x y } {
+		variable xValues
+		variable yValues
+		variable options
+
+		lappend xValues $x
+		lappend yValues $y
+
+		doPlot	
+	}
+
+	proc ::measure::chart::${canvas}::makeLimits { values } {
+		if { [llength $values] > 0 } {
+			set stats [::math::statistics::basic-stats $values]
+			return [measure::chart::limits [list [lindex $stats 1] [lindex $stats 2]]]
+		} else {
+			return [measure::chart::limits 0.0 1.0]
+		}
+	}
+
+	proc ::measure::chart::${canvas}::doPlot {} {
+		variable xValues
+		variable yValues
+		variable chartBgColor
+		variable canvas
+		variable options
+
+		$canvas delete all
+
+		set s [::Plotchart::createXYPlot $canvas [makeLimits $xValues] [makeLimits $yValues]]
+		$s dataconfig series1 -colour green
+		$s xtext $options(xlabel)
+		$s xconfig -format %2g
+		$s ytext $options(ylabel)
+		$s yconfig -format %2g
+
+		if { ![info exists chartBgColor] } {
+			set chartBgColor [$canvas cget -bg]
+		}
+		$s background plot black
+		$s background axes $chartBgColor
+
+		foreach x $xValues y $yValues {
+			$s plot series1 $x $y
+		}
+	}
+
+	proc ::measure::chart::${canvas}::doResize {} {
+		doPlot
+	}
+
+	set ::measure::chart::${canvas}::canvas $canvas
+	set ::measure::chart::${canvas}::chartValues [list]
+	array set ::measure::chart::${canvas}::options [array get options]
+
+	bind $canvas <Configure> "::measure::chart::${canvas}::doResize"
+
+}
+
 ###############################################################################
 # Internal procedures
 ###############################################################################

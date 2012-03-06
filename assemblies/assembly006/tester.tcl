@@ -11,9 +11,7 @@ package require measure::logger
 package require measure::config
 package require hardware::owen::mvu8
 package require hardware::scpi
-package require hardware::agilent::pse3645a
 package require hardware::agilent::mm34410a
-package require tclvisa
 package require measure::interop
 package require measure::sigma
 
@@ -23,29 +21,43 @@ package require measure::sigma
 
 # Измеряет ток и напряжение на образце
 # Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
-proc measureVoltage { } {
+proc doMeasure { } {
     global mm cmm settings
     
-	# измеряем напряжение и ток
+	# измеряем напряжение на образце
 	set v [expr abs([scpi::query $mm "READ?"])]
-	set c [expr abs([scpi::query $cmm "READ?"])]
+	# инструментальная погрешность
+	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
 
-	if { $settings(useTestResistance) } {
-		# пересчитаем падение напряжения на эталонном сопротивлении
-		# в силу тока
-		set c [expr $c / $settings(testResistance)]
-	}
+	# измеряем силу тока
+	switch -exact -- $settings(current.method) {
+        0 {
+            # измеряем непосредственно ток
+			set c [expr abs([scpi::query $cmm "READ?"])]
+            # инструментальная погрешность
+            set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" [measure::config::get cmm.nplc]]
+        }
+        1 {
+            # измеряем падение напряжения на эталоне
+			set vv [expr abs([scpi::query $cmm "READ?"])] 
+    		set rr [measure::config::get current.reference.resistance 1.0] 
+			set c [expr $vv / $rr]
+    		# инструментальная погрешность
+            set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" [measure::config::get cmm.nplc]]
+    		set rrErr [measure::config::get current.reference.error 0.0] 
+	    	set cErr [measure::sigma::div $vv $vvErr $rr $rrErr]
+        }
+        2 {
+            # ток измеряется вручную
+            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
+            # инструментальная погрешность задаётся вручную
+            set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
+        }
+    }
 
 	# вычисляем сопротивление
 	set r [expr abs($v / $c)]
-
 	# определяем инструментальную погрешность
-	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
-	if { $settings(useTestResistance) } {
-		set cErr [hardware::agilent::mm34410a::dcvSystematicError [expr $c * $settings(testResistance)] "" $settings(nplc)]
-	} else {
-		set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(nplc)]
-	}
 	set rErr [measure::sigma::div $v $vErr $c $cErr]
 
 	# возвращаем результат измерений, переведённый в милливольты и милливольты
@@ -54,12 +66,14 @@ proc measureVoltage { } {
 
 # Инициализация вольтметра
 proc setupMM {} {
-    global mm rm settings
+    global mm settings
     
     # Подключаемся к мультиметру (ММ)
-    if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
-		error "Невозможно подключиться к вольтметру по адресу `$settings(mmAddr)'"
-	}
+    set mm [hardware::agilent::mm34410a::open \
+		-baud [measure::config::get mm.baud] \
+		-parity [measure::config::get mm.parity] \
+		[measure::config::get -required mm.addr] \
+	]
 
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init -noFrontCheck $mm
@@ -72,51 +86,49 @@ proc setupMM {} {
 
 # Инициализация амперметра
 proc setupCMM {} {
-    global cmm rm settings
+    global cmm settings
     
+    if { $settings(current.method) == 2 } {
+        # в ручном режиме второй мультиметр не используется
+        return
+    } 
+
     # Подключаемся к мультиметру (ММ)
-    if { [catch { set cmm [visa::open $rm $settings(cmmAddr)] } ] } {
-		error "Невозможно подключиться к амперметру по адресу `$settings(cmmAddr)'"
-	}
+    set cmm [hardware::agilent::mm34410a::open \
+		-baud [measure::config::get cmm.baud] \
+		-parity [measure::config::get cmm.parity] \
+		[measure::config::get -required cmm.addr] \
+	]
 
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init -noFrontCheck $cmm
 
-	if { $settings(useTestResistance) } {
-    	# Настраиваем мультиметр для измерения постоянного напряжения
-    	hardware::agilent::mm34410a::configureDcVoltage \
-    		-nplc $settings(nplc) \
-    		 $cmm
-	} else {
-    	# Настраиваем мультиметр для измерения постоянного тока
-    	hardware::agilent::mm34410a::configureDcCurrent \
-    		-nplc $settings(nplc) \
-    		 $cmm
+    switch -exact -- $settings(current.method) {
+        0 {
+            # Ток измеряется непосредственно амперметром
+        	# Настраиваем мультиметр для измерения постоянного тока
+			hardware::agilent::mm34410a::configureDcCurrent \
+				-nplc $settings(nplc) \
+				 $cmm
+        }
+        1 {
+            # Ток измеряется измерением надения напряжения на эталонном сопротивлении
+        	# Настраиваем мультиметр для измерения постоянного напряжения
+			hardware::agilent::mm34410a::configureDcVoltage \
+				-nplc $settings(nplc) \
+				 $cmm
+        }
     }
 }
 
 # Инициализируем устройства
 proc openDevices {} {
-    global rm ps mm cmm settings
-
 	# реле в исходное
 	setConnectors { 0 0 0 0 }
-
-	# Подключаемся к менеджеру ресурсов VISA
-	set rm [visa::open-default-rm]
 
 	# Производим подключение к устройствам и их настройку
 	setupMM
 	setupCMM
-	if { !$settings(manualPower) } {
-		setupPs
-
-		# Устанавливаем выходной ток
-		setCurrent $settings(startCurrent)
-
-		# Включаем подачу тока на выходы ИП
-		hardware::agilent::pse3645a::setOutput $ps 1
-	}
 }
 
 # Процедура производит периодический опрос приборов и выводит показания на экран
@@ -124,15 +136,12 @@ proc run {} {
 	# инициализируем устройства
 	openDevices
 
-	# подключаем тестовое сопротивление если требуется
-	connectTestResistance
-
 	# работаем в цикле пока не получен сигнал останова
 	while { ![measure::interop::isTerminated] }	{
 		set tm [clock milliseconds]
 
 		# Снимаем показания
-		lassign [measureVoltage] v sv c sc r sr
+		lassign [doMeasure] v sv c sc r sr
 
         # Выводим результаты в окно программы
         display $v $sv $c $sc $r $sr          

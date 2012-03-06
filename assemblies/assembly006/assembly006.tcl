@@ -146,21 +146,6 @@ proc toggleTestResistance {} {
 	::measure::widget::setDisabled [expr $mode == 2] $p.curerr $p.lcurerr
 }
 
-proc addValueToChart { v } {
-	global chartValues
-
-	if { ![info exists chartValues] } {
-		set chartValues [list]
-	}
-
-	if { [llength $chartValues] >= 200 } {
-		set chartValues [lrange $chartValues [expr [llength $chartValues] - 199] end]
-	}
-	lappend chartValues $v
-
-	doPlot	
-}
-
 ###############################################################################
 # Начало скрипта
 ###############################################################################
@@ -183,58 +168,6 @@ ttk::notebook::enableTraversal $w.nb
 # Закладка "Измерение"
 ttk::frame $w.nb.m
 $w.nb add $w.nb.m -text " Измерение "
-
-proc doPlot {} {
-	global w
-	global chartValues chartBgColor
-
-    $w.nb.m.c.c delete all
-	if { ![info exists chartValues] } {
-		return
-	}
-
-	set stats [::math::statistics::basic-stats $chartValues]
-	set s [::Plotchart::createXYPlot $w.nb.m.c.c { 0 200 20 } [measure::chart::limits [lindex $stats 1] [lindex $stats 2]]]
-
-	$s dataconfig series1 -colour green
-	$s ytext "R, \u03a9"
-
-	if { ![info exists chartBgColor] } {
-		set chartBgColor [$w.nb.m.c.c cget -bg]
-	}
-	$s background plot black
-	$s background axes $chartBgColor
-
-	set x 0
-	set xx [list]
-	foreach y $chartValues {
-		$s plot series1 $x $y
-		lappend xx $x
-		incr x
-	}
-
-	if { [llength $xx] > 10 } {
-		lassign [::math::statistics::linear-model $xx $chartValues] a b
-		set lll [expr [llength $xx] - 1]
-		$s dataconfig series2 -colour magenta
-		$s plot series2 [lindex $xx 0] [expr [lindex $xx 0] * $b + $a]
-		$s plot series2 [lindex $xx $lll] [expr [lindex $xx $lll] * $b + $a]
-	}
-}
-
-proc doResize {} {
-    global redo
-
-    #
-    # To avoid redrawing the plot many times during resizing,
-    # cancel the callback, until the last one is left.
-    #
-    if { [info exists redo] } {
-        after cancel $redo
-    }
-
-    set redo [after 50 doPlot]
-}
 
 # Раздел "Управление"
 set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
@@ -268,11 +201,11 @@ grid columnconfigure $p { 1 4 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
 # Раздел "График"
-set p [ttk::labelframe $w.nb.m.c -text " Временная зависимость " -pad 2]
+set p [ttk::labelframe $w.nb.m.c -text " Температурная зависимость " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
-pack [canvas $p.c -width 400 -height 200] -fill both -expand 1
-#pack [canvas $p.c -background gray -width 400 -height 200] -fill both -expand 1
-bind $p.c <Configure> {doResize}
+set chartCanvas [canvas $p.c -width 400 -height 200]
+pack $chartCanvas -fill both -expand 1
+measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" $chartCanvas
 
 # Закладка "Параметры измерения"
 ttk::frame $w.nb.ms
@@ -355,11 +288,14 @@ grid rowconfigure $w.nb.m {0 1} -pad 5
 # Раздел настроек переполюсовок
 set p [ttk::labelframe $w.nb.ms.r.comm -text " Переполюсовки " -pad 10]
 
-grid [ttk::label $p.lswitchVoltage -text "Переполюсовка напряжения:"] -row 1 -column 0 -sticky w
-grid [ttk::checkbutton $p.switchVoltage -variable settings(switch.voltage)] -row 1 -column 1 -sticky e
+grid [ttk::label $p.lswitchVoltage -text "Переполюсовка напряжения:"] -row 0 -column 0 -sticky w
+grid [ttk::checkbutton $p.switchVoltage -variable settings(switch.voltage)] -row 0 -column 1 -sticky e
 
-grid [ttk::label $p.lswitchCurrent -text "Переполюсовка тока:"] -row 2 -column 0 -sticky w
-grid [ttk::checkbutton $p.switchCurrent -variable settings(switch.current)] -row 2 -column 1 -sticky e
+grid [ttk::label $p.lswitchCurrent -text "Переполюсовка тока:"] -row 1 -column 0 -sticky w
+grid [ttk::checkbutton $p.switchCurrent -variable settings(switch.current)] -row 1 -column 1 -sticky e
+
+grid [ttk::label $p.ldelay -text "Пауза после переключения, мс:"] -row 2 -column 0 -sticky w
+grid [ttk::spinbox $p.delay -width 10 -textvariable settings(switch.delay) -from 0 -to 10000 -increment 100 -validate key -validatecommand {string is integer %P}] -row 2 -column 1 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3} -pad 5
