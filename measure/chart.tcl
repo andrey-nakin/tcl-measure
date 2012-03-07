@@ -162,6 +162,8 @@ proc measure::chart::staticChart { args } {
 	set opts {
 		{xlabel.arg		""	"X-axis label"}
 		{ylabel.arg		""	"Y-axis label"}
+		{lines.arg		"1"	"Plot lines"}
+		{dots.arg		"0"	"Plot dots"}
 	}
 
 	set usage ": measure::chart::movingChart \[options] canvas\noptions:"
@@ -191,10 +193,20 @@ proc measure::chart::staticChart { args } {
 		doPlot	
 	}
 
+	proc ::measure::chart::${canvas}::clear { } {
+		variable xValues
+		variable yValues
+
+		set xValues [list]
+		set yValues [list]
+
+		doPlot	
+	}
+	
 	proc ::measure::chart::${canvas}::makeLimits { values } {
 		if { [llength $values] > 0 } {
 			set stats [::math::statistics::basic-stats $values]
-			return [measure::chart::limits [list [lindex $stats 1] [lindex $stats 2]]]
+			return [measure::chart::limits [lindex $stats 1] [lindex $stats 2]]
 		} else {
 			return [measure::chart::limits 0.0 1.0]
 		}
@@ -211,6 +223,7 @@ proc measure::chart::staticChart { args } {
 
 		set s [::Plotchart::createXYPlot $canvas [makeLimits $xValues] [makeLimits $yValues]]
 		$s dataconfig series1 -colour green
+		$s dotconfig series1 -colour green
 		$s xtext $options(xlabel)
 		$s xconfig -format %2g
 		$s ytext $options(ylabel)
@@ -223,7 +236,12 @@ proc measure::chart::staticChart { args } {
 		$s background axes $chartBgColor
 
 		foreach x $xValues y $yValues {
-			$s plot series1 $x $y
+            if { $options(lines) } {
+    			$s plot series1 $x $y
+            }
+            if { $options(dots) } {
+    			$s dot series1 $x $y 3
+    		}
 		}
 	}
 

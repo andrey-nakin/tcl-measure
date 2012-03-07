@@ -59,13 +59,10 @@ proc doMeasure { } {
 
 	# считываем значение напряжения и вычисляем погрешность измерений
 	set vs [split [scpi::query $mm "DATA:REMOVE? $n"] ","]
-puts "!!! vs=$vs"	
 	# среднее значение и погрешность измерения
 	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
-puts "!!! v=$v  sv=$sv"	
 	# инструментальная погрешность
    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mm.nplc]]
-puts "!!! vErr=$vErr"   	
 	
 	# определяем силу тока
 	switch -exact -- $settings(current.method) {
@@ -106,23 +103,16 @@ puts "!!! vErr=$vErr"
             set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
         }
     }
-puts "!!! c=$c"
-puts "!!! sc=$sc"    
-puts "!!! cErr=$cErr"
 
 	# вычисляем сопротивление
 	set rs [list]
 	foreach vv $vs cc $cs {
 		lappend rs [expr $vv / $cc]
 	}
-puts "!!! rs=$rs"	
 
 	# вычисляем средние значения и сигмы
 	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]; if { $sr == ""} { set sr 0 }
-puts "!!! r=$r"
-puts "!!! sr=$sr"	
    	set rErr [measure::sigma::div $v $vErr $c $cErr]
-puts "!!! rErr=$rErr"   	
 
     if { ![measure::config::get measure.noSystErr 0] } {
     	# суммируем инструментальную и измерительную погрешности
@@ -159,7 +149,7 @@ proc setupMM {} {
 
 # Инициализация амперметра
 proc setupCMM {} {
-    global cmm
+    global cmm settings
     
     if { $settings(current.method) == 2 } {
         # в ручном режиме второй мультиметр не используется
@@ -200,8 +190,9 @@ proc setupCMM {} {
 
 # Процедура производит одно измерение со всеми нужными переполюсовками
 #   и сохраняет результаты в файле результатов
-proc makeMeasurement {} {
+proc makeMeasurement {  stateArray } {
 	global mm cmm connectors settings
+	upvar $stateArray state
 
 	set vs [list]; set svs [list]
 	set cs [list]; set scs [list]
@@ -228,7 +219,10 @@ proc makeMeasurement {} {
 		lappend rs $r; lappend srs $sr
 
         # Выводим результаты в окно программы
-        display $v $sv $c $sc $r $sr          
+        display $v $sv $c $sc $r $sr
+        
+        # добавляем точку на график
+        measure::interop::cmd [list addPointToChart $state(temperature) $r]          
 	}
 
 	# Вычисляем средние значения
@@ -237,7 +231,7 @@ proc makeMeasurement {} {
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
 
     # Выводим результаты в результирующий файл
-	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP 0.0 0.0 $c $sc $v $sv $r $sr]
+	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $state(temperature) $state(measureError) $c $sc $v $sv $r $sr]
 }
 
 # Отправляем команду термостату 
@@ -253,12 +247,16 @@ proc setPoint { t } {
 			port $settings(ts.port) \
 			path setpoint ]
 		# отправим запрос и ждём завершения
-		set token [::http::geturl $url -query [::http::formatQuery value $t]]
+		set token [::http::geturl $url -query [::http::formatQuery value $t] -timeout 5000]
 		set code [::http::ncode $token]
 		::http::cleanup $token
 
 		if { $code == 200 } {
 			# успешно
+			
+			# выведем уставку на экран
+			measure::interop::cmd [list setPointSet $t]
+			
 			return
 		}
 
@@ -280,25 +278,74 @@ proc getTsState {} {
 			host $settings(ts.addr) \
 			port $settings(ts.port) \
 			path state ]
+
+        # настроим библиотеку HTTP
+    	if { [info exists ::http::http(-accept)] } {
+        	set ::http::http(-accept) text/plain
+        }
 	}
 
-	# отправим запрос и ждём завершения
-	set token [::http::geturl $tsStateUrl -headers {accept text/plain}]
-	set code [::http::ncode $token]
-	set data [::http::data $token]
-	::http::cleanup $token
+	# делаем три попытки связаться с термостатом
+	for { set i 0 } { $i < 3 } { incr i } {
+    	# отправим запрос и ждём завершения
+    	set token [::http::geturl $tsStateUrl -protocol 1.0 -keepalive 1 -timeout 5000]
+    	set code [::http::ncode $token]
+    	set data [::http::data $token]
 
-	return $data
+		if { $code == 200 } {
+			# успешно
+			
+        	return $data
+		}
+		
+    	::http::cleanup $token
+		
+		# выдержим паузу
+		after 3000
+    }
+
+	error "Cannot connect to thermostat via URL $tsStateUrl"
+}
+
+proc calcMeasureTime {} {
+    global settings
+    
+    set nplc [measure::config::get mm.nplc 10]
+    if { $settings(current.method) != 2 } {
+        set nplc2 [measure::config::get cmm.nplc 10]
+        if { $nplc < $nplc2 } {
+            set nplc $nplc2
+        }
+    }
+    
+    set n [measure::config::get measure.numOfSamples 1]
+    
+    set tm [expr 20.0 * $nplc * $n]
+    if { $settings(switch.voltage) } {
+        set tm [expr 2.0 * ($tm + $settings(switch.delay)]
+    }
+    if { $settings(switch.current) } {
+        set tm [expr 2.0 * ($tm + $settings(switch.delay)]
+    }
+    
+    return $tm 
 }
 
 # Процедура определяет, вышли ли мы на нужные температурные условия
 proc canMeasure { stateArray setPoint } {
-	global settings
+	global settings measureTime log
 	upvar $stateArray state
+	
+	if { ![info exists measureTime] } {
+	   # вычислим продолжительность одного измерения, в мс
+	   set measureTime [calcMeasureTime]
+    }
 
-	return [expr abs($setPoint - $state(temperature)) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
+    # предполагаемая температура по окончании измерения
+    set estimate [expr $state(temperature) + $settings(ts.maxTrend) / (60.0 * 1000.0) * $measureTime]
+
+	return [expr abs($setPoint - $state(temperature)) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
 }
-
 
 ###############################################################################
 # Начало работы
@@ -320,8 +367,8 @@ validateSettings
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) [list "Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
 
 # Производим подключение к устройствам и их настройку
-#setupMM
-#setupCMM
+setupMM
+setupCMM
 
 # Задаём наборы переполюсовок
 # Основное положение переключателей
@@ -344,7 +391,7 @@ if { [measure::config::get switch.current 0] } {
 ###############################################################################
 
 # Холостое измерение для "прогрева" мультиметров
-#doMeasure
+doMeasure
 
 # Обходим все температурные точки, указанные в программе измерений
 foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
@@ -359,11 +406,15 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 		measure::interop::checkTerminated
 
 		# Считываем значение температуры
-		array set state [getTsState]
+		set stateList [getTsState]
+		array set state $stateList 
+		
+		# Выводим температуру на экран
+		measure::interop::cmd [list setTemperature $stateList]
 
 		if { [canMeasure state $t] } {
 		# Производим измерения
-	#		makeMeasurement
+			makeMeasurement state
 			break
 		}
 

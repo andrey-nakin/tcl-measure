@@ -82,7 +82,7 @@ proc stopMeasure {} {
 
 # Запускаем измерения
 proc startMeasure {} {
-	global w log runtime
+	global w log runtime chartCanvas
 
 	# запрещаем кнопку запуска измерений
 	$w.nb.m.ctl.start configure -state disabled
@@ -104,6 +104,9 @@ proc startMeasure {} {
 	
     # Очищаем результаты в окне программы
 	clearResults
+	
+	# Очищаем график
+	measure::chart::${chartCanvas}::clear
 }
 
 # Прерываем измерения
@@ -121,7 +124,7 @@ proc terminateMeasure {} {
 proc openResults {} {
     global settings
     
-    startfile::start $settings(fileName)
+    startfile::start $settings(result.fileName)
 }
 
 # Завершение работы программы
@@ -144,6 +147,29 @@ proc toggleTestResistance {} {
 	::measure::widget::setDisabled [expr $mode == 1] $p.rerr $p.lrerr
 	::measure::widget::setDisabled [expr $mode == 2] $p.cur $p.lcur
 	::measure::widget::setDisabled [expr $mode == 2] $p.curerr $p.lcurerr
+}
+
+###############################################################################
+# Обработчики событий
+###############################################################################
+
+proc setPointSet { sp } {
+    global runtime
+    set runtime(setPoint) [format "%0.2f" $sp]
+}
+
+proc setTemperature { lst } {
+    global runtime
+    array set state $lst
+    
+    set runtime(temperature) [format "%0.2f \u00b1 %0.2f" $state(temperature) $state(measureError)]
+    set runtime(trend) [format "%0.2f" $state(trend)]
+    set runtime(error) [format "%0.2f \u00b1 %0.2f" $state(error) $state(measureError)]
+}
+
+proc addPointToChart { t r } {
+    global chartCanvas
+	measure::chart::${chartCanvas}::addPoint $t $r
 }
 
 ###############################################################################
@@ -184,28 +210,40 @@ grid columnconfigure $p { 0 } -weight 1
 set p [ttk::labelframe $w.nb.m.v -text " Результаты измерения " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
-grid [ttk::label $p.lc -text "Ток, мА:"] -row 0 -column 0 -sticky w
-grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 0 -column 1 -sticky we
+grid [ttk::label $p.lsp -text "Уставка, К:"] -row 0 -column 0 -sticky w
+grid [ttk::entry $p.esp -textvariable runtime(setPoint) -state readonly] -row 0 -column 1 -sticky we
 
-grid [ttk::label $p.lv -text "Напряжение, мВ:"] -row 0 -column 3 -sticky w
-grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 0 -column 4 -sticky we
+grid [ttk::label $p.lerr -text "Невязка, К:"] -row 0 -column 3 -sticky w
+grid [ttk::entry $p.eerr -textvariable runtime(error) -state readonly] -row 0 -column 4 -sticky we
 
-grid [ttk::label $p.lr -text "Сопротивление, Ом:"] -row 1 -column 0 -sticky w
-grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 1 -column 1 -sticky we
+grid [ttk::label $p.lt -text "Температура, К:"] -row 1 -column 0 -sticky w
+grid [ttk::entry $p.et -textvariable runtime(temperature) -state readonly] -row 1 -column 1 -sticky we
 
-grid [ttk::label $p.lp -text "Мощность, мВт:"] -row 1 -column 3 -sticky w
-grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 1 -column 4 -sticky we
+grid [ttk::label $p.ltr -text "Тренд, К/мин:"] -row 1 -column 3 -sticky w
+grid [ttk::entry $p.etr -textvariable runtime(trend) -state readonly] -row 1 -column 4 -sticky we
+
+grid [ttk::label $p.lc -text "Ток, мА:"] -row 2 -column 0 -sticky w
+grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 2 -column 1 -sticky we
+
+grid [ttk::label $p.lv -text "Напряжение, мВ:"] -row 2 -column 3 -sticky w
+grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 2 -column 4 -sticky we
+
+grid [ttk::label $p.lr -text "Сопротивление, Ом:"] -row 3 -column 0 -sticky w
+grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 3 -column 1 -sticky we
+
+grid [ttk::label $p.lp -text "Мощность, мВт:"] -row 3 -column 3 -sticky w
+grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 3 -column 4 -sticky we
 
 grid columnconfigure $p { 2 } -minsize 20
 grid columnconfigure $p { 1 4 } -weight 1
-grid rowconfigure $p { 0 1 } -pad 5
+grid rowconfigure $p { 0 1 2 3 } -pad 5
 
 # Раздел "График"
 set p [ttk::labelframe $w.nb.m.c -text " Температурная зависимость " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
 set chartCanvas [canvas $p.c -width 400 -height 200]
 pack $chartCanvas -fill both -expand 1
-measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" $chartCanvas
+measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" -dots 1 -lines 1 $chartCanvas
 
 # Закладка "Параметры измерения"
 ttk::frame $w.nb.ms

@@ -108,13 +108,19 @@ proc measure::http::server::httpStart { sock } {
             
     if { [string compare -nocase $method "get"] == 0 } {
         httpGet $sock $parts(path) $qparams $headers
+        array set hdr $headers
+        if { [info exists hdr(connection)] && [string compare -nocase $hdr(connection) "keep-alive"] == 0 } {
+            fileevent $sock readable [list measure::http::server::httpStart $sock]
+        } else {
+            measure::http::server::cleanup $sock
+        }
     } elseif {[string compare -nocase $method "post"] == 0 } {
         httpPost $sock $parts(path) $qparams $headers
+        measure::http::server::cleanup $sock
     } else {
-        puts $sock "HTTP/1.0 501 Unimplemented Method"
+        puts $sock "HTTP/1.1 501 Unimplemented Method"
+        measure::http::server::cleanup $sock
     }
-    
-    measure::http::server::cleanup $sock
 }
 
 proc measure::http::server::httpGet { sock path qparams headers } {
@@ -146,25 +152,30 @@ proc measure::http::server::callHandler { sock handlerName qparams headers } {
     
     if { [info procs $handlerName] eq "" } {
         ${log}::error "callHandler bad handler $handlerName"
-        puts $sock "HTTP/1.0 404 Bad path"
+        puts $sock "HTTP/1.1 404 Bad path"
         puts $sock $STD_HEADERS
         return
     }
     
     if { [catch { lassign [$handlerName $qparams $headers] ct body } rc opt] } {
         ${log}::error "error calling $handlerName: $rc\n$opt"
-        puts $sock "HTTP/1.0 500 Internal Server Error"
+        puts $sock "HTTP/1.1 500 Internal Server Error"
         puts $sock "Content-Type: text/plain"
         puts $sock $STD_HEADERS
         puts $sock ""
         puts $sock $rc
         puts $sock $opt
     } else {
-        puts $sock "HTTP/1.0 200 OK"
+        array set hdr $headers
+    
+        puts $sock "HTTP/1.1 200 OK"
         puts $sock "Content-Type: $ct; charset=utf-8"
         puts $sock "Content-Length: [string bytelength $body]"
+        if { [info exists hdr(connection)] && [string compare -nocase $hdr(connection) "keep-alive"] == 0 } {
+            puts $sock "Connection: Keep-Alive"
+        }
         puts $sock $STD_HEADERS
         puts $sock ""
-        puts $sock $body
+        puts -nonewline $sock $body
     }
 }

@@ -10,7 +10,7 @@
 package require measure::logger
 package require measure::config
 package require hardware::owen::mvu8
-package require hardware::scpi
+package require scpi
 package require hardware::agilent::mm34410a
 package require measure::interop
 package require measure::sigma
@@ -27,7 +27,7 @@ proc doMeasure { } {
 	# измеряем напряжение на образце
 	set v [expr abs([scpi::query $mm "READ?"])]
 	# инструментальная погрешность
-	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
+	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mm.nplc]]
 
 	# измеряем силу тока
 	switch -exact -- $settings(current.method) {
@@ -80,7 +80,7 @@ proc setupMM {} {
 
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc $settings(nplc) \
+		-nplc [measure::config::get mm.nplc 10] \
 		 $mm
 }
 
@@ -108,14 +108,14 @@ proc setupCMM {} {
             # Ток измеряется непосредственно амперметром
         	# Настраиваем мультиметр для измерения постоянного тока
 			hardware::agilent::mm34410a::configureDcCurrent \
-				-nplc $settings(nplc) \
+				-nplc [measure::config::get cmm.nplc 10] \
 				 $cmm
         }
         1 {
             # Ток измеряется измерением надения напряжения на эталонном сопротивлении
         	# Настраиваем мультиметр для измерения постоянного напряжения
 			hardware::agilent::mm34410a::configureDcVoltage \
-				-nplc $settings(nplc) \
+				-nplc [measure::config::get cmm.nplc 10] \
 				 $cmm
         }
     }

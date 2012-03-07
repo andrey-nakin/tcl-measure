@@ -20,6 +20,8 @@ proc validateSettings {} {
         result.fileName ""
         result.format TXT
         result.rewrite 1
+        switch.voltage 0
+        switch.current 0
         switch.serialAddr COM1        
         switch.rs485Addr 40
 		switch.delay 500

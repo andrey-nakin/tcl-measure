@@ -67,10 +67,10 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 			thread::exit
 		}
 
-		proc interopCatch_ { rc } {
+		proc interopCatch_ { rc inf } {
 			global log workScript_ stopScript_ errorProc_ finalizer_
 
-			${log}::error "Error executing worker thread: $rc"
+			${log}::error "Error executing worker thread: $rc\n$inf"
 
 			if { [info exists finalizer_] && $finalizer_ != "" } {
 			    if { [catch { eval $finalizer_ } rc2] } {
@@ -88,8 +88,8 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 		proc interopStart {} {
 			global log workScript_ stopScript_ errorProc_ finalizer_
 
-			if { [catch { uplevel 1 $workScript_ } rc] } {
-				interopCatch_ $rc
+			if { [catch { uplevel 1 $workScript_ } rc inf] } {
+				interopCatch_ $rc $inf
 			} else {
 				interopEnd_
 			}
