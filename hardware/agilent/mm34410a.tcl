@@ -364,6 +364,17 @@ proc hardware::agilent::mm34410a::dciRange { value } {
 	return $result
 }
 
+set hardware::agilent::mm34410a::configOptions {
+	{nplc.arg			10	"NPLC"}
+	{autoRange.arg		ON	"auto ranging: on, off or once"}
+	{autoZero.arg		ON	"auto zero: on or off"}
+	{triggerDelay.arg	DEF		"trigger delay"}
+	{sampleCount.arg	1	"sample count"}
+	{sampleInterval.arg	""		"sample interval"}
+	{scpiVersion.arg	""		"Min valid SCPI version"}
+	{text2.arg	        ""		"Text to show on secondary display"}
+}
+
 # Производит конфигурацию устройства для измерения постоянного напряжения
 # Опции
 #   nplc - число циклов линии питания, по умолчанию 10
@@ -372,22 +383,14 @@ proc hardware::agilent::mm34410a::dciRange { value } {
 #   triggerDelay - пауза срабатывания триггера, по умолчанию DEF
 #   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
 #   sampleInterval - интервал между измерениями, по умолчанию не указан
+#   scpiVersion - минимальная необходимая версия языка SCPI, например 1994.0.
+#   text2 - текст для вывода на дисплее №2 мультиметра. Если нет поддержки мультиметра, опция игнорируется.
 proc hardware::agilent::mm34410a::configureDcVoltage { args } {
-    global hardware::agilent::mm34410a::SCPI_VERSION log
+	variable configOptions
+	variable SCPI_VERSION
     
-	set options {
-		{nplc.arg			10	"NPLC"}
-		{autoRange.arg		ON	"auto ranging: on, off or once"}
-		{autoZero.arg		ON	"auto zero: on or off"}
-		{triggerDelay.arg	DEF		"trigger delay"}
-		{sampleCount.arg	1	"sample count"}
-		{sampleInterval.arg	""		"sample interval"}
-		{scpiVersion.arg	""		"Min valid SCPI version"}
-		{text2.arg	        ""		"Text to show on secondary display"}
-	}
-
 	set usage ": configureDcVoltage \[options] channel\noptions:"
-	array set params [::cmdline::getoptions args $options $usage]
+	array set params [::cmdline::getoptions args $configOptions $usage]
 
 	set mm [lindex $args 0]
 	
@@ -460,29 +463,13 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 }
 
 # Производит конфигурацию устройства для измерения постоянного тока
-# Опции
-#   nplc - число циклов линии питания, по умолчанию 10
-#   autoRange - режим автоподстройки диапазона, может быть on или off. По умолчанию on
-#   autoZero - режим автоподстройки нуля, может быть on, off или once. По умолчанию on
-#   triggerDelay - пауза срабатывания триггера, по умолчанию DEF
-#   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
-#   sampleInterval - интервал между измерениями, по умолчанию не указан
+# Опции - такие же, как у процедуры configureDcVoltage
 proc hardware::agilent::mm34410a::configureDcCurrent { args } {
-    global hardware::agilent::mm34410a::SCPI_VERSION log
-    
-	set options {
-		{nplc.arg			10		"NPLC"}
-		{autoRange.arg		ON		"auto ranging: on, off or once"}
-		{autoZero.arg		ON		"auto zero: on or off"}
-		{triggerDelay.arg	DEF		"trigger delay"}
-		{sampleCount.arg	1		"sample count"}
-		{sampleInterval.arg	""		"sample interval"}
-		{scpiVersion.arg	""		"Min valid SCPI version"}
-		{text2.arg	        ""		"Text to show on secondary display"}
-	}
+	variable configOptions
+	variable SCPI_VERSION
 
-	set usage ": configureDcVoltage \[options] channel\noptions:"
-	array set params [::cmdline::getoptions args $options $usage]
+	set usage ": configureDcCurrent \[options] channel\noptions:"
+	array set params [::cmdline::getoptions args $configOptions $usage]
 
 	set mm [lindex $args 0]
 
@@ -554,6 +541,26 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 	scpi::checkError $mm
 	
 	after 500
+}
+
+# Вычисляет продолжительность одного измерения напряжения или тока.
+# Опции - такие же, как у процедур configureDcVoltage, configureDcCurrent 
+# Возвращаемое значение
+#   продолжительность измерения в мс
+proc hardware::agilent::mm34410a::measDur { args } {
+	variable configOptions
+	variable SCPI_VERSION
+	variable powerFrequency
+    
+	array set params [::cmdline::getoptions args $configOptions ": measDur \[options]\noptions:"]
+
+	if { $params(autoZero) == "ON" } {
+		set autoZero 2
+	} else {
+		set autoZero 1
+	}
+    
+    return [expr 1000.0 / $powerFrequency * $params(nplc) * $autoZero * $params(sampleCount)]
 }
 
 # Проверяет положение переключателя Front/Rear

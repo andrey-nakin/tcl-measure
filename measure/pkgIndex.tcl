@@ -17,6 +17,7 @@ package ifneeded measure::listutils 0.1.0 [list source [file join $dir listutils
 package ifneeded measure::http::server 0.1.0 [list source [file join $dir httpserver.tcl]]
 package ifneeded measure::ranges 0.1.0 [list source [file join $dir ranges.tcl]]
 package ifneeded measure::math 0.1.0 [list source [file join $dir math.tcl]]
+package ifneeded measure::tsclient 0.1.0 [list source [file join $dir tsclient.tcl]]
 
 set maindir $dir
 set dir [file join $maindir widget]; source [file join $dir pkgIndex.tcl]

@@ -29,7 +29,12 @@ proc validateSettings {} {
 		ts.port 8080
 		ts.maxErr 0.1
 		ts.maxTrend 0.5
+		mm.nplc 10
+		cmm.nplc 10
+		measure.numOfSamples 1
     }	
+
+	::measure::tsclient::config -host $settings(ts.addr) -port $settings(ts.port)
 }
 
 # Устанавливает положение переключателей полярности

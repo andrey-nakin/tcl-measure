@@ -16,6 +16,8 @@ package require measure::datafile
 package require measure::interop
 package require measure::sigma
 package require measure::ranges
+package require measure::math
+package require measure::tsclient
 package require scpi
 
 ###############################################################################
@@ -127,7 +129,7 @@ proc doMeasure { } {
 
 # Инициализация вольтметра
 proc setupMM {} {
-    global mm
+    global mm settings
     
     # Подключаемся к мультиметру (ММ)
     set mm [hardware::agilent::mm34410a::open \
@@ -141,8 +143,8 @@ proc setupMM {} {
 
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc [measure::config::get mm.nplc 10] \
-		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+		-nplc $settings(mm.nplc) \
+		-sampleCount $settings(measure.numOfSamples)	\
 		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
 		-text2 "VOLTAGE" \
 		 $mm
@@ -172,8 +174,8 @@ proc setupCMM {} {
             # Ток измеряется непосредственно амперметром
         	# Настраиваем мультиметр для измерения постоянного тока
         	hardware::agilent::mm34410a::configureDcCurrent \
-        		-nplc [measure::config::get nplc 10] \
-        		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+        		-nplc $settings(cmm.nplc) \
+        		-sampleCount $settings(measure.numOfSamples)	\
         		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
         		-text2 "CURRENT" \
         		 $cmm
@@ -182,13 +184,23 @@ proc setupCMM {} {
             # Ток измеряется измерением надения напряжения на эталонном сопротивлении
         	# Настраиваем мультиметр для измерения постоянного напряжения
         	hardware::agilent::mm34410a::configureDcVoltage \
-        		-nplc [measure::config::get cmm.nplc 10] \
-        		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+        		-nplc $settings(cmm.nplc) \
+        		-sampleCount $settings(measure.numOfSamples)	\
         		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
         		-text2 "CURRENT VIA VOLTAGE" \
         		 $cmm
         }
     }
+}
+
+# Процедура вычисляет продолжительность одного измерения напряжения/тока в мс
+proc oneMeasurementDuration {} {
+	global settings
+
+	return [hardware::agilent::mm34410a::measDur	\
+		-nplc [measure::math::max $settings(mm.nplc) $settings(cmm.nplc)] \
+		-sampleCount $settings(measure.numOfSamples)	\
+	]
 }
 
 # Процедура производит одно измерение со всеми нужными переполюсовками
@@ -239,113 +251,43 @@ proc makeMeasurement {  stateArray } {
 
 # Отправляем команду термостату 
 proc setPoint { t } {
-	global settings
+	# Отправляем команду термостату
+	::measure::tsclient::setPoint $t
 
-	# делаем три попытки связаться с термостатом
-	for { set i 0 } { $i < 3 } { incr i } {
-		# сформируем адрес запроса
-		set url [::uri::join \
-			scheme http \
-			host $settings(ts.addr) \
-			port $settings(ts.port) \
-			path setpoint ]
-		# отправим запрос и ждём завершения
-		set token [::http::geturl $url -query [::http::formatQuery value $t] -timeout 5000]
-		set code [::http::ncode $token]
-		::http::cleanup $token
-
-		if { $code == 200 } {
-			# успешно
-			
-			# выведем уставку на экран
-			measure::interop::cmd [list setPointSet $t]
-			
-			return
-		}
-
-		# выждем паузу перед повторной попыткой
-		after 3000
-	}
-
-	error "Cannot connect to thermostat via URL $url"
+	# Выведем новую уставку на экран
+	measure::interop::cmd [list setPointSet $t]
 }
 
-# считываем показания термометра
-proc getTsState {} {
-	global settings tsStateUrl 
-
-	if { ![info exists tsStateUrl] } {
-		# сформируем адрес запроса
-		set tsStateUrl [::uri::join \
-			scheme http \
-			host $settings(ts.addr) \
-			port $settings(ts.port) \
-			path state ]
-
-        # настроим библиотеку HTTP
-    	if { [info exists ::http::http(-accept)] } {
-        	set ::http::http(-accept) text/plain
-        }
-	}
-
-	# делаем три попытки связаться с термостатом
-	for { set i 0 } { $i < 3 } { incr i } {
-    	# отправим запрос и ждём завершения
-    	set token [::http::geturl $tsStateUrl -protocol 1.0 -keepalive 1 -timeout 5000]
-    	set code [::http::ncode $token]
-    	set data [::http::data $token]
-
-		if { $code == 200 } {
-			# успешно
-			
-        	return $data
-		}
-		
-    	::http::cleanup $token
-		
-		# выдержим паузу
-		after 3000
-    }
-
-	error "Cannot connect to thermostat via URL $tsStateUrl"
-}
-
+# Процедура вычисляет продолжительность измерения сопротивления в мс, 
+# включая все нужные переполюсовки.
 proc calcMeasureTime {} {
-    global settings
-    
-    set nplc [measure::config::get mm.nplc 10]
-    if { $settings(current.method) != 2 } {
-        set nplc2 [measure::config::get cmm.nplc 10]
-        if { $nplc < $nplc2 } {
-            set nplc $nplc2
-        }
-    }
-    
-    set n [measure::config::get measure.numOfSamples 1]
-    
-    set tm [expr 40.0 * $nplc * $n]
-    if { $settings(switch.voltage) } {
-        set tm [expr 2.0 * ($tm + $settings(switch.delay))]
-    }
-    if { $settings(switch.current) } {
-        set tm [expr 2.0 * ($tm + $settings(switch.delay))]
-    }
-    
-    return $tm 
+	global calcMeasureTime_cache
+	
+	if { ![info exists calcMeasureTime_cache] } {
+		global settings
+		
+		set tm [oneMeasurementDuration]
+		set d $settings(switch.delay)
+
+		if { $settings(switch.voltage) && $settings(switch.current) } {
+			return [expr 4.0 * $tm + 3.0 * $d
+		}
+		if { $settings(switch.voltage) || $settings(switch.current) } {
+			return [expr 2.0 * $tm + $d
+		}
+		set calcMeasureTime_cache $tm
+	}
+
+	return $calcMeasureTime_cache
 }
 
 # Процедура определяет, вышли ли мы на нужные температурные условия
 proc canMeasure { stateArray setPoint } {
-	global settings measureTime log
+	global settings
 	upvar $stateArray state
 	
-	if { ![info exists measureTime] } {
-	   # вычислим продолжительность одного измерения, мс
-	   set measureTime [calcMeasureTime]
-    }
-
     # предполагаемая температура по окончании измерения
-    set estimate [expr $state(temperature) + $state(derivative1) / (60.0 * 1000.0) * $measureTime]
+    set estimate [expr $state(temperature) + $state(derivative1) / (60.0 * 1000.0) * [calcMeasureTime] ]
 
 	return [expr abs($setPoint - $state(temperature)) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
 }
@@ -409,7 +351,7 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 		measure::interop::checkTerminated
 
 		# Считываем значение температуры
-		set stateList [getTsState]
+		set stateList [measure::tsclient::state]
 		array set state $stateList 
 		
 		# Выводим температуру на экран
