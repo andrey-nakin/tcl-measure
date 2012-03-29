@@ -195,12 +195,13 @@ proc stopTsWriter { { wait 0} } {
 ###############################################################################
 
 # Последняя измеренная температура
-proc setTemperature { t tErr err trend } {
+proc setTemperature { t tErr err trend derivative1 } {
 	global runtime canvas
 
 	set runtime(value) [format "%0.2f \u00b1 %0.2f" $t $tErr]
 	set runtime(error) [format "%0.2f \u00b1 %0.2f" $err $tErr]
-	set runtime(trend) [format "%0.3f" $trend]
+	set runtime(trend) [format "%0.2f" $trend]
+	set runtime(derivative1) [format "%0.2f" $derivative1]
 
 	measure::chart::${canvas}::addPoint $t
 }
@@ -306,6 +307,9 @@ grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 1 -c
 
 grid [ttk::label $p.lp -text "Мощность, Вт:"] -row 1 -column 6 -sticky w
 grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 1 -column 7 -sticky we
+
+grid [ttk::label $p.leder -text "Производная, К/мин:"] -row 1 -column 9 -sticky w
+grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 10 -sticky we
 
 grid [ttk::label $p.lpterm -text "ПЧ, мА:"] -row 2 -column 0 -sticky w
 grid [ttk::entry $p.pterm -textvariable runtime(pterm) -state readonly] -row 2 -column 1 -sticky we

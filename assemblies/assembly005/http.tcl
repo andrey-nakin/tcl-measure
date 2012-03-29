@@ -37,30 +37,33 @@ proc ::measure::http::server::get::state { paramList headerList args } {
         
     switch -exact -- $ct {
         text/plain {
-            append result "temperature\t$state(temperature)\n"
-            append result "measureError\t$state(measureError)\n"
-            append result "error\t$state(error)\n"
-            append result "trend\t$state(trend)\n"
-            append result "timestamp\t$state(timestamp)\n"
+            append result "temperature\t$state(temperature)"
+            append result " measureError\t$state(measureError)"
+            append result " error\t$state(error)"
+            append result " trend\t$state(trend)"
+            append result " timestamp\t$state(timestamp)"
+            append result " derivative1\t$state(derivative1)"
         }
         
         text/html {
             append result "<html><body>"
-            append result "<p>Температура (К):\t$state(temperature)\n"
-            append result "<p>Погрешность измерения (К):\t$state(measureError)\n"
-            append result "<p>Невязка (К):\t$state(error)\n"
-            append result "<p>Тренд (К/мин):\t$state(trend)\n"
-            append result "<p>Временная отметка (мс):\t$state(timestamp)\n"
+            append result "<p>Температура (К):\t$state(temperature)"
+            append result "<p>1-я производная (К/мин):\t$state(derivative1)"
+            append result "<p>Погрешность измерения (К):\t$state(measureError)"
+            append result "<p>Невязка (К):\t$state(error)"
+            append result "<p>Тренд (К/мин):\t$state(trend)"
+            append result "<p>Временная отметка (мс):\t$state(timestamp)"
             append result "</body></html>"
         }
         
         text/xml {
-            append result "<root><state>\n"
-            append result "<temperature>$state(temperature)</temperature>\n"
-            append result "<measureError>$state(measureError)</measureError>\n"
-            append result "<error>$state(error)</error>\n"
-            append result "<trend>$state(trend)</trend>\n"
-            append result "<timestamp>$state(timestamp)</timestamp>\n"
+            append result "<root><state>"
+            append result "<temperature>$state(temperature)</temperature>"
+            append result "<measureError>$state(measureError)</measureError>"
+            append result "<error>$state(error)</error>"
+            append result "<trend>$state(trend)</trend>"
+            append result "<timestamp>$state(timestamp)</timestamp>"
+            append result "<derivative1>$state(derivative1)</derivative1>"
             append result "</state></root>"
         }
         
@@ -71,6 +74,7 @@ proc ::measure::http::server::get::state { paramList headerList args } {
             append result ",error:$state(error)"
             append result ",trend:$state(trend)"
             append result ",timestamp:$state(timestamp)"
+            append result ",derivative1:$state(derivative1)"
             append result "}"
         }
     }     

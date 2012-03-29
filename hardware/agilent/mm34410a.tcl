@@ -292,7 +292,7 @@ proc hardware::agilent::mm34410a::init { args } {
 	#scpi::clear $channel
 
     # производим опрос устройства
-    scpi::validateScpiVersion $channel $SCPI_VERSION 
+    #scpi::validateScpiVersion $channel $SCPI_VERSION 
 
 	# в исходное состояние
     scpi::cmd $channel "*RST;*CLS"
@@ -304,7 +304,7 @@ proc hardware::agilent::mm34410a::init { args } {
     }
     
     # включаем режим совместимости с Agilent 34401A
-    scpi::cmd $channel {SYSTEM:LANGUAGE "34401A"}
+    #scpi::cmd $channel {SYSTEM:LANGUAGE "34401A"}
     
     if { !$params(noFrontCheck) } {
     	# Проверяем состояние переключателя front/rear
@@ -373,6 +373,8 @@ proc hardware::agilent::mm34410a::dciRange { value } {
 #   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
 #   sampleInterval - интервал между измерениями, по умолчанию не указан
 proc hardware::agilent::mm34410a::configureDcVoltage { args } {
+    global hardware::agilent::mm34410a::SCPI_VERSION log
+    
 	set options {
 		{nplc.arg			10	"NPLC"}
 		{autoRange.arg		ON	"auto ranging: on, off or once"}
@@ -380,12 +382,22 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 		{triggerDelay.arg	DEF		"trigger delay"}
 		{sampleCount.arg	1	"sample count"}
 		{sampleInterval.arg	""		"sample interval"}
+		{scpiVersion.arg	""		"Min valid SCPI version"}
+		{text2.arg	        ""		"Text to show on secondary display"}
 	}
 
 	set usage ": configureDcVoltage \[options] channel\noptions:"
 	array set params [::cmdline::getoptions args $options $usage]
 
 	set mm [lindex $args 0]
+	
+	# Определим версию протокола SCPI
+	set version [scpi::query $mm "SYSTEM:VERSION?"]
+	
+	# Проверим правильность версии SCPI
+	if { $params(scpiVersion) != "" && $params(scpiVersion) > $version } {
+	   error "SCPI version is $version, but $params(scpiVersion) required";
+    }
 
 	# включаем режим измерения пост. напряжения
 	scpi::cmd $mm "CONFIGURE:VOLTAGE:DC AUTO"
@@ -393,11 +405,21 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
     # Включить авытовыбор диапазона
     scpi::cmd $mm "SENSE:VOLTAGE:DC:RANGE:AUTO $params(autoRange)"
     
-    # Включить нужный режим автоподстройки нуля
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO $params(autoZero)"
-    
-    # Включить автоподстройку входного сопротивления
-    scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
+    if { $version >= $SCPI_VERSION } {
+        # Включить нужный режим автоподстройки нуля
+        scpi::cmd $mm "SENSE:VOLTAGE:DC:ZERO:AUTO $params(autoZero)"
+
+        # Включить автоподстройку входного сопротивления
+        scpi::cmd $mm "SENSE:VOLTAGE:DC:IMPEDANCE:AUTO ON"
+        
+        if { $params(text2) != "" } {
+            # Отобразим текст на дисплее мультиметра
+            scpi::cmd $mm "DISPLAY:WINDOW2:TEXT \"$params(text2)\""
+        }
+    } else {
+        # Включить нужный режим автоподстройки нуля
+        scpi::cmd $mm "SENSE:ZERO:AUTO $params(autoZero)"
+    }
 
 	if { $params(sampleInterval) != "" } {
 		# Измерять напряжение в течении макс. возможного кол-ва циклов питания
@@ -424,8 +446,10 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 		scpi::cmd $mm "SAMPLE:SOURCE TIMER"
 		scpi::cmd $mm "SAMPLE:TIMER $params(sampleInterval)"
 	} else {
-		# Настраиваем непрерывный съём сигнала
-	    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+        if { $version >= $SCPI_VERSION } {
+	   	   # Настраиваем непрерывный съём сигнала
+	       scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+	    }
 	}
     scpi::cmd $mm "SAMPLE:COUNT $params(sampleCount)"
 
@@ -444,6 +468,8 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 #   sampleCount - число измерений на одно срабатывание триггера, по умолчанию 1
 #   sampleInterval - интервал между измерениями, по умолчанию не указан
 proc hardware::agilent::mm34410a::configureDcCurrent { args } {
+    global hardware::agilent::mm34410a::SCPI_VERSION log
+    
 	set options {
 		{nplc.arg			10		"NPLC"}
 		{autoRange.arg		ON		"auto ranging: on, off or once"}
@@ -451,6 +477,8 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 		{triggerDelay.arg	DEF		"trigger delay"}
 		{sampleCount.arg	1		"sample count"}
 		{sampleInterval.arg	""		"sample interval"}
+		{scpiVersion.arg	""		"Min valid SCPI version"}
+		{text2.arg	        ""		"Text to show on secondary display"}
 	}
 
 	set usage ": configureDcVoltage \[options] channel\noptions:"
@@ -458,6 +486,14 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 
 	set mm [lindex $args 0]
 
+	# Определим версию протокола SCPI
+	set version [scpi::query $mm "SYSTEM:VERSION?"]
+
+	# Проверим правильность версии SCPI
+	if { $params(scpiVersion) != "" && $params(scpiVersion) > $version } {
+	   error "SCPI version is $version, but $params(scpiVersion) required";
+    }
+    
 	# включаем режим измерения пост. напряжения
 	scpi::cmd $mm "CONFIGURE:CURRENT:DC AUTO"
 
@@ -471,7 +507,16 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 	if { $params(autoZero) == "" } {
 		set params(autoZero) ON
 	}
-    scpi::cmd $mm "SENSE:CURRENT:DC:ZERO:AUTO $params(autoZero)"
+    if { $version >= $SCPI_VERSION } {
+        scpi::cmd $mm "SENSE:CURRENT:DC:ZERO:AUTO $params(autoZero)"
+        
+        if { $params(text2) != "" } {
+            # Отобразим текст на дисплее мультиметра
+            scpi::cmd $mm "DISPLAY:WINDOW2:TEXT \"$params(text2)\""
+        }
+    } else {
+        scpi::cmd $mm "SENSE:ZERO:AUTO $params(autoZero)"
+    }
 
 	if { $params(sampleInterval) != "" } {
 		# Измерять напряжение в течении макс. возможного кол-ва циклов питания
@@ -498,8 +543,10 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 		scpi::cmd $mm "SAMPLE:SOURCE TIMER"
 		scpi::cmd $mm "SAMPLE:TIMER $params(sampleInterval)"
 	} else {
-		# Настраиваем непрерывный съём сигнала
-	    scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+        if { $version >= $SCPI_VERSION } {
+	   	   # Настраиваем непрерывный съём сигнала
+	       scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
+	    }
 	}
     scpi::cmd $mm "SAMPLE:COUNT $params(sampleCount)"
 
@@ -515,7 +562,8 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 #   channel - канал связи с мультиметром
 #   required - нужное положение переключателя, может быть FRON или REAR
 proc hardware::agilent::mm34410a::checkFrontRear { channel { required "FRON" } } {
-	if { [scpi::query $channel "ROUTE:TERMINALS?"] != $required } {
+    set pos [string range [scpi::query $channel "ROUTE:TERMINALS?"] 0 3]
+	if { $pos != $required } {
 		if { [string equal -nocase $required "FRON"] } {
 			set required "Front"
 		} else {

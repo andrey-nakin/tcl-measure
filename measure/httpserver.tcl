@@ -154,6 +154,7 @@ proc measure::http::server::callHandler { sock handlerName qparams headers } {
         ${log}::error "callHandler bad handler $handlerName"
         puts $sock "HTTP/1.1 404 Bad path"
         puts $sock $STD_HEADERS
+        flush $sock
         return
     }
     
@@ -178,4 +179,5 @@ proc measure::http::server::callHandler { sock handlerName qparams headers } {
         puts $sock ""
         puts -nonewline $sock $body
     }
+    flush $sock
 }

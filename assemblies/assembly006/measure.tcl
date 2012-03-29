@@ -142,8 +142,9 @@ proc setupMM {} {
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc [measure::config::get mm.nplc 10] \
-		-autoZero ONCE	\
 		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
+		-text2 "VOLTAGE" \
 		 $mm
 }
 
@@ -172,8 +173,9 @@ proc setupCMM {} {
         	# Настраиваем мультиметр для измерения постоянного тока
         	hardware::agilent::mm34410a::configureDcCurrent \
         		-nplc [measure::config::get nplc 10] \
-        		-autoZero ONCE	\
         		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+        		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
+        		-text2 "CURRENT" \
         		 $cmm
         }
         1 {
@@ -181,8 +183,9 @@ proc setupCMM {} {
         	# Настраиваем мультиметр для измерения постоянного напряжения
         	hardware::agilent::mm34410a::configureDcVoltage \
         		-nplc [measure::config::get cmm.nplc 10] \
-        		-autoZero ONCE	\
         		-sampleCount [measure::config::get measure.numOfSamples 1]	\
+        		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
+        		-text2 "CURRENT VIA VOLTAGE" \
         		 $cmm
         }
     }
@@ -220,9 +223,6 @@ proc makeMeasurement {  stateArray } {
 
         # Выводим результаты в окно программы
         display $v $sv $c $sc $r $sr
-        
-        # добавляем точку на график
-        measure::interop::cmd [list addPointToChart $state(temperature) $r]          
 	}
 
 	# Вычисляем средние значения
@@ -230,6 +230,9 @@ proc makeMeasurement {  stateArray } {
 	set v [math::statistics::mean $vs]; set sv [math::statistics::mean $svs]
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
 
+    # добавляем точку на график
+    measure::interop::cmd [list addPointToChart $state(temperature) $r]
+              
     # Выводим результаты в результирующий файл
 	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $state(temperature) $state(measureError) $c $sc $v $sv $r $sr]
 }
@@ -320,12 +323,12 @@ proc calcMeasureTime {} {
     
     set n [measure::config::get measure.numOfSamples 1]
     
-    set tm [expr 20.0 * $nplc * $n]
+    set tm [expr 40.0 * $nplc * $n]
     if { $settings(switch.voltage) } {
-        set tm [expr 2.0 * ($tm + $settings(switch.delay)]
+        set tm [expr 2.0 * ($tm + $settings(switch.delay))]
     }
     if { $settings(switch.current) } {
-        set tm [expr 2.0 * ($tm + $settings(switch.delay)]
+        set tm [expr 2.0 * ($tm + $settings(switch.delay))]
     }
     
     return $tm 
@@ -337,12 +340,12 @@ proc canMeasure { stateArray setPoint } {
 	upvar $stateArray state
 	
 	if { ![info exists measureTime] } {
-	   # вычислим продолжительность одного измерения, в мс
+	   # вычислим продолжительность одного измерения, мс
 	   set measureTime [calcMeasureTime]
     }
 
     # предполагаемая температура по окончании измерения
-    set estimate [expr $state(temperature) + $settings(ts.maxTrend) / (60.0 * 1000.0) * $measureTime]
+    set estimate [expr $state(temperature) + $state(derivative1) / (60.0 * 1000.0) * $measureTime]
 
 	return [expr abs($setPoint - $state(temperature)) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
 }
