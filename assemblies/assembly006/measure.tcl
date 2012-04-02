@@ -205,7 +205,7 @@ proc oneMeasurementDuration {} {
 
 # Процедура производит одно измерение со всеми нужными переполюсовками
 #   и сохраняет результаты в файле результатов
-proc makeMeasurement {  stateArray } {
+proc makeMeasurement {  stateArray temps } {
 	global mm cmm connectors settings
 	upvar $stateArray state
 
@@ -215,10 +215,10 @@ proc makeMeasurement {  stateArray } {
 
 	# Пробегаем по переполюсовкам
 	set nc [llength $connectors]
-	foreach conn $connectors {
+	for { set i 0 } { $i < $nc } { incr i } {
 		# Устанавливаем нужную полярность
 		if { $nc > 1 } {
-			setConnectors $conn
+			setConnectors [lindex $connectors $i]
 		}
 
 		# Ждём окончания переходных процессов, 
@@ -235,6 +235,9 @@ proc makeMeasurement {  stateArray } {
 
         # Выводим результаты в окно программы
         display $v $sv $c $sc $r $sr
+
+		# Выводим результаты в результирующий файл
+		measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP [lindex $temps $i] $state(measureError) $c $sc $v $sv $r $sr]
 	}
 
 	# Вычисляем средние значения
@@ -245,8 +248,6 @@ proc makeMeasurement {  stateArray } {
     # добавляем точку на график
     measure::interop::cmd [list addPointToChart $state(temperature) $r]
               
-    # Выводим результаты в результирующий файл
-	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $state(temperature) $state(measureError) $c $sc $v $sv $r $sr]
 }
 
 # Отправляем команду термостату 
@@ -283,13 +284,46 @@ proc calcMeasureTime {} {
 
 # Процедура определяет, вышли ли мы на нужные температурные условия
 proc canMeasure { stateArray setPoint } {
-	global settings
+	global settings connectors
 	upvar $stateArray state
 	
-    # предполагаемая температура по окончании измерения
-    set estimate [expr $state(temperature) + $state(derivative1) / (60.0 * 1000.0) * [calcMeasureTime] ]
+	# скорость измерения температуры, К/мс
+	set tspeed [expr $state(derivative1) / (60.0 * 1000.0)]
 
-	return [expr abs($setPoint - $state(temperature)) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
+	# продолжительность измерительного цикла
+	set tm [calcMeasureTime]
+
+    # предполагаемая температура по окончании измерения
+    set estimate [expr $state(temperature) + $tspeed * $tm ]
+
+	# переменная хранит разницу между уставкой и текущей температурой
+	set err [expr $setPoint - $state(temperature)]
+
+	# переменная хранит значение true, если мы готовы к измерению
+	set flag [expr abs($err) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
+	if { $flag } {
+		# вычислим задержку в мс для получения минимального отклонения температуры от уставки
+		set delay [expr $err / $tspeed - 0.5 * $tm - [clock milliseconds] + $state(timestamp)]
+		if { $delay > 0 } {
+			# выдержим паузу перед началом измерений
+			measure::interop::sleep $delay
+		} else {
+			set delay 0.0
+		}
+	
+		# вычисляем список предположительных температур в моменты измерения]
+		set temps [list]
+		set t [clock milliseconds]
+		set dt [expr [oneMeasurementDuration] + $settings(switch.delay)]
+		set nc [llength $connectors]
+		for { set i 0 } { $i < $nc } { incr i } {
+			lappend temps [expr ($t - $state(timestamp)) * $tspeed + $state(temperature)]
+			set t [expr $t + $dt]
+		}
+		return $temps
+	}
+
+	return ""
 }
 
 ###############################################################################
@@ -357,9 +391,10 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 		# Выводим температуру на экран
 		measure::interop::cmd [list setTemperature $stateList]
 
-		if { [canMeasure state $t] } {
-		# Производим измерения
-			makeMeasurement state
+		set temps [canMeasure state $t]
+		if { $temps } {
+			# Производим измерения
+			makeMeasurement state $temps
 			break
 		}
 

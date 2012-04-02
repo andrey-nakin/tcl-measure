@@ -243,8 +243,16 @@ proc measure::interop::registerFinalization { script } {
 #   delay - number of milliseconds to sleep
 proc measure::interop::sleep { delay } {
 	set maxTime [expr [clock milliseconds] + int($delay)]
-	while { ![isTerminated] && [clock milliseconds] < $maxTime } {
-		after 50
+	
+	if { $delay < 500 } {
+		# exact 
+		while { [clock milliseconds] < $maxTime } {
+		}
+	} else {
+		# rough
+		while { ![isTerminated] && [clock milliseconds] < $maxTime } {
+			after 50
+		}
 	}
 }
 
