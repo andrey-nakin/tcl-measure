@@ -44,6 +44,10 @@ set terrvalues [list]
 set timevalues [list]
 set rtimevalues [list]
 
+# Число отсчётов температуры, необходимых для фурье-анализа
+set NUM_OF_FOURIER_READINGS 300
+set tvalues_fourier [list]
+
 # Время начала работы, мс
 set START_TIME 0
 
@@ -133,6 +137,24 @@ proc finish {} {
 	destroyChildren
 }
 
+proc fourierFileName {} {
+    for { set n 1 } { $n < 100 } { incr n } {
+        set fn [format "tf-%03d.txt" $n]
+        if { ![file exists $fn] } {
+            return $fn
+        }
+    }
+    return "tf-000.txt"
+}
+
+proc writeFourierData { data } {
+    set f [open [fourierFileName] w]
+    foreach v $data {
+        puts $f $v
+    }
+    close $f
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
@@ -140,6 +162,7 @@ proc finish {} {
 # Процедура вызывается модулем измерения температуры
 proc setTemperature { t tErr } {
 	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues NUM_OF_READINGS START_TIME
+	global tvalues_fourier NUM_OF_FOURIER_READINGS
 
 	set tm [clock milliseconds]
 	
@@ -160,6 +183,12 @@ proc setTemperature { t tErr } {
     } else {
         set b 0.0
         set der1 0.0
+    }
+
+	lappend tvalues_fourier $t
+    if { [llength $tvalues_fourier] >= $NUM_OF_FOURIER_READINGS } {
+        writeFourierData $tvalues_fourier 
+        set tvalues_fourier [list]    
     }
 
     # Запишем в состояние ПИДа  	
