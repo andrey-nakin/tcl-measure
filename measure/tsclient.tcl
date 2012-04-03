@@ -22,9 +22,12 @@ proc ::measure::tsclient::config { args } {
 	}
 
 	array set configuration {}
-	foreach { n v } [array get configOptions] {
-		set configuration($n) $v
-	}
+	array set configuration [array get configOptions]
+	global log
+	${log}::debug "config [array get configuration]"
+#	foreach { n v } [array get configOptions] {
+#		set configuration($n) $v
+#	}
 }
 
 # Процедура считывает текущие показания термометра
