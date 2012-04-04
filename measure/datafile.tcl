@@ -12,8 +12,12 @@ namespace eval measure::datafile {
   namespace export create write
 }
 
+# Список поддерживаемых форматов
+set measure::datafile::FORMAT_LIST { TXT CSV }
+
 array set measure::datafile::textFormat {separator "\t" comment "# "}
 array set measure::datafile::csvFormat {separator "," comment ""}
+array set measure::datafile::config {} 
 
 # Создаёт результирующий файл и записывает строку с заголовком
 # Аргументы
@@ -23,10 +27,13 @@ array set measure::datafile::csvFormat {separator "," comment ""}
 #   headers - список заголовков столбцов
 proc measure::datafile::create { fileName format rewrite headers } {
     global measure::datafile::textFormat measure::datafile::csvFormat
+    variable config
 
 	if { [string trim $fileName] == "" } {
 		return
 	}
+	
+	set config($fileName) [list format $format rewrite $rewrite] 
 
     set writeHeader 0
     if { $rewrite } {

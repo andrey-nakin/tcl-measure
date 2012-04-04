@@ -135,6 +135,7 @@ proc setupMM {} {
     set mm [hardware::agilent::mm34410a::open \
 		-baud [measure::config::get mm.baud] \
 		-parity [measure::config::get mm.parity] \
+		-name "V1" \
 		[measure::config::get -required mm.addr] \
 	]
 
@@ -146,7 +147,7 @@ proc setupMM {} {
 		-nplc $settings(mm.nplc) \
 		-sampleCount $settings(measure.numOfSamples)	\
 		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
-		-text2 "VOLTAGE" \
+		-text2 "V1 VOLTAGE" \
 		 $mm
 }
 
@@ -163,6 +164,7 @@ proc setupCMM {} {
     set cmm [hardware::agilent::mm34410a::open \
 		-baud [measure::config::get cmm.baud] \
 		-parity [measure::config::get cmm.parity] \
+		-name "V2" \
 		[measure::config::get -required cmm.addr] \
 	]
 
@@ -177,7 +179,7 @@ proc setupCMM {} {
         		-nplc $settings(cmm.nplc) \
         		-sampleCount $settings(measure.numOfSamples)	\
         		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
-        		-text2 "CURRENT" \
+        		-text2 "V2 CURRENT" \
         		 $cmm
         }
         1 {
@@ -187,7 +189,7 @@ proc setupCMM {} {
         		-nplc $settings(cmm.nplc) \
         		-sampleCount $settings(measure.numOfSamples)	\
         		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
-        		-text2 "CURRENT VIA VOLTAGE" \
+        		-text2 "V2 CURRENT" \
         		 $cmm
         }
     }

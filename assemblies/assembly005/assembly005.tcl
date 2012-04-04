@@ -28,6 +28,7 @@ package require startfile
 package require hardware::agilent::mm34410a
 package require measure::thermocouple
 package require measure::tmap
+package require measure::datafile
 
 # Подгружаем модель с процедурами общего назначения
 source [file join [file dirname [info script]] utils.tcl]
@@ -136,6 +137,14 @@ proc setPid {} {
 
 	if { [info exists thermoThreadId] } {
 		thread::send -async $thermoThreadId [list setPid $settings(pid.tp) $settings(pid.td) $settings(pid.ti) $settings(pid.maxi)]
+	}
+}
+
+proc setReg {} {
+	global thermoThreadId settings
+
+	if { [info exists thermoThreadId] } {
+		thread::send -async $thermoThreadId [list setReg $settings(reg.fileName) $settings(reg.format) $settings(reg.rewrite)]
 	}
 }
 
@@ -296,40 +305,41 @@ grid [ttk::entry $p.evl -textvariable runtime(value) -state readonly] -row 0 -co
 grid [ttk::label $p.le -text "Невязка, К:"] -row 0 -column 6 -sticky w
 grid [ttk::entry $p.ee -textvariable runtime(error) -state readonly] -row 0 -column 7 -sticky we
 
-grid [ttk::label $p.letrend -text "Тренд, К/мин:"] -row 0 -column 9 -sticky w
-grid [ttk::entry $p.etrend -textvariable runtime(trend) -state readonly] -row 0 -column 10 -sticky we
+grid [ttk::label $p.letrend -text "Тренд, К/мин:"] -row 1 -column 0 -sticky w
+grid [ttk::entry $p.etrend -textvariable runtime(trend) -state readonly] -row 1 -column 1 -sticky we
 
-grid [ttk::label $p.lc -text "Ток питания, мА:"] -row 1 -column 0 -sticky w
-grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 1 -column 1 -sticky we
+grid [ttk::label $p.leder -text "Производная, К/мин:"] -row 1 -column 3 -sticky w
+grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 4 -sticky we
 
-grid [ttk::label $p.lv -text "Напряжение, В:"] -row 1 -column 3 -sticky w
-grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 1 -column 4 -sticky we
+grid [ttk::label $p.lc -text "Ток питания, мА:"] -row 2 -column 0 -sticky w
+grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 2 -column 1 -sticky we
 
-grid [ttk::label $p.lp -text "Мощность, Вт:"] -row 1 -column 6 -sticky w
-grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 1 -column 7 -sticky we
+grid [ttk::label $p.lv -text "Напряжение, В:"] -row 2 -column 3 -sticky w
+grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 2 -column 4 -sticky we
 
-grid [ttk::label $p.leder -text "Производная, К/мин:"] -row 1 -column 9 -sticky w
-grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 10 -sticky we
+grid [ttk::label $p.lp -text "Мощность, Вт:"] -row 2 -column 6 -sticky w
+grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 2 -column 7 -sticky we
 
-grid [ttk::label $p.lpterm -text "ПЧ, мА:"] -row 2 -column 0 -sticky w
-grid [ttk::entry $p.pterm -textvariable runtime(pterm) -state readonly] -row 2 -column 1 -sticky we
+grid [ttk::label $p.lpterm -text "ПЧ, мА:"] -row 3 -column 0 -sticky w
+grid [ttk::entry $p.pterm -textvariable runtime(pterm) -state readonly] -row 3 -column 1 -sticky we
 
-grid [ttk::label $p.literm -text "ИЧ, мА:"] -row 2 -column 3 -sticky w
-grid [ttk::entry $p.iterm -textvariable runtime(iterm) -state readonly] -row 2 -column 4 -sticky we
+grid [ttk::label $p.literm -text "ИЧ, мА:"] -row 3 -column 3 -sticky w
+grid [ttk::entry $p.iterm -textvariable runtime(iterm) -state readonly] -row 3 -column 4 -sticky we
 
-grid [ttk::label $p.ldterm -text "ДЧ, мА:"] -row 2 -column 6 -sticky w
-grid [ttk::entry $p.dterm -textvariable runtime(dterm) -state readonly] -row 2 -column 7 -sticky we
+grid [ttk::label $p.ldterm -text "ДЧ, мА:"] -row 3 -column 6 -sticky w
+grid [ttk::entry $p.dterm -textvariable runtime(dterm) -state readonly] -row 3 -column 7 -sticky we
 
-grid columnconfigure $p { 0 1 3 4 6 7 9 10 } -pad 5
-grid columnconfigure $p { 2 5 8 } -minsize 20
-grid columnconfigure $p { 1 4 7 10 } -weight 1
-grid rowconfigure $p { 0 1 2 } -pad 5
+grid columnconfigure $p { 0 1 3 4 6 7 } -pad 5
+grid columnconfigure $p { 2 5 } -minsize 20
+grid columnconfigure $p { 1 4 7 } -weight 1
+grid rowconfigure $p { 0 1 2 3 } -pad 5
 
 # Раздел "График"
 set p [ttk::labelframe $w.nb.m.c -text " График температуры " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
 set canvas [canvas $p.c -width 400 -height 200]
 pack $canvas -fill both -expand 1
+place [ttk::button $p.cb -text "Очистить" -command "measure::chart::${canvas}::clear"] -anchor ne -relx 1.0 -rely 0.0
 measure::chart::movingChart -ylabel "T, К" -xpoints 500 $canvas
 
 ##############################################################################
@@ -366,24 +376,35 @@ grid columnconfigure $p { 2 } -weight 1 -pad 20
 grid rowconfigure $p { 0 1 } -pad 5
 grid rowconfigure $p { 2 } -pad 10
 
-set p [ttk::labelframe $frm.http -text " Управление по HTTP " -pad 10]
+set p [ttk::labelframe $frm.reg -text " Регистрация температуры " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 
-grid [ttk::label $p.lport -text "Порт:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.port -width 10 -textvariable settings(http.port) -from 1 -to 65534 -increment 1 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
+grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
+grid [ttk::entry $p.name -textvariable settings(reg.fileName)] -row 0 -column 1 -columnspan 4 -sticky we
+grid [ttk::button $p.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $p.name" -image ::img::open] -row 0 -column 4 -sticky e
 
-grid columnconfigure $p { 0 1 2 3 4 } -pad 5
+grid [ttk::label $p.lformat -text "Формат файла:"] -row 1 -column 0 -sticky w
+grid [ttk::combobox $p.format -width 10 -textvariable settings(reg.format) -state readonly -values $measure::datafile::FORMAT_LIST] -row 1 -column 1 -sticky we
+
+grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 1 -column 3 -sticky w
+grid [ttk::checkbutton $p.rewrite -variable settings(reg.rewrite)] -row 1 -column 4 -sticky e
+
+grid [ttk::button $p.ssp -text "Применить" -command setReg] -row 2 -column 3 -columnspan 2 -sticky e
+
+grid columnconfigure $p { 0 1 3 4 } -pad 5
 grid columnconfigure $p { 2 } -weight 1 -pad 20
-grid rowconfigure $p { 0 1 } -pad 5
-grid rowconfigure $p { 2 } -pad 10
+grid rowconfigure $p { 0 1 2 } -pad 5
 
 set p [ttk::labelframe $frm.misc -text " Прочее " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 
-grid [ttk::label $p.lautoStart -text "Автостарт при запуске:"] -row 0 -column 0 -sticky w
-grid [ttk::checkbutton $p.autoStart -variable settings(autoStart)] -row 0 -column 1 -sticky w
+grid [ttk::label $p.lport -text "TCP порт:"] -row 0 -column 0 -sticky w
+grid [ttk::spinbox $p.port -width 10 -textvariable settings(http.port) -from 1 -to 65534 -increment 1 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
 
-grid columnconfigure $p { 0 1 2 } -pad 5
+grid [ttk::label $p.lautoStart -text "Автостарт при запуске:"] -row 0 -column 3 -sticky w
+grid [ttk::checkbutton $p.autoStart -variable settings(autoStart)] -row 0 -column 4 -sticky e
+
+grid columnconfigure $p { 0 1 3 4 } -pad 5
 grid columnconfigure $p { 2 } -weight 1 -pad 20
 grid rowconfigure $p { 0 1 } -pad 5
 

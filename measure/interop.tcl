@@ -155,21 +155,23 @@ proc measure::interop::createChildren { scriptFiles } {
     return $result
 }
 
-proc measure::interop::destroyChildren { vars } {
+proc measure::interop::destroyChildren { args } {
 	global log
 	
     thread::errorproc measure::interop::suppressedError
 	
 	# Отправим сообщение `finish` в дочерние модули
-	foreach var $vars {
-	   global $var
+	${log}::debug "destroyChildren $args"
+	foreach var $args {
+	    global $var
+	    ${log}::debug "!!! var=$var"
     	if { [info exists $var] } {               
     		eval "finishChild \$$var"
     	}
     }
 	
 	# Ожидаем завершение дочерних модулей
-	foreach var $vars {
+	foreach var $args {
     	if { [info exists $var] } {
     		eval "destroyChild \$$var"
     	}
@@ -247,10 +249,12 @@ proc measure::interop::sleep { delay } {
 	if { $delay < 500 } {
 		# exact 
 		while { [clock milliseconds] < $maxTime } {
+		  update
 		}
 	} else {
 		# rough
 		while { ![isTerminated] && [clock milliseconds] < $maxTime } {
+		    update
 			after 50
 		}
 	}

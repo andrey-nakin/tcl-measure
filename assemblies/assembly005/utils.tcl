@@ -27,5 +27,6 @@ proc createChildren { } {
 }
 
 proc destroyChildren {} {
+	global log temperatureThreadId powerThreadId httpThreadId
 	measure::interop::destroyChildren { powerThreadId temperatureThreadId httpThreadId }
 }

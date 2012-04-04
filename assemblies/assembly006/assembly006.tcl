@@ -234,6 +234,7 @@ grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 3
 grid [ttk::label $p.lp -text "Мощность, мВт:"] -row 3 -column 3 -sticky w
 grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 3 -column 4 -sticky we
 
+grid columnconfigure $p { 0 1 3 4 } -pad 5
 grid columnconfigure $p { 2 } -minsize 20
 grid columnconfigure $p { 1 4 } -weight 1
 grid rowconfigure $p { 0 1 2 3 } -pad 5

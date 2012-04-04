@@ -23,6 +23,7 @@ set scpi::DELAY_DEFAULT 5
 array set scpi::commandTimes {}
 array set scpi::commandDelays {}
 array set scpi::serialChannels {}
+array set scpi::channelNames {}
 set scpi::visaChannels [list]
 
 # Opens a device and returns channel instance.
@@ -33,11 +34,13 @@ set scpi::visaChannels [list]
 # Return
 #   channel instance
 proc scpi::open { args } {
-	global scpi::ADDR_PREFIX_VISA
+	global scpi::ADDR_PREFIX_VISA 
+    variable channelNames
 
 	set opts {
 		{mode.arg		""	"serial device mode"}
 		{handshake.arg	""	"serial device handshake"}
+		{name.arg	    ""	"arbitrary device name"}
 	}
 
 	set usage ": scpi::open \[options] addr ?access?\noptions:"
@@ -65,6 +68,13 @@ proc scpi::open { args } {
 			fconfigure $channel -handshake $options(handshake)
 		}
 	}
+
+    # store device customized names or adder for later diagnostics
+    set name $options(name)
+    if { $name == "" } {
+        set name $addr
+    }
+    set channelNames($channel) $name
 
 	return $channel
 }
@@ -99,7 +109,9 @@ proc scpi::cmd { channel command { delay -1 } } {
     }
 
 	# Send command to device
-	puts $channel $command
+    if { [catch { puts $channel $command } err errInfo] } {
+        error [makeChannelError $channel $err $errInfo]
+    }
 
 	# Save the time the command is sent
 	set commandTimes($channel) [clock milliseconds]
@@ -114,19 +126,26 @@ proc scpi::cmd { channel command { delay -1 } } {
 # Return
 #   Value returned by device. "Line end" character is removed from answer.
 proc scpi::query { channel command { delay -1 } } {
-    # We will do 3 attempt to contact with device
-    for { set attempts 3 } { $attempts > 0 } { incr attempts -1 } {
-		# Send command
-		cmd $channel $command $delay
+	# Send command
+	cmd $channel $command $delay
 
-		# Read device's answer. Trailing new line char is removed by `gets`.
-		set answer [gets $channel]
-		if { $answer != "" } {
-			return $answer
-		}
+	# Read device's answer. Trailing new line char is removed by `gets`.
+    if { [catch { set answer [gets $channel] } err errInfo] } {
+        error [makeChannelError $channel $err $errInfo]
     }
+	
+	if { $answer != "" } {
+		return $answer
+	}
 
-    error "Error quering `$command' on channel `$channel'"
+    if { [isVisaChannel $channel] } {
+        lassign [visa::last-error $channel] code
+        if { $code < 0 } {
+            error [makeChannelError $channel $err $errInfo]
+        }
+    }
+    
+    error "Empty response for command `$command' on device `[channelName $channel]'"
 }
 
 # Sets some attribute to device, 
@@ -256,6 +275,21 @@ proc scpi::isSerialChannel { channel } {
 	return $res
 }
 
+proc scpi::isVisaChannel { channel } {
+    variable visaChannels
+    return [expr [lsearch $visaChannels $channel] >= 0 ]
+}
+
+proc scpi::channelName { channel } {
+    variable channelNames
+    
+    if { [info exists channelNames($channel)] } {
+        return $channelNames($channel)
+    } else {
+        return $channel
+    }
+}
+
 ##############################################################################
 # private
 ##############################################################################
@@ -310,3 +344,11 @@ proc scpi::openVisaChannel { addr mode } {
 	return $channel
 }
 
+proc scpi::makeChannelError { channel err { errInfo "" } } {
+    if { [isVisaChannel $channel] } {
+        lassign [visa::last-error $channel] num c msg
+        return "Error on device `[channelName $channel]': $msg"
+    } else {
+        return "Error on device `[channelName $channel]': $err"
+    }
+}

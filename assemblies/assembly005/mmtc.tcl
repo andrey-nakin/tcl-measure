@@ -53,6 +53,7 @@ proc setupMM {} {
     set mm [hardware::agilent::mm34410a::open \
 		-baud [measure::config::get mmtc.mm.baud] \
 		-parity [measure::config::get mmtc.mm.parity] \
+		-name "Voltmeter" \
 		[measure::config::get -required mmtc.mm.addr] \
 	]
 

@@ -29,6 +29,7 @@ proc setupPs {} {
     set ps [hardware::agilent::pse3645a::open \
 		-baud [measure::config::get ps.baud] \
 		-parity [measure::config::get ps.parity] \
+		-name "Power Supply" \
 		[measure::config::get -required ps.addr] \
 	]
 

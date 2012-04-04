@@ -91,6 +91,14 @@ proc measure::chart::movingChart { args } {
 		doPlot	
 	}
 
+	proc ::measure::chart::${canvas}::clear { } {
+		variable chartValues
+		
+    	set chartValues [list]
+    	
+		doPlot	
+	}
+	
 	proc ::measure::chart::${canvas}::doPlot {} {
 		variable chartValues
 		variable chartBgColor

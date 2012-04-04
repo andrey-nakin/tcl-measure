@@ -14,6 +14,7 @@ package require scpi
 package require hardware::agilent::mm34410a
 package require measure::interop
 package require measure::sigma
+package require measure::tsclient
 
 ###############################################################################
 # Подпрограммы
@@ -72,6 +73,7 @@ proc setupMM {} {
     set mm [hardware::agilent::mm34410a::open \
 		-baud [measure::config::get mm.baud] \
 		-parity [measure::config::get mm.parity] \
+		-name "V1" \
 		[measure::config::get -required mm.addr] \
 	]
 
@@ -81,7 +83,7 @@ proc setupMM {} {
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc [measure::config::get mm.nplc 10] \
-		-text2 "VOLTAGE" \
+		-text2 "V1 VOLTAGE" \
 		 $mm
 }
 
@@ -98,6 +100,7 @@ proc setupCMM {} {
     set cmm [hardware::agilent::mm34410a::open \
 		-baud [measure::config::get cmm.baud] \
 		-parity [measure::config::get cmm.parity] \
+		-name "V2" \
 		[measure::config::get -required cmm.addr] \
 	]
 
@@ -110,7 +113,7 @@ proc setupCMM {} {
         	# Настраиваем мультиметр для измерения постоянного тока
 			hardware::agilent::mm34410a::configureDcCurrent \
 				-nplc [measure::config::get cmm.nplc 10] \
-				-text2 "CURRENT" \
+				-text2 "V2 CURRENT" \
 				 $cmm
         }
         1 {
@@ -118,7 +121,7 @@ proc setupCMM {} {
         	# Настраиваем мультиметр для измерения постоянного напряжения
 			hardware::agilent::mm34410a::configureDcVoltage \
 				-nplc [measure::config::get cmm.nplc 10] \
-				-text2 "CURRENT VIA VOLTAGE" \
+				-text2 "V2 CURRENT" \
 				 $cmm
         }
     }

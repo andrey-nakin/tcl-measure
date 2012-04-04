@@ -21,9 +21,6 @@ package require measure::listutils
 # Кол-во точек усреднения производной температуры по времени
 set DTN 5
 
-# Имя файла для регистрации температурной зависимости
-set tFileName "t.txt"
-
 # Переменная, используемая для синхронизации
 set mutexVar 0
 
@@ -60,7 +57,7 @@ source [file join [file dirname [info script]] utils.tcl]
 
 # процедура, реализующая алгоритм ПИД
 proc pidCalc { dt } {
-	global pidState settings log tFileName derrs DTN
+	global pidState settings log derrs DTN
 
 	if { ![info exists pidState(currentTemperature)] || ![info exists pidState(setPoint)] } {
 		return 0.0
@@ -97,7 +94,7 @@ proc pidCalc { dt } {
 	set result [expr $pTerm + $iTerm + $dTerm]
 
     # регистрируем температуру и управляющие токи
-	measure::datafile::write $tFileName TXT [list TIMESTAMP $pidState(currentTemperature) $result $pTerm $iTerm $dTerm]
+	measure::datafile::write [measure::config::get reg.fileName] [measure::config::get reg.format] [list TIMESTAMP $pidState(currentTemperature) $pidState(setPoint) $result $pTerm $iTerm $dTerm]
 	
 	# Выводим токи управления в окне
 	measure::interop::cmd [list setPidTerms $pTerm $iTerm $dTerm]
@@ -133,6 +130,8 @@ proc calcCurrent {} {
 proc finish {} {
 	global log
 
+    ${log}::debug "finish"
+    
 	# закрываем дочерние модули
 	destroyChildren
 }
@@ -153,6 +152,10 @@ proc writeFourierData { data } {
         puts $f $v
     }
     close $f
+}
+
+proc createRegFile {} {
+    measure::datafile::create [measure::config::get reg.fileName] [measure::config::get reg.format] [measure::config::get reg.rewrite] [list "Date/Time" "T (K)" "Set Point (K)" "C (mA)" "P-Term (mA)" "I-Term (mA)" "D-Accum (mA)"]
 }
 
 ###############################################################################
@@ -243,6 +246,17 @@ proc setPid { tp td ti maxi } {
     set settings(pid.maxi) $maxi 
 }
 
+# Процедура изменяет параметры регистрации температуры
+proc setReg { fn fmt rewrite } {
+    global settings
+    
+    set settings(reg.fileName) $fn
+    set settings(reg.format) $fmt
+    set settings(reg.rewrite) $rewrite
+    
+    createRegFile
+}
+
 ###############################################################################
 # Начало работы
 ###############################################################################
@@ -268,7 +282,7 @@ set thisId [thread::id]
 setPoint [measure::config::get newSetPoint 0.0]
 
 # Создаём файл для регистрации температуры
-measure::datafile::create $tFileName TXT 1 [list "Date/Time" "T (K)" "C (mA)" "P-Term (mA)" "I-Term (mA)" "D-Accum (mA)"]
+createRegFile
 
 # Запоминаем время начала работы
 set START_TIME [clock milliseconds]

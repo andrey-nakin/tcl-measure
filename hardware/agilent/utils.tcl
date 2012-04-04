@@ -41,6 +41,7 @@ proc hardware::agilent::utils::open { defParity args } {
 	set opts {
 		{baud.arg	"9600"	"Baud rate"}
 		{parity.arg	""		"Parity"}
+		{name.arg	""		"Name"}
 	}
 
 	set usage ": hardware::agilent::mm34410a::open \[options]\noptions:"
@@ -55,6 +56,6 @@ proc hardware::agilent::utils::open { defParity args } {
 	if { $parity != "n" } {
 		set len 7
 	}
-	return [scpi::open -mode "$options(baud),$parity,$len,2" -handshake dtrdsr $addr]
+	return [scpi::open -mode "$options(baud),$parity,$len,2" -handshake dtrdsr -name $options(name) $addr]
 }
 
