@@ -49,8 +49,9 @@ proc ::measure::math::slope { xvalues yvalues } {
         return [expr ([lindex $yvalues 1] - [lindex $yvalues 0]) / ([lindex $xvalues 1] - [lindex $xvalues 0])]
     }
     
-    if { [catch {lassign [::math::statistics::linear-model $xvalues $yvalues] a b}] } {
-        set b 0.0
+    if { [catch {set res [::math::statistics::linear-model $xvalues $yvalues] }] } {
+        return 0.0
     }
-    return $b
+    return [lindex $res 1]
 }
+

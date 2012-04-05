@@ -554,7 +554,7 @@ proc hardware::agilent::mm34410a::measDur { args } {
     
 	array set params [::cmdline::getoptions args $configOptions ": measDur \[options]\noptions:"]
 
-	if { $params(autoZero) == "ON" } {
+	if { [string compare -nocase $params(autoZero) "ON"] == 0 } {
 		set autoZero 2
 	} else {
 		set autoZero 1

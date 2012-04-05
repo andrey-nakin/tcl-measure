@@ -68,7 +68,9 @@ proc terminateTester {} {
 
 # Процедура вызываеися из фонового рабочего потока по завершении его работы
 proc stopMeasure {} {
-	global w log
+	global w log workerId
+
+	unset workerId
 
 	# Запускаем тестер
 	startTester
@@ -78,11 +80,12 @@ proc stopMeasure {} {
      
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
+	$w.nb.m.ctl.skip configure -state disabled
 }
 
 # Запускаем измерения
 proc startMeasure {} {
-	global w log runtime chartCanvas
+	global w log runtime chartCanvas workerId
 
 	# запрещаем кнопку запуска измерений
 	$w.nb.m.ctl.start configure -state disabled
@@ -97,10 +100,11 @@ proc startMeasure {} {
     measure::interop::clearTerminated
     
 	# Запускаем на выполнение фоновый поток	с процедурой измерения
-	measure::interop::startWorker [list source [file join [file dirname [info script]] measure.tcl] ] { stopMeasure }
+	set workerId [measure::interop::startWorker [list source [file join [file dirname [info script]] measure.tcl] ] { stopMeasure } ]
 
     # Разрешаем кнопку останова измерений
 	$w.nb.m.ctl.stop configure -state normal
+	$w.nb.m.ctl.skip configure -state normal
 	
     # Очищаем результаты в окне программы
 	clearResults
@@ -115,6 +119,7 @@ proc terminateMeasure {} {
 
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
+	$w.nb.m.ctl.skip configure -state disabled
 	
 	# Посылаем в измерительный поток сигнал об останове
 	measure::interop::terminate
@@ -124,7 +129,9 @@ proc terminateMeasure {} {
 proc openResults {} {
     global settings
     
-    startfile::start $settings(result.fileName)
+	if { [info exists settings(result.fileName)] && $settings(result.fileName) != "" } {
+	    startfile::start $settings(result.fileName)
+	}
 }
 
 # Завершение работы программы
@@ -147,6 +154,28 @@ proc toggleTestResistance {} {
 	::measure::widget::setDisabled [expr $mode == 1] $p.rerr $p.lrerr
 	::measure::widget::setDisabled [expr $mode == 2] $p.cur $p.lcur
 	::measure::widget::setDisabled [expr $mode == 2] $p.curerr $p.lcurerr
+}
+
+# Отправляет команду потоку измерения пропустить текущую уставку
+proc skipSetPoint {} {
+	global workerId
+
+	if { [info exists workerId] } {
+		thread::send -async $workerId { skipSetPoint }
+	}
+}
+
+# Отправляет текущие настройки потоку измерения
+proc applySettings {} {
+	global workerId settings
+
+	# Сохраняем параметры программы
+	measure::config::write
+
+	if { [info exists workerId] } {
+		# Отправляем настройки потоку измерения
+		thread::send -async $workerId [list applySettings [array get settings]]
+	}
 }
 
 ###############################################################################
@@ -199,12 +228,13 @@ $w.nb add $w.nb.m -text " Измерение "
 set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
-grid [ttk::button $p.open -text "Открыть файл результатов" -command openResults -image ::img::open -compound left] -row 0 -column 0 -sticky w
+grid [ttk::button $p.skip -text "Пропустить температурную точку" -state disabled -command skipSetPoint -image ::img::next -compound left] -row 0 -column 0 -sticky w
 grid [ttk::button $p.stop -text "Остановить измерения" -command terminateMeasure -state disabled -image ::img::stop -compound left] -row 0 -column 1 -sticky e
 grid [ttk::button $p.start -text "Начать измерения" -command startMeasure -image ::img::start -compound left] -row 0 -column 2 -sticky e
 
 grid columnconfigure $p { 0 1 2 } -pad 10
 grid columnconfigure $p { 0 } -weight 1
+grid rowconfigure $p { 0 1 } -pad 5
 
 # Раздел "Результаты измерения"
 set p [ttk::labelframe $w.nb.m.v -text " Результаты измерения " -pad 10]
@@ -252,6 +282,8 @@ $w.nb add $w.nb.ms -text " Параметры измерения "
 
 grid [ttk::frame $w.nb.ms.l] -column 0 -row 0 -sticky nwe
 grid [ttk::frame $w.nb.ms.r] -column 1 -row 0 -sticky nwe
+grid [ttk::frame $w.nb.ms.b -pad 10] -column 1 -row 1 -sticky we
+
 grid columnconfigure $w.nb.ms { 0 1 } -weight 1
 
 # Левая колонка
@@ -285,6 +317,28 @@ grid [ttk::checkbutton $p.systError -variable settings(measure.noSystErr)] -row 
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5
+grid columnconfigure $p { 1 } -weight 1
+
+pack $p -fill x -padx 10 -pady 5
+
+# Раздел настроек вывода
+set p [ttk::labelframe $w.nb.ms.l.reg -text " Файл результатов " -pad 10]
+
+grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
+grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -sticky we
+grid [ttk::button $p.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $p.name" -image ::img::open] -row 0 -column 2 -sticky w
+
+grid [ttk::label $p.lformat -text "Формат файла:"] -row 2 -column 0 -sticky w
+grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 2 -column 1 -columnspan 2 -sticky e
+
+grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 3 -column 0 -sticky w
+grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 3 -column 1 -columnspan 2 -sticky e
+
+grid [ttk::button $p.open -text "Открыть файл результатов" -command openResults -image ::img::open -compound left] -row 4 -column 0 -columnspan 4 -sticky e
+
+grid columnconfigure $p {0 1} -pad 5
+grid rowconfigure $p { 0 1 2 3 } -pad 5
+grid rowconfigure $p { 4 } -pad 10
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
@@ -340,29 +394,13 @@ grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3} -pad 5
 grid columnconfigure $p { 1 } -weight 1
 
+# Нижний раздел
+pack [ttk::button $w.nb.ms.b.apply -text "Применить настройки" -command applySettings -image ::img::apply -compound left] -side right
+
 pack $p -fill x -padx 10 -pady 5
 
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5
-
-# Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.r.msr -text " Файл результатов " -pad 10]
-
-grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
-grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -sticky we
-grid [ttk::button $p.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $p.name" -image ::img::open] -row 0 -column 2 -sticky w
-
-grid [ttk::label $p.lformat -text "Формат файла:"] -row 2 -column 0 -sticky w
-grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 2 -column 1 -columnspan 2 -sticky e
-
-grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 3 -column 0 -sticky w
-grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 3 -column 1 -columnspan 2 -sticky e
-
-grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3} -pad 5
-grid columnconfigure $p { 1 } -weight 1
-
-pack $p -fill x -padx 10 -pady 5
 
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5

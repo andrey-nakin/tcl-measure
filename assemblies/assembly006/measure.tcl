@@ -64,7 +64,7 @@ proc doMeasure { } {
 	# среднее значение и погрешность измерения
 	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
 	# инструментальная погрешность
-   	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mm.nplc]]
+   	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(mm.nplc)]
 	
 	# определяем силу тока
 	switch -exact -- $settings(current.method) {
@@ -74,27 +74,25 @@ proc doMeasure { } {
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
             # инструментальная погрешность
-            set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" [measure::config::get cmm.nplc]]
+            set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(cmm.nplc)]
         }
         1 {
             # измеряем падение напряжения на эталоне
             set vvs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
             set vv [expr abs([math::statistics::mean $vvs])] 
-    		set rr [measure::config::get current.reference.resistance 1.0] 
     		set cs [list]
     		foreach c $vvs {
-    			lappend cs [expr $c / $rr]
+    			lappend cs [expr $c / $settings(current.reference.resistance)]
     		}
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
     		# инструментальная погрешность
-	    	set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" [measure::config::get cmm.nplc]]
-    		set rrErr [measure::config::get current.reference.error 0.0] 
-	    	set cErr [measure::sigma::div $vv $vvErr $rr $rrErr]
+	    	set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" $settings(cmm.nplc)]
+	    	set cErr [measure::sigma::div $vv $vvErr $settings(current.reference.resistance) $settings(current.reference.error)]
         }
         2 {
             # ток измеряется вручную
-            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
+            set c [expr 0.001 * $settings(current.manual.current)]
             set cs [list]
             for { set i 0 } { $i < $n } { incr i } {
                 lappend cs $c
@@ -102,7 +100,7 @@ proc doMeasure { } {
             # погрешности измерения нет
             set sc 0.0  
             # инструментальная погрешность задаётся вручную
-            set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
+            set cErr [expr 0.001 * $settings(current.manual.error 0.0)] 
         }
     }
 
@@ -116,14 +114,14 @@ proc doMeasure { } {
 	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]; if { $sr == ""} { set sr 0 }
    	set rErr [measure::sigma::div $v $vErr $c $cErr]
 
-    if { ![measure::config::get measure.noSystErr 0] } {
+    if { !$settings(measure.noSystErr) } {
     	# суммируем инструментальную и измерительную погрешности
        	set sv [measure::sigma::add $vErr $sv]
        	set sc [measure::sigma::add $cErr $sc]
     	set sr [measure::sigma::add $rErr $sr]
     }
 
-	# возвращаем результат измерений, переведённый в милливольты и милливольты
+	# возвращаем результат измерений, переведённый в милливольты и амперывольты
 	return [list [expr 1000.0 * $v] [expr 1000.0 * $sv] [expr 1000.0 * $c] [expr 1000.0 * $sc] $r $sr]
 }
 
@@ -264,24 +262,19 @@ proc setPoint { t } {
 # Процедура вычисляет продолжительность измерения сопротивления в мс, 
 # включая все нужные переполюсовки.
 proc calcMeasureTime {} {
-	global calcMeasureTime_cache
+	global settings
 	
-	if { ![info exists calcMeasureTime_cache] } {
-		global settings
-		
-		set tm [oneMeasurementDuration]
-		set d $settings(switch.delay)
+	set tm [oneMeasurementDuration]
+	set d $settings(switch.delay)
 
-		if { $settings(switch.voltage) && $settings(switch.current) } {
-			return [expr 4.0 * $tm + 3.0 * $d]
-		}
-		if { $settings(switch.voltage) || $settings(switch.current) } {
-			return [expr 2.0 * $tm + $d]
-		}
-		set calcMeasureTime_cache $tm
+	if { $settings(switch.voltage) && $settings(switch.current) } {
+		return [expr 4.0 * $tm + 3.0 * $d]
+	}
+	if { $settings(switch.voltage) || $settings(switch.current) } {
+		return [expr 2.0 * $tm + $d]
 	}
 
-	return $calcMeasureTime_cache
+	return $tm
 }
 
 # Процедура определяет, вышли ли мы на нужные температурные условия
@@ -303,22 +296,21 @@ proc canMeasure { stateArray setPoint } {
 
 	# переменная хранит значение true, если мы готовы к измерению
 	set flag [expr abs($err) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
+
 	if { $flag } {
+		# можно измерять!
 		# вычислим задержку в мс для получения минимального отклонения температуры от уставки
-		set delay [expr $err / $tspeed - 0.5 * $tm - [clock milliseconds] + $state(timestamp)]
+		set delay [expr int($err / $tspeed - 0.5 * $tm) - ([clock milliseconds] - $state(timestamp))]
 		if { $delay > 0 } {
 			# выдержим паузу перед началом измерений
 			measure::interop::sleep [measure::math::min $delay 5000]
-		} else {
-			set delay 0.0
 		}
 	
 		# вычисляем список предположительных температур в моменты измерения]
 		set temps [list]
 		set t [clock milliseconds]
 		set dt [expr [oneMeasurementDuration] + $settings(switch.delay)]
-		set nc [llength $connectors]
-		for { set i 0 } { $i < $nc } { incr i } {
+		foreach c $connectors {
 			lappend temps [expr ($t - $state(timestamp)) * $tspeed + $state(temperature)]
 			set t [expr $t + $dt]
 		}
@@ -326,6 +318,24 @@ proc canMeasure { stateArray setPoint } {
 	}
 
 	return ""
+}
+
+###############################################################################
+# Обработчики событий
+###############################################################################
+
+# Команда пропустить одну точку в программе температур
+proc skipSetPoint {} {
+	global doSkipSetPoint
+
+	set doSkipSetPoint yes
+}
+
+# Команда прочитать последние настройки
+proc applySettings { lst } {
+	global settings
+
+	array set settings $lst
 }
 
 ###############################################################################
@@ -344,9 +354,6 @@ measure::config::read
 # Проверяем правильность настроек
 validateSettings
 
-# Создаём файл с результатами измерений
-measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) [list "Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
-
 # Производим подключение к устройствам и их настройку
 setupMM
 setupCMM
@@ -354,17 +361,22 @@ setupCMM
 # Задаём наборы переполюсовок
 # Основное положение переключателей
 set connectors [list { 0 0 0 0 }]
-if { [measure::config::get switch.voltage 0] } {
+if { $settings(switch.voltage 0) } {
 	# Инверсное подключение вольтметра
 	lappend connectors {1000 1000 0 0} 
 }
-if { [measure::config::get switch.current 0] } {
+if { $settings(switch.current) } {
 	# Инверсное подключение источника тока
 	lappend connectors { 0 0 1000 1000 }
-	if { [measure::config::get switch.voltage 0] } {
+	if { $settings(switch.voltage) } {
 		# Инверсное подключение вольтметра и источника тока
 		lappend connectors { 1000 1000 1000 1000 } 
 	}
+}
+
+# Создаём файл с результатами измерений
+measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) {
+	"Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" 
 }
 
 ###############################################################################
@@ -382,7 +394,12 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 	# Даём команду термостату на установление температуры
 	setPoint $t
 
-	while { 1 } {
+	# Переменная-триггер для пропуска точек в программе температур
+	set doSkipSetPoint ""
+	
+	# Цикл продолжается, пока не выйдем на нужную температуру
+	# или оператор не прервёт
+	while { $doSkipSetPoint != "yes" } {
 		# Проверяем, не была ли нажата кнопка "Стоп"
 		measure::interop::checkTerminated
 
@@ -400,7 +417,10 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 			break
 		}
 
-		measure::interop::sleep 1000
+		# Ждём или 1 сек или пока не изменится переменная doSkipSetPoint
+		after 1000 set doSkipSetPoint timeout
+		vwait doSkipSetPoint
+		after cancel set doSkipSetPoint timeout
 	}
 }
 
@@ -408,7 +428,7 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 # Завершение измерений
 ###############################################################################
 
-if { [info exists settings(beepOnExit)] && $settings(beepOnExit) } {
+if { $settings(beepOnExit) } {
     # подаём звуковой сигнал об окончании измерений
 	scpi::cmd $mm "SYST:BEEP"
 	after 500

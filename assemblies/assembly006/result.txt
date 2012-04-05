@@ -1,1 +1,1 @@
-tedt test test
+# Date/Time	T (K)	+/- (K)	I (mA)	+/- (mA)	U (mV)	+/- (mV)	R (Ohm)	+/- (Ohm)

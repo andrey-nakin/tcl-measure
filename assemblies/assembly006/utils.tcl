@@ -17,21 +17,32 @@ proc validateSettings {} {
 
     measure::config::validate {
         current.method 0
+		current.reference.resistance 1.0
+		current.reference.error 0.0
+		current.manual.current 1.0
+		current.manual.error 0.0
+
         result.fileName ""
         result.format TXT
         result.rewrite 1
+
         switch.voltage 0
         switch.current 0
         switch.serialAddr COM1        
         switch.rs485Addr 40
 		switch.delay 500
+
 		ts.addr localhost
 		ts.port 8080
 		ts.maxErr 0.1
 		ts.maxTrend 0.5
+
+		measure.noSystErr 0
+		measure.numOfSamples 1
+
 		mm.nplc 10
 		cmm.nplc 10
-		measure.numOfSamples 1
+		beepOnExit 0
     }	
 
 	::measure::tsclient::config -host $settings(ts.addr) -port $settings(ts.port)

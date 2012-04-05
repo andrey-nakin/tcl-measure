@@ -94,7 +94,7 @@ proc measure::config::get { args } {
 		return $settings($optName)
 	} else {
 		if { $options(required) } {
-			error "Required `optName' option is not found in configuration file"
+			error "Required `$optName' option is not found in configuration file"
 		}
 		return $defValue
 	}
