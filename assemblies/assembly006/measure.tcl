@@ -189,7 +189,7 @@ proc setupCMM {} {
         		-nplc $settings(cmm.nplc) \
         		-sampleCount $settings(measure.numOfSamples)	\
         		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
-        		-text2 "V2 CURRENT" \
+        		-text2 "V2 VOLTAGE" \
         		 $cmm
         }
     }
@@ -273,10 +273,10 @@ proc calcMeasureTime {} {
 		set d $settings(switch.delay)
 
 		if { $settings(switch.voltage) && $settings(switch.current) } {
-			return [expr 4.0 * $tm + 3.0 * $d
+			return [expr 4.0 * $tm + 3.0 * $d]
 		}
 		if { $settings(switch.voltage) || $settings(switch.current) } {
-			return [expr 2.0 * $tm + $d
+			return [expr 2.0 * $tm + $d]
 		}
 		set calcMeasureTime_cache $tm
 	}
@@ -308,7 +308,7 @@ proc canMeasure { stateArray setPoint } {
 		set delay [expr $err / $tspeed - 0.5 * $tm - [clock milliseconds] + $state(timestamp)]
 		if { $delay > 0 } {
 			# выдержим паузу перед началом измерений
-			measure::interop::sleep $delay
+			measure::interop::sleep [measure::math::min $delay 5000]
 		} else {
 			set delay 0.0
 		}
@@ -394,7 +394,7 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 		measure::interop::cmd [list setTemperature $stateList]
 
 		set temps [canMeasure state $t]
-		if { $temps } {
+		if { $temps != "" } {
 			# Производим измерения
 			makeMeasurement state $temps
 			break

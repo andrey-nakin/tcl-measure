@@ -8,6 +8,8 @@
 package require Tcl 8.4
 package provide measure::tsclient 0.1.0
 
+package require cmdline
+
 namespace eval ::measure::tsclient {
   namespace export
 }
@@ -21,8 +23,8 @@ proc ::measure::tsclient::config { args } {
 		{port.arg	8080		"TCP port number"}
 	}
 
-	array set configuration {}
-	array set configuration [array get configOptions]
+	set usage ": ::measure::tsclient::config \[options]\noptions:"
+	array set configuration [::cmdline::getoptions args $configOptions $usage]
 }
 
 # Процедура считывает текущие показания термометра

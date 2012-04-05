@@ -9,24 +9,24 @@
 proc validateSettings {} {
     global settings
 
-	# Число циклов питания на одно измерение напряжения
-	if { ![info exists settings(mmtc.mm.nplc)] || !$settings(mmtc.mm.nplc) || $settings(mmtc.mm.nplc) < 0 } {
-		# Если не указано в настройках, по умолчанию равно 10
-		set settings(mmtc.mm.nplc) 10
-	}
+    measure::config::validate {
+        mmtc.mm.nplc 10
+        pid.nd 5
+        pid.nt 15
+    }
 }
 
 proc createChildren { } {
 	global log temperatureThreadId powerThreadId httpThreadId
 	
-	lassign [measure::interop::createChildren [list    \
+	measure::interop::createChildren [list    \
 	   [measure::config::get tempmodule mmtc]  \
 	   [measure::config::get powermodule ps]   \
 	   http    \
-    ]] temperatureThreadId powerThreadId httpThreadId
+    ] { temperatureThreadId powerThreadId httpThreadId }
 }
 
 proc destroyChildren {} {
 	global log temperatureThreadId powerThreadId httpThreadId
-	measure::interop::destroyChildren { powerThreadId temperatureThreadId httpThreadId }
+	measure::interop::destroyChildren powerThreadId temperatureThreadId httpThreadId
 }

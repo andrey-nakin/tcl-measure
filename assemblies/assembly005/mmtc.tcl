@@ -65,7 +65,6 @@ proc setupMM {} {
 	${log}::debug "setupMM: setting multimeter up"
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc [measure::config::get mmtc.mm.nplc 10] \
-		-autoZero ONCE \
 		-text2 "THERMOCOUPLE" \
 		 $mm
 }

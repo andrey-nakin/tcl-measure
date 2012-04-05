@@ -132,7 +132,7 @@ proc measure::interop::clearTerminated {} {
     tsv::set interop stopped 0
 }
 
-proc measure::interop::createChildren { scriptFiles } {
+proc measure::interop::createChildren { scriptFiles threadIdVars } {
 	global log _validNum
 
     set _validNum 0
@@ -140,9 +140,13 @@ proc measure::interop::createChildren { scriptFiles } {
 	${log}::debug "createChildren: enter, this thread id = [thread::id]"
 
     set result [list]
-    foreach scriptFile $scriptFiles {
+    for { set i 0 } { $i < [llength $scriptFiles] } { incr i } {
+        set scriptFile [lindex $scriptFiles $i]
+        set var [lindex $threadIdVars $i]
+        global $var
     	${log}::debug "createChildren: creating module $scriptFile"
     	set tid [createChildThread $scriptFile]
+    	set $var $tid
     	lappend result $tid
     }     
 	
@@ -166,14 +170,16 @@ proc measure::interop::destroyChildren { args } {
 	    global $var
 	    ${log}::debug "!!! var=$var"
     	if { [info exists $var] } {               
-    		eval "finishChild \$$var"
+    		${log}::debug "executing `measure::interop::finishChild \$$var`"
+    		catch {eval "measure::interop::finishChild \$$var"} err errInfo
+    		${log}::debug "error calling finishChild $err"
     	}
     }
 	
 	# Ожидаем завершение дочерних модулей
 	foreach var $args {
     	if { [info exists $var] } {
-    		eval "destroyChild \$$var"
+    		eval "measure::interop::destroyChild \$$var"
     	}
     }
 	
@@ -302,7 +308,7 @@ proc measure::interop::criticalError { tid errorInfo } {
 		::measure::logger::shutdown
 		::exit
 	} else {
-		interopCatch_ $errorInfo
+		interopCatch_ $errorInfo {}
 	}
 }
 

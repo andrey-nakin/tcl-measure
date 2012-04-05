@@ -13,13 +13,11 @@ package require measure::config
 package require measure::interop
 package require measure::datafile
 package require measure::listutils
+package require measure::math
 
 ###############################################################################
 # Константы
 ###############################################################################
-
-# Кол-во точек усреднения производной температуры по времени
-set DTN 5
 
 # Переменная, используемая для синхронизации
 set mutexVar 0
@@ -31,9 +29,6 @@ array set pidState [list lastError 0.0 setPoint 0.0 iaccum 0.0 currentTemperatur
 set derrs [list]
 
 set lastTime ""
-
-# Число отсчётов температуры, необходимых для вычисления тренда
-set NUM_OF_READINGS 15
 
 # Списки для хранения отсчётов температуры и времени
 set tvalues [list]
@@ -85,7 +80,7 @@ proc pidCalc { dt } {
     set iTerm [expr $settings(pid.ti) * $pidState(iaccum)]
     
     # вычислим производную невязки по времени с усреднением
-    measure::listutils::lappend derrs [expr $err - $pidState(lastError)] $DTN
+    measure::listutils::lappend derrs [expr $err - $pidState(lastError)] $settings(pid.nd)
     
     # дифференциальный член
     set dTerm [expr $settings(pid.td) * [::math::statistics::mean $derrs] ]
@@ -130,8 +125,6 @@ proc calcCurrent {} {
 proc finish {} {
 	global log
 
-    ${log}::debug "finish"
-    
 	# закрываем дочерние модули
 	destroyChildren
 }
@@ -147,6 +140,7 @@ proc fourierFileName {} {
 }
 
 proc writeFourierData { data } {
+    return
     set f [open [fourierFileName] w]
     foreach v $data {
         puts $f $v
@@ -164,29 +158,29 @@ proc createRegFile {} {
 
 # Процедура вызывается модулем измерения температуры
 proc setTemperature { t tErr } {
-	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues NUM_OF_READINGS START_TIME
-	global tvalues_fourier NUM_OF_FOURIER_READINGS
+	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues START_TIME
+	global tvalues_fourier settings NUM_OF_FOURIER_READINGS           
 
 	set tm [clock milliseconds]
-	
-	# Сохраняем отсчёты температуры и времени в списках для вычисления тренда
-	measure::listutils::lappend tvalues $t $NUM_OF_READINGS
-	measure::listutils::lappend terrvalues $tErr $NUM_OF_READINGS
-	measure::listutils::lappend timevalues $tm $NUM_OF_READINGS
-	measure::listutils::lappend rtimevalues [expr $tm - $START_TIME] $NUM_OF_READINGS
 
-    if { [llength $tvalues] > 2 } {
-        # Вычислим линейную аппроксимацию графика функции температуры, т.е. тренд
-      	lassign [::math::statistics::linear-model $rtimevalues $tvalues] a b
-      	# Переведём наклон тренда в К/мин
-      	set b [expr 1000.0 * 60.0 * $b]
-      	
-      	# Вычислим 1-ю производную температуры по времени
-      	set der1 [expr 1000.0 * 60.0 * ($t - [lindex $tvalues end-1]) / ([lindex $rtimevalues end] - [lindex $rtimevalues end-1])]
-    } else {
-        set b 0.0
-        set der1 0.0
-    }
+	# Сохраняем отсчёты температуры и времени в списках для вычисления тренда
+	measure::listutils::lappend tvalues $t $settings(pid.nt)
+	measure::listutils::lappend terrvalues $tErr $settings(pid.nt)
+	measure::listutils::lappend timevalues $tm $settings(pid.nt)
+	measure::listutils::lappend rtimevalues [expr $tm - $START_TIME] $settings(pid.nt)
+
+    # вычисляем тренд
+    # Вычислим линейную аппроксимацию графика функции температуры, т.е. тренд
+    set b [::measure::math::slope $rtimevalues $tvalues]
+  	# Переведём наклон тренда в К/мин
+  	set b [expr 1000.0 * 60.0 * $b]
+
+    # вычисляем производную
+    set nd [expr [measure::math::min $settings(pid.nd) $settings(pid.nt)] - 1]
+    # Вычислим линейную аппроксимацию графика функции температуры, т.е. тренд
+	set der1 [::measure::math::slope [lrange $rtimevalues end-${nd} end] [lrange $tvalues end-${nd} end]]
+  	# Переведём наклон тренда в К/мин
+  	set der1 [expr 1000.0 * 60.0 * $der1]
 
 	lappend tvalues_fourier $t
     if { [llength $tvalues_fourier] >= $NUM_OF_FOURIER_READINGS } {
@@ -237,13 +231,15 @@ proc resetIAccum { } {
 }
 
 # Процедура изменяет параметры ПИДа
-proc setPid { tp td ti maxi } {
+proc setPid { tp td ti maxi nd nt } {
     global settings
     
     set settings(pid.tp) $tp
     set settings(pid.td) $td
     set settings(pid.ti) $ti
-    set settings(pid.maxi) $maxi 
+    set settings(pid.maxi) $maxi
+    set settings(pid.nd) $nd 
+    set settings(pid.nt) $nt 
 }
 
 # Процедура изменяет параметры регистрации температуры
@@ -298,10 +294,8 @@ while { ![measure::interop::isTerminated] } {
 
 	# ждём изменения переменной синхронизации дважды от двух источников событий
 	vwait mutexVar; vwait mutexVar
-
-#	if { $mutexVar > 100 } {
-#		break
-#	}
+	
+#	if { $mutexVar > 10 } { break }
 }
 
 # Завершаем работу

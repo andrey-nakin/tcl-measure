@@ -121,7 +121,7 @@ proc setupCMM {} {
         	# Настраиваем мультиметр для измерения постоянного напряжения
 			hardware::agilent::mm34410a::configureDcVoltage \
 				-nplc [measure::config::get cmm.nplc 10] \
-				-text2 "V2 CURRENT" \
+				-text2 "V2 VOLTAGE" \
 				 $cmm
         }
     }

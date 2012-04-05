@@ -8,6 +8,8 @@
 package require Tcl 8.4
 package provide measure::math 0.1.0
 
+package require math::statistics
+
 namespace eval ::measure::math {
   namespace export max 
 }
@@ -36,3 +38,19 @@ proc ::measure::math::min { args } {
 	return $res
 }
 
+proc ::measure::math::slope { xvalues yvalues } {
+    set len [min [llength $xvalues] [llength $yvalues]]
+    
+    if { $len < 2 } {
+        return 0.0
+    }
+    
+    if { $len == 2 } {
+        return [expr ([lindex $yvalues 1] - [lindex $yvalues 0]) / ([lindex $xvalues 1] - [lindex $xvalues 0])]
+    }
+    
+    if { [catch {lassign [::math::statistics::linear-model $xvalues $yvalues] a b}] } {
+        set b 0.0
+    }
+    return $b
+}
