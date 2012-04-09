@@ -361,7 +361,7 @@ setupCMM
 # Задаём наборы переполюсовок
 # Основное положение переключателей
 set connectors [list { 0 0 0 0 }]
-if { $settings(switch.voltage 0) } {
+if { $settings(switch.voltage) } {
 	# Инверсное подключение вольтметра
 	lappend connectors {1000 1000 0 0} 
 }

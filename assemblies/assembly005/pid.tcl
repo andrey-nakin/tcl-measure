@@ -253,6 +253,12 @@ proc setReg { fn fmt rewrite } {
     createRegFile
 }
 
+proc applySettings { lst } {
+    global settings
+    
+    array set settings $lst
+}
+
 ###############################################################################
 # Начало работы
 ###############################################################################

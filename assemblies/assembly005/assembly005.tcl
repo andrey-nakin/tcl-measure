@@ -199,6 +199,18 @@ proc stopTsWriter { { wait 0} } {
 	}
 }
 
+proc applySettings {} {
+	global thermoThreadId settings
+
+	# Сохраняем параметры программы
+	measure::config::write
+	
+	if { [info exists thermoThreadId] } {
+		# Отправляем настройки рабочему потоку
+		thread::send -async $thermoThreadId [list applySettings [array get settings]]
+	}
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
@@ -413,6 +425,10 @@ grid [ttk::checkbutton $p.autoStart -variable settings(autoStart)] -row 0 -colum
 grid columnconfigure $p { 0 1 3 4 } -pad 5
 grid columnconfigure $p { 2 } -weight 1 -pad 20
 grid rowconfigure $p { 0 1 } -pad 5
+
+# Нижний раздел
+pack [ttk::frame $frm.bot -pad 10] -side bottom -fill x
+pack [ttk::button $frm.bot.apply -text "Применить настройки" -command applySettings -image ::img::apply -compound left] -side right
 
 ##############################################################################
 # Закладка "Вольметр+Термопара"

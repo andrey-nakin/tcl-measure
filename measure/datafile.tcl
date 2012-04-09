@@ -33,7 +33,10 @@ proc measure::datafile::create { fileName format rewrite headers } {
 		return
 	}
 	
-	set config($fileName) [list format $format rewrite $rewrite] 
+	set config($fileName) [list format $format rewrite $rewrite]
+	
+    set fileName [measure::datafile::parseFileName $fileName]
+    validateDir $fileName  
 
     set writeHeader 0
     if { $rewrite } {
@@ -83,6 +86,7 @@ proc measure::datafile::write { fileName format data } {
 		return
 	}
 
+    set fileName [measure::datafile::parseFileName $fileName]
     set f [open $fileName a]
     
     if { [string equal -nocase $format csv] } {
@@ -110,6 +114,22 @@ proc measure::datafile::write { fileName format data } {
     close $f
 }
 
+#############################################################################
+# Private
+#############################################################################
+
 proc measure::datafile::makeDateTime {} {
     return [clock format [clock seconds] -format %Y-%m-%dT%H:%M:%S]
 }
+
+proc measure::datafile::parseFileName { fn } {
+    set sep [file separator]
+    set autoDate [clock format [clock seconds] -format "%Y${sep}%m${sep}%d"]
+    return [string map -nocase [list {%autodate%} $autoDate] $fn] 
+}
+
+proc measure::datafile::validateDir { fn } {
+    set dir [file dirname $fn]
+    file mkdir $dir
+}
+ 
