@@ -28,9 +28,15 @@ proc measure::ranges::toList { e } {
 			if { $f && [llength $result] > 1 } {
 				set x [lindex $result end-1]
 				set step [expr [lindex $result end] - $x]
-				for { set x [expr $x + $step * 2.0] } { $x <= $v + 0.1 * $step } { set x [expr $x + $step] } {
-					lappend result $x
-				}
+				if { $step >= 0.0 } {
+    				for { set x [expr $x + $step * 2.0] } { $x <= $v + 0.1 * $step } { set x [expr $x + $step] } {
+    					lappend result $x
+    				}
+                } else {
+    				for { set x [expr $x + $step * 2.0] } { $x >= $v + 0.1 * $step } { set x [expr $x + $step] } {
+    					lappend result $x
+    				}
+                }
 			} else {
 				lappend result $v
 			}

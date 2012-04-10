@@ -560,7 +560,7 @@ proc hardware::agilent::mm34410a::measDur { args } {
 		set autoZero 1
 	}
     
-    return [expr 1000.0 / $powerFrequency * $params(nplc) * $autoZero * $params(sampleCount)]
+    return [expr int(1000.0 / $powerFrequency * $params(nplc) * $autoZero * $params(sampleCount))]
 }
 
 # Проверяет положение переключателя Front/Rear

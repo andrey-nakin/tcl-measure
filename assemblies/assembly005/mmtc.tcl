@@ -23,10 +23,10 @@ source [file join [file dirname [info script]] utils.tcl]
 # Измеряет напряжение на термопаре
 # Возвращает напряжение и погрешность в вольтах
 proc measureVoltage { } {
-    global mm log
+    global mm log readDelay
     
 	# считываем значение напряжения
-	set v [scpi::query $mm "READ?"]
+	set v [scpi::query $mm "READ?" $readDelay]
 
 	if { [measure::config::get mmtc.tc.negate 0] } {
 		set v [expr -1.0 * $v]
@@ -46,10 +46,9 @@ proc calcTemperature { v vErr } {
 
 # Инициализация вольтметра
 proc setupMM {} {
-    global mm log
+    global mm log readDelay
     
     # Подключаемся к мультиметру (ММ)
-	${log}::debug "setupMM: opening multimeter"
     set mm [hardware::agilent::mm34410a::open \
 		-baud [measure::config::get mmtc.mm.baud] \
 		-parity [measure::config::get mmtc.mm.parity] \
@@ -58,22 +57,24 @@ proc setupMM {} {
 	]
 
     # Иниализируем и опрашиваем ММ
-	${log}::debug "setupMM: initializing multimeter $mm"
     hardware::agilent::mm34410a::init -noFrontCheck $mm
 
 	# Настраиваем мультиметр для измерения постоянного напряжения
-	${log}::debug "setupMM: setting multimeter up"
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc [measure::config::get mmtc.mm.nplc 10] \
 		-text2 "THERMOCOUPLE" \
 		 $mm
+		 
+    # Вычислим продолжительность одного измерения напряжения в мс
+    set readDelay [hardware::agilent::mm34410a::measDur \
+		-nplc [measure::config::get mmtc.mm.nplc 10] \
+    ]
 }
 
 # Приведение мультиметра в исходное состояние
 proc closeMM {} {
 	global log mm
 
-	${log}::debug "finish: closing multimeter"
 	hardware::agilent::mm34410a::done $mm
 
 	close $mm
@@ -88,19 +89,15 @@ proc init { senderId senderCallback } {
 	global log
 
 	# Читаем настройки программы
-	${log}::debug "init: reading settings"
 	measure::config::read
 
 	# Проверяем правильность настроек
-	${log}::debug "init: validating settings"
 	validateSettings
 
 	# Инициализируем мультиметр
-	${log}::debug "init: setting up multimeter"
 	setupMM
 
 	# Холостое измерение для "прогрева" мультиметра
-	${log}::debug "init: dummy measure"
 	measureVoltage 
 
 	# Отправляем сообщение в поток управления
@@ -112,14 +109,10 @@ proc init { senderId senderCallback } {
 proc finish {} {
     global mm log
 
-    ${log}::debug "finish: enter"
-    
     if { [info exists mm] } {
     	# Переводим вольтметр в исходный режим
 		closeMM
     }
-
-    ${log}::debug "finish: exit"
 }
 
 # Процедура вызывается для чтения температуры

@@ -71,7 +71,7 @@ proc ::measure::logger::shutdown { } {
 		global log
 
 		if { [info exists log] } {
-			${log}::debug "Shutting log server down"
+			#${log}::debug "Shutting log server down"
 		}
 
 		set tid [tsv::get measure-logger loggerThread]

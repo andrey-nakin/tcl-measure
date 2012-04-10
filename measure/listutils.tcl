@@ -26,3 +26,13 @@ proc ::measure::listutils::lappend { lname v maxlen } {
     }
     ::lappend lst $v
 }
+
+# Удаляет элемент из списка по значению.
+# Аргументы:
+#   lst - имя переменной, хранящей список
+#   v - значение, которое нужно удалить
+proc ::measure::listutils::lremove { lname v } {
+    upvar $lname lst
+    set idx [lsearch $lst $v]
+    set lst [lreplace $lst $idx $idx]
+}

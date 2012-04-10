@@ -216,7 +216,6 @@ proc currentSet { current voltage } {
 proc setPoint { t } {
 	global pidState log
 
-	${log}::debug "setPoint: enter, t=$t"
 	set pidState(setPoint) $t
 
 	measure::interop::setVar runtime(setPoint) [format "%0.1f" $t]
@@ -226,7 +225,6 @@ proc setPoint { t } {
 proc resetIAccum { } {
 	global pidState log
 
-	${log}::debug "resetIAccum: enter"
 	set pidState(iaccum) 0.0
 }
 
@@ -254,9 +252,12 @@ proc setReg { fn fmt rewrite } {
 }
 
 proc applySettings { lst } {
-    global settings
+    global settings temperatureThreadId powerThreadId 
     
     array set settings $lst
+    
+	thread::send -async $temperatureThreadId [list applySettings $lst]
+	thread::send -async $powerThreadId [list applySettings $lst]
 }
 
 ###############################################################################
@@ -290,7 +291,6 @@ createRegFile
 set START_TIME [clock milliseconds]
 
 # Основной цикл регулировки
-${log}::debug "starting main loop"
 while { ![measure::interop::isTerminated] } {
 	# отправляем команду на измерение текущей температуры
 	thread::send -async $temperatureThreadId [list getTemperature $thisId setTemperature]

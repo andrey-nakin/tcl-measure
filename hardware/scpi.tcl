@@ -122,13 +122,17 @@ proc scpi::cmd { channel command { delay -1 } } {
 # Arguments
 #   channel - device channel
 #   command - command to send. Should not end with "new line" character.
-#   ?delay? - delay between command and query
+#   ?delay? - delay between sending of command and reading of answer
 # Return
 #   Value returned by device. "Line end" character is removed from answer.
 proc scpi::query { channel command { delay -1 } } {
 	# Send command
 	cmd $channel $command $delay
 
+    if { $delay > 0 } {
+        after $delay
+    }
+    
 	# Read device's answer. Trailing new line char is removed by `gets`.
     if { [catch { set answer [gets $channel] } err errInfo] } {
         error [makeChannelError $channel $err $errInfo]

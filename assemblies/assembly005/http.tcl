@@ -109,11 +109,9 @@ proc init { senderId senderCallback } {
 	global log 
 
 	# Читаем настройки программы
-	${log}::debug "init: reading settings"
 	measure::config::read
 
 	# Проверяем правильность настроек
-	${log}::debug "init: validating settings"
 	validateSettings
 
     # Создаём HTTP-сервер
@@ -127,10 +125,6 @@ proc init { senderId senderCallback } {
 # Приводим устройства в исходное состояние
 proc finish {} {
     global log
-
-    ${log}::debug "finish: enter"
-    
-    ${log}::debug "finish: exit"
 }
 
 ###############################################################################
@@ -139,20 +133,3 @@ proc finish {} {
 
 # Инициализируем протоколирование
 set log [measure::logger::init http]
-
-############################
-# отладка
-############################
-
-proc dummy { args } {
-}
-
-proc setPoint { vvv } {
-    global log
-    
-    ${log}::debug "SET POINT $vvv"
-}
-
-#init [thread::id] dummy
-
-#thread::wait 

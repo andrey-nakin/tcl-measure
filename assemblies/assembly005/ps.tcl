@@ -65,15 +65,12 @@ proc init { senderId senderCallback } {
 	global log settings
 
 	# Читаем настройки программы
-	${log}::debug "init: reading settings"
 	measure::config::read
 
 	# Проверяем правильность настроек
-	${log}::debug "init: validating settings"
 	validateSettings
 
 	# Инициализируем ИП
-	${log}::debug "init: setting PS up"
     setupPs
 
 	# Отправляем сообщение в поток управления
@@ -85,15 +82,10 @@ proc init { senderId senderCallback } {
 proc finish {} {
     global log ps
 
-    ${log}::debug "finish: enter"
-
     if { [info exists ps] } {
 		# ИП в исходное состояние
-	    ${log}::debug "finish: closing PS"
 		closePs
     }
-	
-    ${log}::debug "finish: exit"
 }
 
 # Процедура вызываетя для установки тока питания
@@ -119,10 +111,12 @@ proc setCurrent { current senderId senderCallback } {
 	# Задаём силу тока
 	# После чего измеряем актуальные напряжение и силу тока на выходах ИП
     set res [scpi::query $ps "CURRENT $current;MEASURE:VOLTAGE?;CURR?"]
-    scan $res "%f;%f" v c
-
-	# Отправляем сообщение в поток управления
-	thread::send -async $senderId [list $senderCallback $c $v]
+    if { [scan $res "%f;%f" v c] == 2 } {
+    	# Отправляем сообщение в поток управления
+    	thread::send -async $senderId [list $senderCallback $c $v]
+    } else {
+        error "Unexpected response `$res` from device `[scpi::channelName $ps]`"
+    }
 }
 
 ###############################################################################

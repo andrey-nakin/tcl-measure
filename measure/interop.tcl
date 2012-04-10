@@ -132,25 +132,18 @@ proc measure::interop::clearTerminated {} {
     tsv::set interop stopped 0
 }
 
-proc measure::interop::createChildren { scriptFiles threadIdVars } {
+proc measure::interop::createChildren { scriptFiles } {
 	global log _validNum
 
-    set _validNum 0
-    
-	${log}::debug "createChildren: enter, this thread id = [thread::id]"
-
+    # Создаём дочерние потоки
     set result [list]
-    for { set i 0 } { $i < [llength $scriptFiles] } { incr i } {
-        set scriptFile [lindex $scriptFiles $i]
-        set var [lindex $threadIdVars $i]
-        global $var
-    	${log}::debug "createChildren: creating module $scriptFile"
+    foreach scriptFile $scriptFiles {
     	set tid [createChildThread $scriptFile]
-    	set $var $tid
     	lappend result $tid
     }     
 	
 	# Ожидаем завершения инициализации
+    set _validNum 0
 	while { $_validNum < [llength $result] } {
 	   update
 	   after 100
@@ -159,28 +152,31 @@ proc measure::interop::createChildren { scriptFiles threadIdVars } {
     return $result
 }
 
-proc measure::interop::destroyChildren { args } {
+proc measure::interop::destroyChildren { } {
 	global log
+	variable childThreadIds
+
+    if { ![info exists childThreadIds] } {
+        return
+    }
 	
     thread::errorproc measure::interop::suppressedError
 	
 	# Отправим сообщение `finish` в дочерние модули
-	${log}::debug "destroyChildren $args"
-	foreach var $args {
-	    global $var
-	    ${log}::debug "!!! var=$var"
-    	if { [info exists $var] } {               
-    		${log}::debug "executing `measure::interop::finishChild \$$var`"
-    		catch {eval "measure::interop::finishChild \$$var"} err errInfo
-    		${log}::debug "error calling finishChild $err"
-    	}
+    foreach tid $childThreadIds {               
+		if { [ catch {eval "measure::interop::finishChild \$tid"} err errInfo ] } {
+    		${log}::error "error calling finishChild on $tid: $err"
+        }
     }
 	
 	# Ожидаем завершение дочерних модулей
-	foreach var $args {
-    	if { [info exists $var] } {
-    		eval "measure::interop::destroyChild \$$var"
-    	}
+	set tids $childThreadIds
+    foreach tid $tids {               
+		if { [ catch { eval "measure::interop::destroyChild $tid" } err errInfo ] } {
+    		${log}::error "error calling destroyChild on $tid: $err"
+        } else {
+    		::measure::listutils::lremove childThreadIds $tid
+        }
     }
 	
 	# выдержим паузу
@@ -352,7 +348,6 @@ proc measure::interop::finalize { } {
     global finalizer_ log
 
 	if { [info exists finalizer_] && $finalizer_ != "" } {
-		${log}::debug "Executing finalization script `$finalizer_'"
 		if { [catch {$finalizer_} rc] } {
 			${log}::error "Error executing finalization script `$finalizer_': $rc"
 		}
@@ -363,24 +358,24 @@ proc measure::interop::finalize { } {
 proc measure::interop::childInitialized { childId } {
     global log _validNum
     
-    ${log}::debug "childInitialized: enter childId=$childId" 
-
     # увеличим счётчик проинициализированных модулей
     incr _validNum
 }
 
 proc measure::interop::createChildThread { scriptName } {
 	global log
+	variable childThreadIds
 
-	${log}::debug "createChildThread: creating thread for script `$scriptName'"
+	if { ![info exists childThreadIds] } {
+	   set childThreadIds [list]
+    }
+	
 	set tid [thread::create -joinable { 
 		package require measure::logger
 		set log [measure::logger::init pid::child]
 
 		proc _start { senderId scriptFileName } {
 			global log
-
-			${log}::debug "createChildThread: starting child [thread::id] from script file $scriptFileName"
 			source $scriptFileName
 		}
 
@@ -388,12 +383,17 @@ proc measure::interop::createChildThread { scriptName } {
 			thread::exit
 		}
 
+        proc applySettings { lst } {
+            global settings
+            array set settings $lst
+        }
+
 		thread::wait
 	}]
+	
+	lappend childThreadIds $tid
 
-	${log}::debug "createChildThread: sending `start' to thread $tid"
 	thread::send -async $tid "_start [thread::id] [file join [file dirname [info script]] ${scriptName}.tcl]"
-	${log}::debug "createChildThread: sending `init' to thread $tid"
 	thread::send -async $tid [list init [thread::id] ::measure::interop::childInitialized]
 
 	return $tid
@@ -403,9 +403,7 @@ proc measure::interop::finishChild { threadId } {
 	global log
 
 	if { [catch {
-		${log}::debug "finishChild: sending `finish' to $threadId"
 		thread::send -async $threadId finish
-		${log}::debug "finishChild: sending `_stop' to $threadId"
 		thread::send -async $threadId _stop
 	} rc] } {
 		${log}::error "destroyChild: error finishing thread $threadId: $rc"
@@ -416,9 +414,7 @@ proc measure::interop::destroyChild { threadId } {
 	global log
 
 	if { [catch {
-		${log}::debug "destroyChild: joining $threadId"
 		thread::join $threadId
-		${log}::debug "destroyChild: $threadId joined"
 	} rc] } {
 		${log}::error "destroyChild: error finishing thread $threadId: $rc"
 	}
