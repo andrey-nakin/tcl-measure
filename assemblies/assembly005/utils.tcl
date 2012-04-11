@@ -13,6 +13,8 @@ proc validateSettings {} {
         mmtc.mm.nplc 10
         pid.nd 5
         pid.nt 15
+		pid.adaptiveIT 0
+		pid.maxi ""
     }
 }
 

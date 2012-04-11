@@ -23,7 +23,7 @@ package require measure::math
 set mutexVar 0
 
 # Переменная для хранения состояния ПИД-регулятора
-array set pidState [list lastError 0.0 setPoint 0.0 iaccum 0.0 currentTemperature 0.0]
+array set pidState [list lastError 0.0 setPoint 0.0 iaccum 0.0 currentTemperature 0.0 istop 0]
 
 # Список для хранения значений производной невязки по времени
 set derrs [list]
@@ -64,27 +64,37 @@ proc pidCalc { dt } {
     # пропорциональный член
     set pTerm [expr $settings(pid.tp) * $err]
     
-    # интегральное накопление
-    set pidState(iaccum) [expr $pidState(iaccum) + $err]
-    set maxi [measure::config::get pid.maxi]
-    if { $maxi != "" } {
-        if { $pidState(iaccum) > $maxi } {
-            set pidState(iaccum) $maxi 
-        } 
-        if { $pidState(iaccum) < -$maxi } {
-            set pidState(iaccum) [expr -1.0 * $maxi] 
-        } 
-    }
-    
-    # интегральный член
-    set iTerm [expr $settings(pid.ti) * $pidState(iaccum)]
-    
     # вычислим производную невязки по времени с усреднением
     measure::listutils::lappend derrs [expr $err - $pidState(lastError)] $settings(pid.nd)
     
     # дифференциальный член
     set dTerm [expr $settings(pid.td) * [::math::statistics::mean $derrs] ]
 
+	if { $pidState(istop) } {
+		if { $pidState(istopCounter) > 0 } {
+			incr pidState(istopCounter) -1
+		} else {
+			if { sign($pTerm) != sign($dTerm) } {
+				set pidState(istop) 0
+			}
+		}
+	}
+
+	if { !$pidState(istop) } {
+		# интегральное накопление
+		set pidState(iaccum) [expr $pidState(iaccum) + $err]
+
+		# проверка на выход за разрешенный предел
+		if { $settings(pid.maxi) != "" } {
+			::measure::math::validateRange pidState(iaccum) -$settings(pid.maxi) $settings(pid.maxi)
+		}
+		
+		# интегральный член
+		set iTerm [expr $settings(pid.ti) * $pidState(iaccum)]
+	} else {
+		set iTerm 0
+	}
+    
     # результирующий ток
 	set result [expr $pTerm + $iTerm + $dTerm]
 
@@ -176,7 +186,7 @@ proc setTemperature { t tErr } {
   	set b [expr 1000.0 * 60.0 * $b]
 
     # вычисляем производную
-    set nd [expr [measure::math::min $settings(pid.nd) $settings(pid.nt)] - 1]
+    set nd [expr min($settings(pid.nd), $settings(pid.nt)) - 1]
     # Вычислим линейную аппроксимацию графика функции температуры, т.е. тренд
 	set der1 [::measure::math::slope [lrange $rtimevalues end-${nd} end] [lrange $tvalues end-${nd} end]]
   	# Переведём наклон тренда в К/мин
@@ -214,9 +224,15 @@ proc currentSet { current voltage } {
 
 # Процедура изменяет значение уставки
 proc setPoint { t } {
-	global pidState log
+	global pidState log settings
 
 	set pidState(setPoint) $t
+
+	if { $settings(pid.adaptiveIT) } {
+		set pidState(iaccum) 0.0
+		set pidState(istop) 1
+		set pidState(istopCounter) $settings(pid.nd)
+	}
 
 	measure::interop::setVar runtime(setPoint) [format "%0.1f" $t]
 }
@@ -226,18 +242,6 @@ proc resetIAccum { } {
 	global pidState log
 
 	set pidState(iaccum) 0.0
-}
-
-# Процедура изменяет параметры ПИДа
-proc setPid { tp td ti maxi nd nt } {
-    global settings
-    
-    set settings(pid.tp) $tp
-    set settings(pid.td) $td
-    set settings(pid.ti) $ti
-    set settings(pid.maxi) $maxi
-    set settings(pid.nd) $nd 
-    set settings(pid.nt) $nt 
 }
 
 # Процедура изменяет параметры регистрации температуры

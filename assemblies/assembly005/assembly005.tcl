@@ -132,14 +132,6 @@ proc resetIAccum {} {
 	}
 }
 
-proc setPid {} {
-	global thermoThreadId settings
-
-	if { [info exists thermoThreadId] } {
-		thread::send -async $thermoThreadId [list setPid $settings(pid.tp) $settings(pid.td) $settings(pid.ti) $settings(pid.maxi) $settings(pid.nd) $settings(pid.nt)]
-	}
-}
-
 proc setReg {} {
 	global thermoThreadId settings
 
@@ -387,12 +379,12 @@ grid [ttk::spinbox $p.nd -width 10 -textvariable settings(pid.nd) -from 0 -to 10
 grid [ttk::label $p.lnt -text "Кол-во измерений для тренда:"] -row 2 -column 3 -sticky w
 grid [ttk::spinbox $p.nt -width 10 -textvariable settings(pid.nt) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is integer %P}] -row 2 -column 4 -sticky w
 
-grid [ttk::button $p.ssp -text "Применить" -command setPid] -row 3 -column 4 -sticky e
+grid [ttk::label $p.ladaptiveIT -text "Адаптивный интегральный член:"] -row 3 -column 0 -sticky w
+grid [ttk::checkbutton $p.adaptiveIT -variable settings(pid.adaptiveIT)] -row 3 -column 1 -sticky w
 
 grid columnconfigure $p { 0 1 2 3 4 } -pad 5
 grid columnconfigure $p { 2 } -weight 1 -pad 20
-grid rowconfigure $p { 0 1 2 } -pad 5
-grid rowconfigure $p { 3 } -pad 10
+grid rowconfigure $p { 0 1 2 3 } -pad 5
 
 set p [ttk::labelframe $frm.reg -text " Регистрация температуры " -pad 10]
 pack $p -fill x -padx 10 -pady 5

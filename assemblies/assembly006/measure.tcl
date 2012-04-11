@@ -198,7 +198,7 @@ proc oneMeasurementDuration {} {
 	global settings
 
 	return [hardware::agilent::mm34410a::measDur	\
-		-nplc [measure::math::max $settings(mm.nplc) $settings(cmm.nplc)] \
+		-nplc [::tcl::mathfunc::max $settings(mm.nplc) $settings(cmm.nplc)] \
 		-sampleCount $settings(measure.numOfSamples)	\
 	]
 }
@@ -303,7 +303,7 @@ proc canMeasure { stateArray setPoint } {
 		set delay [expr int($err / $tspeed - 0.5 * $tm) - ([clock milliseconds] - $state(timestamp))]
 		if { $delay > 0 } {
 			# выдержим паузу перед началом измерений
-			measure::interop::sleep [measure::math::min $delay 5000]
+			measure::interop::sleep [::tcl::mathfunc::min $delay 5000]
 		}
 	
 		# вычисляем список предположительных температур в моменты измерения]

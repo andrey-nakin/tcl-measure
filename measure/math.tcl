@@ -14,29 +14,23 @@ namespace eval ::measure::math {
   namespace export max 
 }
 
-proc ::measure::math::max { args } {
-	set res ""
+###############################################################################
+# procedures in ::tcl::mathfunc namespace
+###############################################################################
 
-	foreach v $args {
-		if { $v > $res } {
-			set res $v
-		}
+proc ::tcl::mathfunc::sign { x } {
+	if { $x > 0 } {
+		return 1
 	}
-
-	return $res
+	if { $x < 0 } {
+		return -1
+	}
+	return 0
 }
 
-proc ::measure::math::min { args } {
-	set res ""
-
-	foreach v $args {
-		if { $res == "" || $v < $res } {
-			set res $v
-		}
-	}
-
-	return $res
-}
+###############################################################################
+# procedures in own namespace
+###############################################################################
 
 proc ::measure::math::slope { xvalues yvalues } {
     set len [min [llength $xvalues] [llength $yvalues]]
@@ -53,5 +47,17 @@ proc ::measure::math::slope { xvalues yvalues } {
         return 0.0
     }
     return [lindex $res 1]
+}
+
+proc ::measure::math::validateRange { varname minVal maxVal } {
+	upvar $varname v
+
+    if { $v > $maxVal } {
+        set v $maxVal 
+    } 
+    if { $v < $minVal } {
+        set v $minVal
+    }
+	return $v 
 }
 
