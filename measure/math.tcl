@@ -33,7 +33,7 @@ proc ::tcl::mathfunc::sign { x } {
 ###############################################################################
 
 proc ::measure::math::slope { xvalues yvalues } {
-    set len [min [llength $xvalues] [llength $yvalues]]
+    set len [::tcl::mathfunc::min [llength $xvalues] [llength $yvalues]]
     
     if { $len < 2 } {
         return 0.0

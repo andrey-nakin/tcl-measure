@@ -35,6 +35,7 @@ set tvalues [list]
 set terrvalues [list]
 set timevalues [list]
 set rtimevalues [list]
+set dervalues [list]
 
 # Число отсчётов температуры, необходимых для фурье-анализа
 set NUM_OF_FOURIER_READINGS 300
@@ -52,7 +53,7 @@ source [file join [file dirname [info script]] utils.tcl]
 
 # процедура, реализующая алгоритм ПИД
 proc pidCalc { dt } {
-	global pidState settings log derrs DTN
+	global pidState settings log derrs dervalues DTN
 
 	if { ![info exists pidState(currentTemperature)] || ![info exists pidState(setPoint)] } {
 		return 0.0
@@ -74,7 +75,7 @@ proc pidCalc { dt } {
 		if { $pidState(istopCounter) > 0 } {
 			incr pidState(istopCounter) -1
 		} else {
-			if { sign($pTerm) != sign($dTerm) } {
+			if { sign([lindex $dervalues 0]) != sign([lindex $dervalues end]) } {
 				set pidState(istop) 0
 			}
 		}
@@ -168,7 +169,7 @@ proc createRegFile {} {
 
 # Процедура вызывается модулем измерения температуры
 proc setTemperature { t tErr } {
-	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues START_TIME
+	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues dervalues START_TIME
 	global tvalues_fourier settings NUM_OF_FOURIER_READINGS           
 
 	set tm [clock milliseconds]
@@ -191,6 +192,8 @@ proc setTemperature { t tErr } {
 	set der1 [::measure::math::slope [lrange $rtimevalues end-${nd} end] [lrange $tvalues end-${nd} end]]
   	# Переведём наклон тренда в К/мин
   	set der1 [expr 1000.0 * 60.0 * $der1]
+  	# Добавим производную в список
+  	measure::listutils::lappend dervalues $der1 $settings(pid.nt) 
 
 	lappend tvalues_fourier $t
     if { [llength $tvalues_fourier] >= $NUM_OF_FOURIER_READINGS } {
@@ -224,7 +227,7 @@ proc currentSet { current voltage } {
 
 # Процедура изменяет значение уставки
 proc setPoint { t } {
-	global pidState log settings
+	global pidState log settings dervalues
 
 	set pidState(setPoint) $t
 
@@ -232,6 +235,7 @@ proc setPoint { t } {
 		set pidState(iaccum) 0.0
 		set pidState(istop) 1
 		set pidState(istopCounter) $settings(pid.nd)
+		set dervalues [list]
 	}
 
 	measure::interop::setVar runtime(setPoint) [format "%0.1f" $t]

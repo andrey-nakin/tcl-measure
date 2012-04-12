@@ -128,9 +128,12 @@ proc terminateMeasure {} {
 # Открываем файл с результами измерения
 proc openResults {} {
     global settings
-    
-	if { [info exists settings(result.fileName)] && $settings(result.fileName) != "" } {
-	    startfile::start $settings(result.fileName)
+
+	if { [info exists settings(result.fileName)] } {
+	    set fn [::measure::datafile::parseFileName $settings(result.fileName)]
+	    if { [file exists $fn] } {
+    	    startfile::start $fn
+        }
 	}
 }
 

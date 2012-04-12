@@ -68,8 +68,8 @@ proc measure::datafile::create { fileName format rewrite headers } {
             }
             puts -nonewline $f $v
         }
-        puts $f ""
     }
+    puts $f ""
     
     close $f
 }
@@ -114,18 +114,18 @@ proc measure::datafile::write { fileName format data } {
     close $f
 }
 
+proc measure::datafile::parseFileName { fn } {
+    set sep [file separator]
+    set autoDate [clock format [clock seconds] -format "%Y${sep}%m${sep}%d"]
+    return [string map -nocase [list {%autodate%} $autoDate] $fn] 
+}
+
 #############################################################################
 # Private
 #############################################################################
 
 proc measure::datafile::makeDateTime {} {
     return [clock format [clock seconds] -format %Y-%m-%dT%H:%M:%S]
-}
-
-proc measure::datafile::parseFileName { fn } {
-    set sep [file separator]
-    set autoDate [clock format [clock seconds] -format "%Y${sep}%m${sep}%d"]
-    return [string map -nocase [list {%autodate%} $autoDate] $fn] 
 }
 
 proc measure::datafile::validateDir { fn } {
