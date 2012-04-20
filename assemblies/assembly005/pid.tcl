@@ -19,6 +19,15 @@ package require measure::math
 # Константы
 ###############################################################################
 
+# При адаптивном интегральном члене константа определяет паузу,
+# между временем уставки и моментом, когда начинает анализироваться
+# производная dT/dt
+set ISTOP_DELAY 15
+
+###############################################################################
+# Глобальные переменные
+###############################################################################
+
 # Переменная, используемая для синхронизации
 set mutexVar 0
 
@@ -72,8 +81,10 @@ proc pidCalc { dt } {
     set dTerm [expr $settings(pid.td) * [::math::statistics::mean $derrs] ]
 
 	if { $pidState(istop) } {
-		if { $pidState(istopCounter) > 0 } {
-			incr pidState(istopCounter) -1
+		if { $pidState(istopDelay) } {
+			if { [clock seconds] >= $pidState(istopTime) } {
+				set pidState(istopDelay) 0
+			}
 		} else {
 			if { sign([lindex $dervalues 0]) != sign([lindex $dervalues end]) } {
 				set pidState(istop) 0
@@ -227,14 +238,15 @@ proc currentSet { current voltage } {
 
 # Процедура изменяет значение уставки
 proc setPoint { t } {
-	global pidState log settings dervalues
+	global pidState log settings dervalues ISTOP_DELAY
 
 	set pidState(setPoint) $t
 
 	if { $settings(pid.adaptiveIT) } {
 		set pidState(iaccum) 0.0
 		set pidState(istop) 1
-		set pidState(istopCounter) $settings(pid.nd)
+		set pidState(istopDelay) 1
+		set pidState(istopTime) [expr [clock seconds] + $ISTOP_DELAY]
 		set dervalues [list]
 	}
 
