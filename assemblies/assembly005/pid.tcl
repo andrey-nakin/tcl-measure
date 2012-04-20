@@ -182,7 +182,7 @@ proc setTemperature { t tErr } {
 
     # вычисляем тренд
     # Вычислим линейную аппроксимацию графика функции температуры, т.е. тренд
-    set b [::measure::math::slope $rtimevalues $tvalues]
+    lassign [::measure::math::slope-std $rtimevalues $tvalues] b sb
   	# Переведём наклон тренда в К/мин
   	set b [expr 1000.0 * 60.0 * $b]
 
@@ -205,10 +205,10 @@ proc setTemperature { t tErr } {
 	set pidState(currentTemperature) $t
 
 	# Сохраняем отсчёт температуры и времени в разделяемых переменных 
-	tsv::array set tempState [list temperature $t measureError $tErr error [expr $pidState(setPoint) - $t] trend $b timestamp $tm derivative1 $der1]
+	tsv::array set tempState [list temperature $t measureError $tErr error [expr $pidState(setPoint) - $t] trend $b sigma $sb timestamp $tm derivative1 $der1]
 	
 	# Выводим температуру в окне
-	measure::interop::cmd [list setTemperature $t $tErr [expr $pidState(setPoint) - $t] $b $der1]
+	measure::interop::cmd [list setTemperature $t $tErr [expr $pidState(setPoint) - $t] $b $sb $der1]
 
 	# Изменяем значение переменной синхронизации для остановки ожидания
 	incr mutexVar

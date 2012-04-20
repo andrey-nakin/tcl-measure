@@ -41,6 +41,7 @@ proc ::measure::http::server::get::state { paramList headerList args } {
             append result " measureError\t$state(measureError)"
             append result " error\t$state(error)"
             append result " trend\t$state(trend)"
+            append result " sigma\t$state(sigma)"
             append result " timestamp\t$state(timestamp)"
             append result " derivative1\t$state(derivative1)"
         }
@@ -52,6 +53,7 @@ proc ::measure::http::server::get::state { paramList headerList args } {
             append result "<p>Погрешность измерения (К):\t$state(measureError)"
             append result "<p>Невязка (К):\t$state(error)"
             append result "<p>Тренд (К/мин):\t$state(trend)"
+            append result "<p>Разброс вокруг тренда (К):\t$state(sigma)"
             append result "<p>Временная отметка (мс):\t$state(timestamp)"
             append result "</body></html>"
         }
@@ -62,6 +64,7 @@ proc ::measure::http::server::get::state { paramList headerList args } {
             append result "<measureError>$state(measureError)</measureError>"
             append result "<error>$state(error)</error>"
             append result "<trend>$state(trend)</trend>"
+            append result "<sigma>$state(sigma)</sigma>"
             append result "<timestamp>$state(timestamp)</timestamp>"
             append result "<derivative1>$state(derivative1)</derivative1>"
             append result "</state></root>"
@@ -73,6 +76,7 @@ proc ::measure::http::server::get::state { paramList headerList args } {
             append result ",measureError:$state(measureError)"
             append result ",error:$state(error)"
             append result ",trend:$state(trend)"
+            append result ",sigma:$state(sigma)"
             append result ",timestamp:$state(timestamp)"
             append result ",derivative1:$state(derivative1)"
             append result "}"

@@ -49,6 +49,23 @@ proc ::measure::math::slope { xvalues yvalues } {
     return [lindex $res 1]
 }
 
+proc ::measure::math::slope-std { xvalues yvalues } {
+    set len [::tcl::mathfunc::min [llength $xvalues] [llength $yvalues]]
+    
+    if { $len < 2 } {
+        return { 0.0 0.0 }
+    }
+    
+    if { $len == 2 } {
+        return [list [expr ([lindex $yvalues 1] - [lindex $yvalues 0]) / ([lindex $xvalues 1] - [lindex $xvalues 0])] 0.0 ]
+    }
+    
+    if { [catch {set res [::math::statistics::linear-model $xvalues $yvalues] }] } {
+        return { 0.0 0.0 }
+    }
+    return [list [lindex $res 1] [lindex $res 2] ]
+}
+
 proc ::measure::math::validateRange { varname minVal maxVal } {
 	upvar $varname v
 

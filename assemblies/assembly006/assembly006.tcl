@@ -196,6 +196,8 @@ proc setTemperature { lst } {
     
     set runtime(temperature) [format "%0.2f \u00b1 %0.2f" $state(temperature) $state(measureError)]
     set runtime(trend) [format "%0.2f" $state(trend)]
+    set runtime(sigma) [format "%0.2f" $state(sigma)]
+    set runtime(derivative1) [format "%0.2f" $state(derivative1)]
     set runtime(error) [format "%0.2f \u00b1 %0.2f" $state(error) $state(measureError)]
 }
 
@@ -252,20 +254,26 @@ grid [ttk::entry $p.eerr -textvariable runtime(error) -state readonly] -row 0 -c
 grid [ttk::label $p.lt -text "Температура, К:"] -row 1 -column 0 -sticky w
 grid [ttk::entry $p.et -textvariable runtime(temperature) -state readonly] -row 1 -column 1 -sticky we
 
-grid [ttk::label $p.ltr -text "Тренд, К/мин:"] -row 1 -column 3 -sticky w
-grid [ttk::entry $p.etr -textvariable runtime(trend) -state readonly] -row 1 -column 4 -sticky we
+grid [ttk::label $p.lder -text "Производная, К/мин:"] -row 1 -column 3 -sticky w
+grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 4 -sticky we
 
-grid [ttk::label $p.lc -text "Ток, мА:"] -row 2 -column 0 -sticky w
-grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 2 -column 1 -sticky we
+grid [ttk::label $p.ltr -text "Тренд, К/мин:"] -row 2 -column 0 -sticky w
+grid [ttk::entry $p.etr -textvariable runtime(trend) -state readonly] -row 2 -column 1 -sticky we
 
-grid [ttk::label $p.lv -text "Напряжение, мВ:"] -row 2 -column 3 -sticky w
-grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 2 -column 4 -sticky we
+grid [ttk::label $p.lsigma -text "Разброс, К:"] -row 2 -column 3 -sticky w
+grid [ttk::entry $p.esigma -textvariable runtime(sigma) -state readonly] -row 2 -column 4 -sticky we
 
-grid [ttk::label $p.lr -text "Сопротивление, Ом:"] -row 3 -column 0 -sticky w
-grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 3 -column 1 -sticky we
+grid [ttk::label $p.lc -text "Ток, мА:"] -row 3 -column 0 -sticky w
+grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 3 -column 1 -sticky we
 
-grid [ttk::label $p.lp -text "Мощность, мВт:"] -row 3 -column 3 -sticky w
-grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 3 -column 4 -sticky we
+grid [ttk::label $p.lv -text "Напряжение, мВ:"] -row 3 -column 3 -sticky w
+grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 3 -column 4 -sticky we
+
+grid [ttk::label $p.lr -text "Сопротивление, Ом:"] -row 4 -column 0 -sticky w
+grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 4 -column 1 -sticky we
+
+grid [ttk::label $p.lp -text "Мощность, мВт:"] -row 4 -column 3 -sticky w
+grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 4 -column 4 -sticky we
 
 grid columnconfigure $p { 0 1 3 4 } -pad 5
 grid columnconfigure $p { 2 } -minsize 20
@@ -302,6 +310,9 @@ grid [ttk::spinbox $p.maxerr -width 10 -textvariable settings(ts.maxErr) -from 0
 
 grid [ttk::label $p.lmaxtrend -text "Пороговый тренд, К/мин:"] -row 2 -column 0 -sticky w
 grid [ttk::spinbox $p.maxtrend -width 10 -textvariable settings(ts.maxTrend) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
+
+grid [ttk::label $p.lmaxsigma -text "Пороговый разброс, К:"] -row 3 -column 0 -sticky w
+grid [ttk::spinbox $p.maxsigma -width 10 -textvariable settings(ts.maxSigma) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5

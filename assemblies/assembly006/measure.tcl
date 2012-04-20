@@ -295,7 +295,7 @@ proc canMeasure { stateArray setPoint } {
 	set err [expr $setPoint - $state(temperature)]
 
 	# переменная хранит значение true, если мы готовы к измерению
-	set flag [expr abs($err) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) ]
+	set flag [expr abs($err) <= $settings(ts.maxErr) && abs($setPoint - $estimate) <= $settings(ts.maxErr) && abs($state(trend)) <= $settings(ts.maxTrend) && $state(sigma) <= $settings(ts.maxSigma) ]
 
 	if { $flag } {
 		# можно измерять!

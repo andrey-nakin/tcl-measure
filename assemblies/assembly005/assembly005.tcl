@@ -208,12 +208,13 @@ proc applySettings {} {
 ###############################################################################
 
 # Последняя измеренная температура
-proc setTemperature { t tErr err trend derivative1 } {
+proc setTemperature { t tErr err trend sigma derivative1 } {
 	global runtime canvas
 
 	set runtime(value) [format "%0.2f \u00b1 %0.2f" $t $tErr]
 	set runtime(error) [format "%0.2f \u00b1 %0.2f" $err $tErr]
 	set runtime(trend) [format "%0.2f" $trend]
+	set runtime(sigma) [format "%0.2f" $sigma]
 	set runtime(derivative1) [format "%0.2f" $derivative1]
 
 	measure::chart::${canvas}::addPoint $t
@@ -309,11 +310,14 @@ grid [ttk::entry $p.evl -textvariable runtime(value) -state readonly] -row 0 -co
 grid [ttk::label $p.le -text "Невязка, К:"] -row 0 -column 6 -sticky w
 grid [ttk::entry $p.ee -textvariable runtime(error) -state readonly] -row 0 -column 7 -sticky we
 
-grid [ttk::label $p.letrend -text "Тренд, К/мин:"] -row 1 -column 0 -sticky w
-grid [ttk::entry $p.etrend -textvariable runtime(trend) -state readonly] -row 1 -column 1 -sticky we
+grid [ttk::label $p.leder -text "Производная, К/мин:"] -row 1 -column 0 -sticky w
+grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 1 -sticky we
 
-grid [ttk::label $p.leder -text "Производная, К/мин:"] -row 1 -column 3 -sticky w
-grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 4 -sticky we
+grid [ttk::label $p.letrend -text "Тренд, К/мин:"] -row 1 -column 3 -sticky w
+grid [ttk::entry $p.etrend -textvariable runtime(trend) -state readonly] -row 1 -column 4 -sticky we
+
+grid [ttk::label $p.lesigma -text "Разброс, К:"] -row 1 -column 6 -sticky w
+grid [ttk::entry $p.esigma -textvariable runtime(sigma) -state readonly] -row 1 -column 7 -sticky we
 
 grid [ttk::label $p.lc -text "Ток питания, мА:"] -row 2 -column 0 -sticky w
 grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 2 -column 1 -sticky we
