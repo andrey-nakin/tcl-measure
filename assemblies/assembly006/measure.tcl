@@ -205,28 +205,37 @@ proc oneMeasurementDuration {} {
 
 # Процедура производит одно измерение со всеми нужными переполюсовками
 #   и сохраняет результаты в файле результатов
-proc makeMeasurement {  stateArray temps } {
+proc makeMeasurement { } {
 	global mm cmm connectors settings
-	upvar $stateArray state
 
 	set vs [list]; set svs [list]
 	set cs [list]; set scs [list]
 	set rs [list]; set srs [list]
 
 	# Пробегаем по переполюсовкам
-	set nc [llength $connectors]
-	for { set i 0 } { $i < $nc } { incr i } {
+	foreach conn $connectors {
 		# Устанавливаем нужную полярность
-		if { $nc > 1 } {
-			setConnectors [lindex $connectors $i]
+		if { [llength $connectors] > 1 } {
+			setConnectors $conn
 		}
 
 		# Ждём окончания переходных процессов, 
 		after $settings(switch.delay)
 
+        # Измеряем температуру до начала измерения                 
+		array set tBefore [measure::tsclient::state]
+		
 		# Измеряем напряжение
 		set res [doMeasure]
 
+        # Измеряем температуру сразу после измерения                 
+		array set tAfter [measure::tsclient::state]
+		
+		# вычисляем среднее значение температуры
+		set T [expr 0.5 * ($tAfter(temperature) + $tBefore(temperature))]
+		# и суммарную погрешность
+		set dT [measure::sigma::add $tAfter(measureError) [expr 0.5 * abs($tAfter(temperature) - $tBefore(temperature))] ]
+		
 		# Накапливаем суммы
 		lassign $res v sv c sc r sr
 		lappend vs $v; lappend svs $sv
@@ -237,7 +246,7 @@ proc makeMeasurement {  stateArray temps } {
         display $v $sv $c $sc $r $sr
 
 		# Выводим результаты в результирующий файл
-		measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP [lindex $temps $i] $state(measureError) $c $sc $v $sv $r $sr]
+		measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr]
 	}
 
 	# Вычисляем средние значения
@@ -246,7 +255,7 @@ proc makeMeasurement {  stateArray temps } {
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
 
     # добавляем точку на график
-    measure::interop::cmd [list addPointToChart $state(temperature) $r]
+    measure::interop::cmd [list addPointToChart $T $r]
               
 }
 
@@ -305,19 +314,9 @@ proc canMeasure { stateArray setPoint } {
 			# выдержим паузу перед началом измерений
 			measure::interop::sleep [::tcl::mathfunc::min $delay 5000]
 		}
-	
-		# вычисляем список предположительных температур в моменты измерения]
-		set temps [list]
-		set t [clock milliseconds]
-		set dt [expr [oneMeasurementDuration] + $settings(switch.delay)]
-		foreach c $connectors {
-			lappend temps [expr ($t - $state(timestamp)) * $tspeed + $state(temperature)]
-			set t [expr $t + $dt]
-		}
-		return $temps
 	}
 
-	return ""
+	return $flag
 }
 
 ###############################################################################
@@ -410,10 +409,9 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 		# Выводим температуру на экран
 		measure::interop::cmd [list setTemperature $stateList]
 
-		set temps [canMeasure state $t]
-		if { $temps != "" } {
+		if { [canMeasure state $t] } {
 			# Производим измерения
-			makeMeasurement state $temps
+			makeMeasurement
 			break
 		}
 

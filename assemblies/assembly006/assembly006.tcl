@@ -24,6 +24,7 @@ package require measure::visa
 package require measure::com
 package require measure::interop
 package require measure::chart
+package require measure::datafile
 package require startfile
 package require hardware::agilent::mm34410a
 

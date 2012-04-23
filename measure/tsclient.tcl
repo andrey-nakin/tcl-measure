@@ -9,6 +9,8 @@ package require Tcl 8.4
 package provide measure::tsclient 0.1.0
 
 package require cmdline
+package require uri
+package require http
 
 namespace eval ::measure::tsclient {
   namespace export

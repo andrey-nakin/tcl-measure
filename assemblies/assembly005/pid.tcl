@@ -19,10 +19,10 @@ package require measure::math
 # Константы
 ###############################################################################
 
-# При адаптивном интегральном члене константа определяет паузу,
+# При адаптивном интегральном члене константа определяет паузу в секундах,
 # между временем уставки и моментом, когда начинает анализироваться
 # производная dT/dt
-set ISTOP_DELAY 15
+set ISTOP_DELAY 30
 
 ###############################################################################
 # Глобальные переменные
@@ -203,8 +203,11 @@ proc setTemperature { t tErr } {
 	set der1 [::measure::math::slope [lrange $rtimevalues end-${nd} end] [lrange $tvalues end-${nd} end]]
   	# Переведём наклон тренда в К/мин
   	set der1 [expr 1000.0 * 60.0 * $der1]
-  	# Добавим производную в список
-  	measure::listutils::lappend dervalues $der1 $settings(pid.nt) 
+  	
+	if { !$pidState(istop) || !$pidState(istopDelay) } {
+      	# Добавим производную в список
+  	    measure::listutils::lappend dervalues $der1 $settings(pid.nt)
+    } 
 
 	lappend tvalues_fourier $t
     if { [llength $tvalues_fourier] >= $NUM_OF_FOURIER_READINGS } {
