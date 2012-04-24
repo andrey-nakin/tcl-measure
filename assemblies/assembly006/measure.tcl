@@ -21,6 +21,13 @@ package require measure::tsclient
 package require scpi
 
 ###############################################################################
+# Константы
+###############################################################################
+
+# макс. время ожидания благоприятного момента для старта измерения, мс
+set MAX_WAIT_TIME 3000
+
+###############################################################################
 # Подпрограммы
 ###############################################################################
 
@@ -40,12 +47,12 @@ proc doMeasure { } {
     set newTimeout [expr int(10000 * $n)]
          
 	# запускаем измерение напряжения
-	scpi::cmd $mm "INIT"
+	scpi::cmd $mm "SAMPLE:COUNT $n;:INIT"
 	fconfigure $mm -timeout $newTimeout 
 
     if { [info exists cmm] } {
     	# запускаем измерение тока
-    	scpi::cmd $cmm "INIT"
+    	scpi::cmd $cmm "SAMPLE:COUNT $n;:INIT"
     	fconfigure $cmm -timeout $newTimeout
     }
 
@@ -143,7 +150,6 @@ proc setupMM {} {
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc $settings(mm.nplc) \
-		-sampleCount $settings(measure.numOfSamples)	\
 		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
 		-text2 "V1 VOLTAGE" \
 		 $mm
@@ -175,7 +181,6 @@ proc setupCMM {} {
         	# Настраиваем мультиметр для измерения постоянного тока
         	hardware::agilent::mm34410a::configureDcCurrent \
         		-nplc $settings(cmm.nplc) \
-        		-sampleCount $settings(measure.numOfSamples)	\
         		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
         		-text2 "V2 CURRENT" \
         		 $cmm
@@ -185,7 +190,6 @@ proc setupCMM {} {
         	# Настраиваем мультиметр для измерения постоянного напряжения
         	hardware::agilent::mm34410a::configureDcVoltage \
         		-nplc $settings(cmm.nplc) \
-        		-sampleCount $settings(measure.numOfSamples)	\
         		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
         		-text2 "V2 VOLTAGE" \
         		 $cmm
@@ -243,7 +247,7 @@ proc makeMeasurement { } {
 		lappend rs $r; lappend srs $sr
 
         # Выводим результаты в окно программы
-        display $v $sv $c $sc $r $sr
+        display $v $sv $c $sc $r $sr $T "result"
 
 		# Выводим результаты в результирующий файл
 		measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr]
@@ -254,9 +258,11 @@ proc makeMeasurement { } {
 	set v [math::statistics::mean $vs]; set sv [math::statistics::mean $svs]
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
 
-    # добавляем точку на график
-    measure::interop::cmd [list addPointToChart $T $r]
-              
+	# переводим мультиметры в режим одиночных измерений
+	scpi::cmd $mm "SAMPLE:COUNT 1"
+    if { [info exists cmm] } {
+    	scpi::cmd $cmm "SAMPLE:COUNT 1"
+    }
 }
 
 # Отправляем команду термостату 
@@ -269,7 +275,7 @@ proc setPoint { t } {
 }
 
 # Процедура вычисляет продолжительность измерения сопротивления в мс, 
-# включая все нужные переполюсовки.
+# включая все нужные переполюсовки и паузы между ними.
 proc calcMeasureTime {} {
 	global settings
 	
@@ -283,12 +289,13 @@ proc calcMeasureTime {} {
 		return [expr 2.0 * $tm + $d]
 	}
 
-	return $tm
+	return [expr $tm + 100]
 }
 
 # Процедура определяет, вышли ли мы на нужные температурные условия
+# и готовы ли к измерению сопротивления
 proc canMeasure { stateArray setPoint } {
-	global settings connectors
+	global settings connectors MAX_WAIT_TIME
 	upvar $stateArray state
 	
 	# скорость измерения температуры, К/мс
@@ -310,9 +317,12 @@ proc canMeasure { stateArray setPoint } {
 		# можно измерять!
 		# вычислим задержку в мс для получения минимального отклонения температуры от уставки
 		set delay [expr int($err / $tspeed - 0.5 * $tm) - ([clock milliseconds] - $state(timestamp))]
-		if { $delay > 0 } {
+		if { $delay > $MAX_WAIT_TIME } {
+			# нет, слишком долго ждать, отложим измерения до следующего раза
+			set flag 0
+		} elseif { $delay > 0 } {
 			# выдержим паузу перед началом измерений
-			measure::interop::sleep [::tcl::mathfunc::min $delay 5000]
+			measure::interop::sleep $delay
 		}
 	}
 
@@ -415,8 +425,12 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 			break
 		}
 
+		# Производим тестовое измерение сопротивления
+		set tm [clock milliseconds]
+		testMeasureAndDisplay
+
 		# Ждём или 1 сек или пока не изменится переменная doSkipSetPoint
-		after 1000 set doSkipSetPoint timeout
+		after [expr int(1000 - ([clock milliseconds] - $tm))] set doSkipSetPoint timeout
 		vwait doSkipSetPoint
 		after cancel set doSkipSetPoint timeout
 	}

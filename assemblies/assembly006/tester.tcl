@@ -20,51 +20,6 @@ package require measure::tsclient
 # Подпрограммы
 ###############################################################################
 
-# Измеряет ток и напряжение на образце
-# Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
-proc doMeasure { } {
-    global mm cmm settings
-    
-	# измеряем напряжение на образце
-	set v [expr abs([scpi::query $mm "READ?"])]
-	# инструментальная погрешность
-	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mm.nplc]]
-
-	# измеряем силу тока
-	switch -exact -- $settings(current.method) {
-        0 {
-            # измеряем непосредственно ток
-			set c [expr abs([scpi::query $cmm "READ?"])]
-            # инструментальная погрешность
-            set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" [measure::config::get cmm.nplc]]
-        }
-        1 {
-            # измеряем падение напряжения на эталоне
-			set vv [expr abs([scpi::query $cmm "READ?"])] 
-    		set rr [measure::config::get current.reference.resistance 1.0] 
-			set c [expr $vv / $rr]
-    		# инструментальная погрешность
-            set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" [measure::config::get cmm.nplc]]
-    		set rrErr [measure::config::get current.reference.error 0.0] 
-	    	set cErr [measure::sigma::div $vv $vvErr $rr $rrErr]
-        }
-        2 {
-            # ток измеряется вручную
-            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
-            # инструментальная погрешность задаётся вручную
-            set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
-        }
-    }
-
-	# вычисляем сопротивление
-	set r [expr abs($v / $c)]
-	# определяем инструментальную погрешность
-	set rErr [measure::sigma::div $v $vErr $c $cErr]
-
-	# возвращаем результат измерений, переведённый в милливольты и милливольты
-	return [list [expr 1000.0 * $v] [expr 1000.0 * $vErr] [expr 1000.0 * $c] [expr 1000.0 * $cErr] $r $rErr]
-}
-
 # Инициализация вольтметра
 proc setupMM {} {
     global mm settings
@@ -146,11 +101,11 @@ proc run {} {
 	while { ![measure::interop::isTerminated] }	{
 		set tm [clock milliseconds]
 
-		# Снимаем показания
-		lassign [doMeasure] v sv c sc r sr
+		# Измеряем сопротивление и выводим результаты в окно программы
+		testMeasureAndDisplay
 
-        # Выводим результаты в окно программы
-        display $v $sv $c $sc $r $sr          
+		# Считываем значение температуры выводим её на экран
+		measure::interop::cmd [list setTemperature [measure::tsclient::state]]
 
 		# Выдерживаем паузу
 		measure::interop::sleep [expr int(500 - ([clock milliseconds] - $tm))]

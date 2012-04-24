@@ -190,7 +190,7 @@ proc measure::chart::staticChart { args } {
 		set yValues [list]
 	}
 
-	proc ::measure::chart::${canvas}::addPoint { x y } {
+	proc ::measure::chart::${canvas}::addPoint { x y { series "series1" } } {
 		variable xValues
 		variable yValues
 		variable options

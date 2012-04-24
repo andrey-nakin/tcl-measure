@@ -202,9 +202,9 @@ proc setTemperature { lst } {
     set runtime(error) [format "%0.2f \u00b1 %0.2f" $state(error) $state(measureError)]
 }
 
-proc addPointToChart { t r } {
+proc addPointToChart { t r { series "result" } } {
     global chartCanvas
-	measure::chart::${chartCanvas}::addPoint $t $r
+	measure::chart::${chartCanvas}::addPoint $t $r $series
 }
 
 ###############################################################################

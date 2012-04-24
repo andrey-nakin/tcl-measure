@@ -90,7 +90,7 @@ proc finish {} {
 	after 1000
 }
 
-proc display { v sv c sc r sr } {
+proc display { v sv c sc r sr { T "" } { series "result" } } {
     set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
     set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
     set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
@@ -105,7 +105,65 @@ proc display { v sv c sc r sr } {
 		measure::interop::setVar runtime(voltage) $vf
 		measure::interop::setVar runtime(resistance) $rf
 		measure::interop::setVar runtime(power) $pf
-		measure::interop::cmd "addValueToChart $r"
+		if { $T != "" } {
+			measure::interop::cmd [list addPointToChart $T $r $series]
+		}
 	}
+}
+
+# Процедура тестового измерения сопротивления
+# Измеряет ток и напряжение на образце
+# Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
+proc testMeasure { } {
+    global mm cmm settings
+    
+	# измеряем напряжение на образце
+	set v [expr abs([scpi::query $mm "READ?"])]
+	# инструментальная погрешность
+	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mm.nplc]]
+
+	# измеряем силу тока
+	switch -exact -- $settings(current.method) {
+        0 {
+            # измеряем непосредственно ток
+			set c [expr abs([scpi::query $cmm "READ?"])]
+            # инструментальная погрешность
+            set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" [measure::config::get cmm.nplc]]
+        }
+        1 {
+            # измеряем падение напряжения на эталоне
+			set vv [expr abs([scpi::query $cmm "READ?"])] 
+    		set rr [measure::config::get current.reference.resistance 1.0] 
+			set c [expr $vv / $rr]
+    		# инструментальная погрешность
+            set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" [measure::config::get cmm.nplc]]
+    		set rrErr [measure::config::get current.reference.error 0.0] 
+	    	set cErr [measure::sigma::div $vv $vvErr $rr $rrErr]
+        }
+        2 {
+            # ток измеряется вручную
+            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
+            # инструментальная погрешность задаётся вручную
+            set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
+        }
+    }
+
+	# вычисляем сопротивление
+	set r [expr abs($v / $c)]
+	# определяем инструментальную погрешность
+	set rErr [measure::sigma::div $v $vErr $c $cErr]
+
+	# возвращаем результат измерений, переведённый в милливольты и милливольты
+	return [list [expr 1000.0 * $v] [expr 1000.0 * $vErr] [expr 1000.0 * $c] [expr 1000.0 * $cErr] $r $rErr]
+}
+
+# Процедура производит тестовое измерение сопротивления,
+# и выводит результаты в окне
+proc testMeasureAndDisplay {} {
+	# Снимаем показания
+	lassign [testMeasure] v sv c sc r sr
+
+    # Выводим результаты в окно программы
+    display $v $sv $c $sc $r $sr          
 }
 
