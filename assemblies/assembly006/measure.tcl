@@ -67,7 +67,7 @@ proc doMeasure { } {
 	}
 
 	# считываем значение напряжения и вычисляем погрешность измерений
-	set vs [split [scpi::query $mm "DATA:REMOVE? $n"] ","]
+	set vs [split [scpi::query $mm "DATA:REMOVE? $n;:SAMPLE:COUNT 1"] ","]
 	# среднее значение и погрешность измерения
 	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
 	# инструментальная погрешность
@@ -77,7 +77,7 @@ proc doMeasure { } {
 	switch -exact -- $settings(current.method) {
         0 {
             # измеряем непосредственно ток
-            set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
+            set cs [split [scpi::query $cmm "DATA:REMOVE? $n;:SAMPLE:COUNT 1"] ","]
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
             # инструментальная погрешность
@@ -85,7 +85,7 @@ proc doMeasure { } {
         }
         1 {
             # измеряем падение напряжения на эталоне
-            set vvs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
+            set vvs [split [scpi::query $cmm "DATA:REMOVE? $n;:SAMPLE:COUNT 1"] ","]
             set vv [expr abs([math::statistics::mean $vvs])] 
     		set cs [list]
     		foreach c $vvs {
@@ -150,9 +150,11 @@ proc setupMM {} {
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc $settings(mm.nplc) \
+		-autoRange OFF \
 		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
 		-text2 "V1 VOLTAGE" \
 		 $mm
+    # scpi::cmd $mm "SENSE:VOLTAGE:DC:RANGE 100"
 }
 
 # Инициализация амперметра
@@ -257,12 +259,6 @@ proc makeMeasurement { } {
 	set c [math::statistics::mean $cs]; set sc [math::statistics::mean $scs]
 	set v [math::statistics::mean $vs]; set sv [math::statistics::mean $svs]
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
-
-	# переводим мультиметры в режим одиночных измерений
-	scpi::cmd $mm "SAMPLE:COUNT 1"
-    if { [info exists cmm] } {
-    	scpi::cmd $cmm "SAMPLE:COUNT 1"
-    }
 }
 
 # Отправляем команду термостату 

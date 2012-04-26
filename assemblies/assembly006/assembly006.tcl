@@ -196,9 +196,9 @@ proc setTemperature { lst } {
     array set state $lst
     
     set runtime(temperature) [format "%0.2f \u00b1 %0.2f" $state(temperature) $state(measureError)]
-    set runtime(trend) [format "%0.2f" $state(trend)]
-    set runtime(sigma) [format "%0.2f" $state(sigma)]
-    set runtime(derivative1) [format "%0.2f" $state(derivative1)]
+    set runtime(trend) [format "%0.3f" $state(trend)]
+    set runtime(sigma) [format "%0.3f" $state(sigma)]
+    set runtime(derivative1) [format "%0.3f" $state(derivative1)]
     set runtime(error) [format "%0.2f \u00b1 %0.2f" $state(error) $state(measureError)]
 }
 

@@ -110,9 +110,6 @@ proc pidCalc { dt } {
     # результирующий ток
 	set result [expr $pTerm + $iTerm + $dTerm]
 
-    # регистрируем температуру и управляющие токи
-	measure::datafile::write [measure::config::get reg.fileName] [measure::config::get reg.format] [list TIMESTAMP $pidState(currentTemperature) $pidState(setPoint) $result $pTerm $iTerm $dTerm]
-	
 	# Выводим токи управления в окне
 	measure::interop::cmd [list setPidTerms $pTerm $iTerm $dTerm]
 
@@ -171,7 +168,7 @@ proc writeFourierData { data } {
 }
 
 proc createRegFile {} {
-    measure::datafile::create [measure::config::get reg.fileName] [measure::config::get reg.format] [measure::config::get reg.rewrite] [list "Date/Time" "T (K)" "Set Point (K)" "C (mA)" "P-Term (mA)" "I-Term (mA)" "D-Accum (mA)"]
+    measure::datafile::create [measure::config::get reg.fileName] [measure::config::get reg.format] [measure::config::get reg.rewrite] [list "Date/Time" "T (K)" "Set Point (K)" "dT/dt (K/min)" "Slope (K/min)" "Sigma (K)"]
 }
 
 ###############################################################################
@@ -220,6 +217,11 @@ proc setTemperature { t tErr } {
 
 	# Сохраняем отсчёт температуры и времени в разделяемых переменных 
 	tsv::array set tempState [list temperature $t measureError $tErr error [expr $pidState(setPoint) - $t] trend $b sigma $sb timestamp $tm derivative1 $der1]
+	
+    # регистрируем температуру и управляющие токи
+	measure::datafile::write [measure::config::get reg.fileName] [measure::config::get reg.format] [list \
+        TIMESTAMP [format %0.4f $t] $pidState(setPoint) \
+        [format %0.3g $der1] [format %0.3g $b] [format %0.3g $sb] ]
 	
 	# Выводим температуру в окне
 	measure::interop::cmd [list setTemperature $t $tErr [expr $pidState(setPoint) - $t] $b $sb $der1]

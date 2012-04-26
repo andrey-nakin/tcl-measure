@@ -105,7 +105,7 @@ proc run {} {
 		testMeasureAndDisplay
 
 		# Считываем значение температуры выводим её на экран
-		measure::interop::cmd [list setTemperature [measure::tsclient::state]]
+		catch { measure::interop::cmd [list setTemperature [measure::tsclient::state]] }
 
 		# Выдерживаем паузу
 		measure::interop::sleep [expr int(500 - ([clock milliseconds] - $tm))]
