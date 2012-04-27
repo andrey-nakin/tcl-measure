@@ -163,7 +163,17 @@ proc testMeasureAndDisplay {} {
 	# Снимаем показания
 	lassign [testMeasure] v sv c sc r sr
 
-    # Выводим результаты в окно программы
-    display $v $sv $c $sc $r $sr          
+	# Считываем значение температуры выводим её на экран
+	if { [ catch {
+        set t [measure::tsclient::state]  
+        array set tstate $t
+        measure::interop::cmd [list setTemperature $t]
+         
+        # Выводим результаты в окно программы
+        display $v $sv $c $sc $r $sr $tstate(temperature) test          
+    } ] } {
+        # Выводим результаты в окно программы
+        display $v $sv $c $sc $r $sr          
+    }
 }
 

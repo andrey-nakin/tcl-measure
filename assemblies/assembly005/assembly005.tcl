@@ -212,10 +212,10 @@ proc setTemperature { t tErr err trend sigma derivative1 } {
 	global runtime canvas
 
 	set runtime(value) [format "%0.2f \u00b1 %0.2f" $t $tErr]
-	set runtime(error) [format "%0.2f \u00b1 %0.2f" $err $tErr]
+	set runtime(error) [format "%0.3f \u00b1 %0.2f" $err $tErr]
 	set runtime(trend) [format "%0.3f" $trend]
 	set runtime(sigma) [format "%0.3f" $sigma]
-	set runtime(derivative1) [format "%0.2f" $derivative1]
+	set runtime(derivative1) [format "%0.3f" $derivative1]
 
 	measure::chart::${canvas}::addPoint $t
 }

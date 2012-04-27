@@ -25,7 +25,7 @@ package require scpi
 ###############################################################################
 
 # макс. время ожидания благоприятного момента для старта измерения, мс
-set MAX_WAIT_TIME 3000
+set MAX_WAIT_TIME 1000
 
 ###############################################################################
 # Подпрограммы
@@ -154,7 +154,6 @@ proc setupMM {} {
 		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
 		-text2 "V1 VOLTAGE" \
 		 $mm
-    # scpi::cmd $mm "SENSE:VOLTAGE:DC:RANGE 100"
 }
 
 # Инициализация амперметра
@@ -212,53 +211,30 @@ proc oneMeasurementDuration {} {
 # Процедура производит одно измерение со всеми нужными переполюсовками
 #   и сохраняет результаты в файле результатов
 proc makeMeasurement { } {
-	global mm cmm connectors settings
+	global mm cmm settings
 
-	set vs [list]; set svs [list]
-	set cs [list]; set scs [list]
-	set rs [list]; set srs [list]
+    # Измеряем температуру до начала измерения                 
+	array set tBefore [measure::tsclient::state]
+	
+	# Измеряем напряжение
+	set res [doMeasure]
 
-	# Пробегаем по переполюсовкам
-	foreach conn $connectors {
-		# Устанавливаем нужную полярность
-		if { [llength $connectors] > 1 } {
-			setConnectors $conn
-		}
+    # Измеряем температуру сразу после измерения                 
+	array set tAfter [measure::tsclient::state]
+	
+	# вычисляем среднее значение температуры
+	set T [expr 0.5 * ($tAfter(temperature) + $tBefore(temperature))]
+	# и суммарную погрешность
+	set dT [measure::sigma::add $tAfter(measureError) [expr 0.5 * abs($tAfter(temperature) - $tBefore(temperature))] ]
+	
+	# раскидываем массив по переменным
+	lassign $res v sv c sc r sr
 
-		# Ждём окончания переходных процессов, 
-		after $settings(switch.delay)
+    # Выводим результаты в окно программы
+    display $v $sv $c $sc $r $sr $T "result"
 
-        # Измеряем температуру до начала измерения                 
-		array set tBefore [measure::tsclient::state]
-		
-		# Измеряем напряжение
-		set res [doMeasure]
-
-        # Измеряем температуру сразу после измерения                 
-		array set tAfter [measure::tsclient::state]
-		
-		# вычисляем среднее значение температуры
-		set T [expr 0.5 * ($tAfter(temperature) + $tBefore(temperature))]
-		# и суммарную погрешность
-		set dT [measure::sigma::add $tAfter(measureError) [expr 0.5 * abs($tAfter(temperature) - $tBefore(temperature))] ]
-		
-		# Накапливаем суммы
-		lassign $res v sv c sc r sr
-		lappend vs $v; lappend svs $sv
-		lappend cs $c; lappend scs $sc
-		lappend rs $r; lappend srs $sr
-
-        # Выводим результаты в окно программы
-        display $v $sv $c $sc $r $sr $T "result"
-
-		# Выводим результаты в результирующий файл
-		measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr]
-	}
-
-	# Вычисляем средние значения
-	set c [math::statistics::mean $cs]; set sc [math::statistics::mean $scs]
-	set v [math::statistics::mean $vs]; set sv [math::statistics::mean $svs]
-	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
+	# Выводим результаты в результирующий файл
+	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr]
 }
 
 # Отправляем команду термостату 
@@ -268,24 +244,6 @@ proc setPoint { t } {
 
 	# Выведем новую уставку на экран
 	measure::interop::cmd [list setPointSet $t]
-}
-
-# Процедура вычисляет продолжительность измерения сопротивления в мс, 
-# включая все нужные переполюсовки и паузы между ними.
-proc calcMeasureTime {} {
-	global settings
-	
-	set tm [oneMeasurementDuration]
-	set d $settings(switch.delay)
-
-	if { $settings(switch.voltage) && $settings(switch.current) } {
-		return [expr 4.0 * $tm + 3.0 * $d]
-	}
-	if { $settings(switch.voltage) || $settings(switch.current) } {
-		return [expr 2.0 * $tm + $d]
-	}
-
-	return [expr $tm + 100]
 }
 
 # Процедура определяет, вышли ли мы на нужные температурные условия
@@ -298,7 +256,7 @@ proc canMeasure { stateArray setPoint } {
 	set tspeed [expr $state(derivative1) / (60.0 * 1000.0)]
 
 	# продолжительность измерительного цикла
-	set tm [calcMeasureTime]
+	set tm [oneMeasurementDuration]
 
     # предполагаемая температура по окончании измерения
     set estimate [expr $state(temperature) + $tspeed * $tm ]
@@ -333,6 +291,7 @@ proc canMeasure { stateArray setPoint } {
 proc skipSetPoint {} {
 	global doSkipSetPoint
 
+    global log
 	set doSkipSetPoint yes
 }
 
@@ -341,6 +300,40 @@ proc applySettings { lst } {
 	global settings
 
 	array set settings $lst
+}
+
+# Процедура измерения одной температурной точки
+proc measureOnePoint { t } {
+    global doSkipSetPoint
+
+	# Цикл продолжается, пока не выйдем на нужную температуру
+	# или оператор не прервёт
+	while { $doSkipSetPoint != "yes" } {
+		# Проверяем, не была ли нажата кнопка "Стоп"
+		measure::interop::checkTerminated
+
+		# Считываем значение температуры
+		set stateList [measure::tsclient::state]
+		array set state $stateList 
+		
+		# Выводим температуру на экран
+		measure::interop::cmd [list setTemperature $stateList]
+
+		if { [canMeasure state $t] } {
+			# Производим измерения
+			makeMeasurement
+			break
+		}
+
+		# Производим тестовое измерение сопротивления
+		set tm [clock milliseconds]
+		testMeasureAndDisplay
+
+		# Ждём или 1 сек или пока не изменится переменная doSkipSetPoint
+		after [expr int(1000 - ([clock milliseconds] - $tm))] set doSkipSetPoint timeout
+		vwait doSkipSetPoint
+		after cancel set doSkipSetPoint timeout
+	}
 }
 
 ###############################################################################
@@ -402,34 +395,24 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 	# Переменная-триггер для пропуска точек в программе температур
 	set doSkipSetPoint ""
 	
-	# Цикл продолжается, пока не выйдем на нужную температуру
-	# или оператор не прервёт
-	while { $doSkipSetPoint != "yes" } {
-		# Проверяем, не была ли нажата кнопка "Стоп"
-		measure::interop::checkTerminated
-
-		# Считываем значение температуры
-		set stateList [measure::tsclient::state]
-		array set state $stateList 
-		
-		# Выводим температуру на экран
-		measure::interop::cmd [list setTemperature $stateList]
-
-		if { [canMeasure state $t] } {
-			# Производим измерения
-			makeMeasurement
-			break
+	# Пробегаем по переполюсовкам
+	foreach conn $connectors {
+		# Устанавливаем нужную полярность
+		if { [llength $connectors] > 1 } {
+			setConnectors $conn
+			
+    		# Ждём окончания переходных процессов, 
+    		after $settings(switch.delay)
 		}
 
-		# Производим тестовое измерение сопротивления
-		set tm [clock milliseconds]
-		testMeasureAndDisplay
-
-		# Ждём или 1 сек или пока не изменится переменная doSkipSetPoint
-		after [expr int(1000 - ([clock milliseconds] - $tm))] set doSkipSetPoint timeout
-		vwait doSkipSetPoint
-		after cancel set doSkipSetPoint timeout
-	}
+		# Работаем в заданной температурной точке
+		measureOnePoint $t
+    	
+    	if { $doSkipSetPoint == "yes" } {
+        	# коннекторы в исходное
+    		break
+    	}
+    }
 }
 
 ###############################################################################

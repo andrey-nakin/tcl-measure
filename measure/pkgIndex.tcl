@@ -21,5 +21,6 @@ package ifneeded measure::tsclient 0.1.0 [list source [file join $dir tsclient.t
 
 set maindir $dir
 set dir [file join $maindir widget]; source [file join $dir pkgIndex.tcl]
+set dir [file join $maindir chart]; source [file join $dir pkgIndex.tcl]
 unset maindir
 

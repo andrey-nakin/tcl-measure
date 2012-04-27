@@ -28,6 +28,16 @@ proc ::tcl::mathfunc::sign { x } {
 	return 0
 }
 
+proc ::tcl::mathfunc::roundDown { x  { digits 0 } } {
+    set rounder [expr pow(10.0, $digits)]
+    return [expr floor(abs($x) * $rounder) / $rounder * sign($x)]
+}
+
+proc ::tcl::mathfunc::roundUp { x  { digits 0 } } {
+    set rounder [expr pow(10.0, $digits)]
+    return [expr ceil(abs($x) * $rounder) / $rounder * sign($x)]
+}
+
 ###############################################################################
 # procedures in own namespace
 ###############################################################################

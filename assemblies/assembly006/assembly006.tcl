@@ -109,7 +109,7 @@ proc startMeasure {} {
 	
     # Очищаем результаты в окне программы
 	clearResults
-	
+
 	# Очищаем график
 	measure::chart::${chartCanvas}::clear
 }
@@ -199,7 +199,7 @@ proc setTemperature { lst } {
     set runtime(trend) [format "%0.3f" $state(trend)]
     set runtime(sigma) [format "%0.3f" $state(sigma)]
     set runtime(derivative1) [format "%0.3f" $state(derivative1)]
-    set runtime(error) [format "%0.2f \u00b1 %0.2f" $state(error) $state(measureError)]
+    set runtime(error) [format "%0.3f \u00b1 %0.2f" $state(error) $state(measureError)]
 }
 
 proc addPointToChart { t r { series "result" } } {
@@ -216,7 +216,7 @@ measure::logger::server
 
 # Создаём окно программы
 set w ""
-wm title $w. "Установка № 6: Измерение УС в зависимости от температуры"
+wm title $w. "Установка № 6: Измерение R(T)"
 
 # При нажатии крестика в углу окна вызыватьспециальную процедуру завершения
 wm protocol $w. WM_DELETE_WINDOW { quit }
@@ -287,6 +287,9 @@ pack $p -fill both -padx 10 -pady 5 -expand 1
 set chartCanvas [canvas $p.c -width 400 -height 200]
 pack $chartCanvas -fill both -expand 1
 measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" -dots 1 -lines 1 $chartCanvas
+# параметры графика
+measure::chart::${chartCanvas}::series result -color green
+measure::chart::${chartCanvas}::series test -maxCount 10 -color #7f7fff
 
 # Закладка "Параметры измерения"
 ttk::frame $w.nb.ms

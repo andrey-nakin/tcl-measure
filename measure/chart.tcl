@@ -10,6 +10,8 @@ package provide measure::chart 0.1.0
 package require cmdline
 package require Plotchart
 package require measure::listutils
+package require measure::chart::static-chart
+package require measure::math
 
 namespace eval measure::chart {
   namespace export limits
@@ -36,8 +38,8 @@ proc measure::chart::limits { min max } {
 		set max $v
 	}
 
-	if { $max - $min < 1.0e-100 } {
-		set max [expr $min + 1.0e-100]
+	if { $max - $min < 1.0e-10 } {
+		set max [expr $min + 1.0e-10]
 	}
 
     if { $max >= 0 && $min >= 0 } {
@@ -166,112 +168,14 @@ proc measure::chart::movingChart { args } {
 
 }
 
-proc measure::chart::staticChart { args } {
-	set opts {
-		{xlabel.arg		""	"X-axis label"}
-		{ylabel.arg		""	"Y-axis label"}
-		{lines.arg		"1"	"Plot lines"}
-		{dots.arg		"0"	"Plot dots"}
-	}
-
-	set usage ": measure::chart::movingChart \[options] canvas\noptions:"
-	array set options [::cmdline::getoptions args $opts $usage]
-	lassign $args canvas
-
-	namespace eval ::measure::chart::${canvas} {
-        variable redo
-		variable xValues
-		variable yValues
-		variable chartBgColor
-		variable canvas
-		variable options
-
-		set xValues [list]
-		set yValues [list]
-	}
-
-	proc ::measure::chart::${canvas}::addPoint { x y { series "series1" } } {
-		variable xValues
-		variable yValues
-		variable options
-
-		lappend xValues $x
-		lappend yValues $y
-
-		doPlot	
-	}
-
-	proc ::measure::chart::${canvas}::clear { } {
-		variable xValues
-		variable yValues
-
-		set xValues [list]
-		set yValues [list]
-
-		doPlot	
-	}
-	
-	proc ::measure::chart::${canvas}::makeLimits { values } {
-		if { [llength $values] > 0 } {
-			set stats [::math::statistics::basic-stats $values]
-			return [measure::chart::limits [lindex $stats 1] [lindex $stats 2]]
-		} else {
-			return [measure::chart::limits 0.0 1.0]
-		}
-	}
-
-	proc ::measure::chart::${canvas}::doPlot {} {
-		variable xValues
-		variable yValues
-		variable chartBgColor
-		variable canvas
-		variable options
-
-		$canvas delete all
-
-		set s [::Plotchart::createXYPlot $canvas [makeLimits $xValues] [makeLimits $yValues]]
-		$s dataconfig series1 -colour green
-		$s dotconfig series1 -colour green
-		$s xtext $options(xlabel)
-		$s xconfig -format %2g
-		$s ytext $options(ylabel)
-		$s yconfig -format %2g
-
-		if { ![info exists chartBgColor] } {
-			set chartBgColor [$canvas cget -bg]
-		}
-		$s background plot black
-		$s background axes $chartBgColor
-
-		foreach x $xValues y $yValues {
-            if { $options(lines) } {
-    			$s plot series1 $x $y
-            }
-            if { $options(dots) } {
-    			$s dot series1 $x $y 3
-    		}
-		}
-	}
-
-	proc ::measure::chart::${canvas}::doResize {} {
-		doPlot
-	}
-
-	set ::measure::chart::${canvas}::canvas $canvas
-	set ::measure::chart::${canvas}::chartValues [list]
-	array set ::measure::chart::${canvas}::options [array get options]
-
-	bind $canvas <Configure> "::measure::chart::${canvas}::doResize"
-
-}
-
 ###############################################################################
 # Internal procedures
 ###############################################################################
 
 proc measure::chart::calcLimits { min max } {
-    set diff [expr $max - $min]
-    return [list [expr floor($min - 1)] [expr floor($max + 1)] ]
+    set a [expr log10($max - $min)]
+    set b [expr -int($a >= 0 ? roundDown($a) : roundUp($a))]
+    return [list [expr roundDown($min, $b)] [expr roundUp($max, $b)] ]
 } 
 
 proc measure::chart::calcHigherLimit { v } {
