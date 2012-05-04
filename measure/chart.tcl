@@ -38,8 +38,8 @@ proc measure::chart::limits { min max } {
 		set max $v
 	}
 
-	if { $max - $min < 1.0e-10 } {
-		set max [expr $min + 1.0e-10]
+	if { $max - $min < 1.0e-5 } {
+		set max [expr $min + 1.0e-5]
 	}
 
     if { $max >= 0 && $min >= 0 } {

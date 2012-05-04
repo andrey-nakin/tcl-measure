@@ -54,7 +54,7 @@ proc scpi::open { args } {
 		set channel [openVisaChannel $addr $access]
 	} else {
 		# open as a system device
-		set channel [open $addr $access]
+		set channel [::open $addr $access]
 		# configure channel for SCPI message protocol
 		configure $channel
 	}

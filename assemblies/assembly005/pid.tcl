@@ -97,8 +97,8 @@ proc pidCalc { dt } {
 		set pidState(iaccum) [expr $pidState(iaccum) + $err]
 
 		# проверка на выход за разрешенный предел
-		if { $settings(pid.maxi) != "" } {
-			::measure::math::validateRange pidState(iaccum) -$settings(pid.maxi) $settings(pid.maxi)
+		if { $settings(pid.maxi) != "" || $settings(pid.maxiNeg) != "" } {
+			::measure::math::validateRange pidState(iaccum) -$settings(pid.maxiNeg) $settings(pid.maxi)
 		}
 		
 		# интегральный член

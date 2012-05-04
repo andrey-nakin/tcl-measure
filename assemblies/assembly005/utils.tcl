@@ -15,6 +15,7 @@ proc validateSettings {} {
         pid.nt 15
 		pid.adaptiveIT 0
 		pid.maxi ""
+		pid.maxiNeg ""
     }
 }
 

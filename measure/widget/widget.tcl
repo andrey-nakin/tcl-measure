@@ -13,6 +13,7 @@ package require Ttk
 package require measure::widget::images
 package require startfile
 package require hardware::agilent::mm34410a
+package require measure::datafile
 
 namespace eval ::measure::widget {
   namespace export setDisabledByVar

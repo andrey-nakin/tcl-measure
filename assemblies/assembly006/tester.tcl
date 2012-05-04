@@ -15,6 +15,7 @@ package require hardware::agilent::mm34410a
 package require measure::interop
 package require measure::sigma
 package require measure::tsclient
+package require measure::datafile
 
 ###############################################################################
 # Подпрограммы

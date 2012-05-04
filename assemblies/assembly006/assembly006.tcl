@@ -340,23 +340,25 @@ grid columnconfigure $p { 1 } -weight 1
 pack $p -fill x -padx 10 -pady 5
 
 # Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.l.reg -text " Файл результатов " -pad 10]
+set p [ttk::labelframe $w.nb.ms.l.reg -text " Файлы результатов " -pad 10]
 
-grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
+grid [ttk::label $p.lname -text "Зависимость R(T): " -anchor e] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -sticky we
-grid [ttk::button $p.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $p.name" -image ::img::open] -row 0 -column 2 -sticky w
 
-grid [ttk::label $p.lformat -text "Формат файла:"] -row 2 -column 0 -sticky w
-grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 2 -column 1 -columnspan 2 -sticky e
+grid [ttk::label $p.ltname -text "Трасировка T(t), R(t): " -anchor e] -row 1 -column 0 -sticky w
+grid [ttk::entry $p.tname -textvariable settings(trace.fileName)] -row 1 -column 1 -sticky we
 
-grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 3 -column 0 -sticky w
-grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 3 -column 1 -columnspan 2 -sticky e
+grid [ttk::label $p.lformat -text "Формат файла:"] -row 3 -column 0 -sticky w
+grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 3 -column 1 -columnspan 2 -sticky e
 
-grid [ttk::button $p.open -text "Открыть файл результатов" -command openResults -image ::img::open -compound left] -row 4 -column 0 -columnspan 4 -sticky e
+grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 4 -column 0 -sticky w
+grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 4 -column 1 -columnspan 2 -sticky e
+
+grid [ttk::button $p.open -text "Открыть файл R(T)" -command openResults -image ::img::open -compound left] -row 5 -column 0 -columnspan 4 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p { 0 1 2 3 } -pad 5
-grid rowconfigure $p { 4 } -pad 10
+grid rowconfigure $p { 0 1 2 3 4 } -pad 5
+grid rowconfigure $p { 5 } -pad 10
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5

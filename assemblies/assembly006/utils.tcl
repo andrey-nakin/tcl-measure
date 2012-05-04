@@ -95,7 +95,7 @@ proc display { v sv c sc r sr { T "" } { series "result" } } {
     set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
     set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
     set pf [format "%0.3g" [expr 0.001 * $c * $v]]    
-      
+
 	if { [measure::interop::isAlone] } {
 	    # Выводим результаты в консоль
 		puts "Current=$cf\tVoltage=$vf\tResistance=$rf\tPower=$pf"
@@ -159,7 +159,7 @@ proc testMeasure { } {
 
 # Процедура производит тестовое измерение сопротивления,
 # и выводит результаты в окне
-proc testMeasureAndDisplay {} {
+proc testMeasureAndDisplay { { traceFileName "" } { traceFileFormat "" } } {
 	# Снимаем показания
 	lassign [testMeasure] v sv c sc r sr
 
@@ -168,10 +168,15 @@ proc testMeasureAndDisplay {} {
         set t [measure::tsclient::state]  
         array set tstate $t
         measure::interop::cmd [list setTemperature $t]
+
+        # Трассируем значения температуры и сопротивления         
+    	measure::datafile::write $traceFileName $traceFileFormat [list TIMESTAMP [format %0.3f $tstate(temperature)] [format %0.6g $r]]
          
         # Выводим результаты в окно программы
         display $v $sv $c $sc $r $sr $tstate(temperature) test          
-    } ] } {
+    } err ] } {
+        global log
+        ${log}::error "testMeasureAndDisplay $err"
         # Выводим результаты в окно программы
         display $v $sv $c $sc $r $sr          
     }

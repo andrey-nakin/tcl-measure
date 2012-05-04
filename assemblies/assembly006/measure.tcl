@@ -44,7 +44,9 @@ proc doMeasure { } {
 	
     # сохраняем текущее значение таймаута и вычисляем новое
 	set timeout [fconfigure $mm -timeout]
-    set newTimeout [expr int(10000 * $n)]
+    set newTimeout [expr int(2.0 * [oneMeasurementDuration])]
+    global log
+    ${log}::debug "doMeasure newTimeout=$newTimeout !!!"
          
 	# запускаем измерение напряжения
 	scpi::cmd $mm "SAMPLE:COUNT $n;:INIT"
@@ -77,11 +79,13 @@ proc doMeasure { } {
 	switch -exact -- $settings(current.method) {
         0 {
             # измеряем непосредственно ток
-            set cs [split [scpi::query $cmm "DATA:REMOVE? $n;:SAMPLE:COUNT 1"] ","]
+            set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
+#            set cs [split [scpi::query $cmm "DATA:REMOVE? $n;:SAMPLE:COUNT 1"] ","]
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
             # инструментальная погрешность
             set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(cmm.nplc)]
+            scpi::cmd $cmm "SAMPLE:COUNT 1"
         }
         1 {
             # измеряем падение напряжения на эталоне
@@ -283,28 +287,9 @@ proc canMeasure { stateArray setPoint } {
 	return $flag
 }
 
-###############################################################################
-# Обработчики событий
-###############################################################################
-
-# Команда пропустить одну точку в программе температур
-proc skipSetPoint {} {
-	global doSkipSetPoint
-
-    global log
-	set doSkipSetPoint yes
-}
-
-# Команда прочитать последние настройки
-proc applySettings { lst } {
-	global settings
-
-	array set settings $lst
-}
-
 # Процедура измерения одной температурной точки
 proc measureOnePoint { t } {
-    global doSkipSetPoint
+    global doSkipSetPoint settings
 
 	# Цикл продолжается, пока не выйдем на нужную температуру
 	# или оператор не прервёт
@@ -327,13 +312,32 @@ proc measureOnePoint { t } {
 
 		# Производим тестовое измерение сопротивления
 		set tm [clock milliseconds]
-		testMeasureAndDisplay
+		testMeasureAndDisplay $settings(trace.fileName) $settings(result.format)
 
 		# Ждём или 1 сек или пока не изменится переменная doSkipSetPoint
 		after [expr int(1000 - ([clock milliseconds] - $tm))] set doSkipSetPoint timeout
 		vwait doSkipSetPoint
 		after cancel set doSkipSetPoint timeout
 	}
+}
+
+###############################################################################
+# Обработчики событий
+###############################################################################
+
+# Команда пропустить одну точку в программе температур
+proc skipSetPoint {} {
+	global doSkipSetPoint
+
+    global log
+	set doSkipSetPoint yes
+}
+
+# Команда прочитать последние настройки
+proc applySettings { lst } {
+	global settings
+
+	array set settings $lst
 }
 
 ###############################################################################
@@ -372,9 +376,12 @@ if { $settings(switch.current) } {
 	}
 }
 
-# Создаём файл с результатами измерений
+# Создаём файлы с результатами измерений
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) {
 	"Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" 
+}
+measure::datafile::create $settings(trace.fileName) $settings(result.format) $settings(result.rewrite) {
+	"Date/Time" "T (K)" "R (Ohm)" 
 }
 
 ###############################################################################

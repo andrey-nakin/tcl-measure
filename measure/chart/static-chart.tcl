@@ -64,7 +64,7 @@ proc measure::chart::staticChart { args } {
     		lappend xValues($series) $x
     		lappend yValues($series) $y
         }
-        
+ 
 		doPlot	
 	}
 
