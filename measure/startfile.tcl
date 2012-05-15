@@ -40,7 +40,7 @@ proc startfile::startWin { fileName args } {
 
 	if { ![catch {
 		package require twapi
-		twapi::shell_execute -path $fileName -params $args
+		twapi::shell_execute -path $fileName -verb open -params $args
 	} rc] } {
 		return
 	} else {

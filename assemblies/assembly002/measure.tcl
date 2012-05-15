@@ -9,7 +9,7 @@ package require Tcl 8.5
 package require measure::logger
 package require measure::config
 package require hardware::owen::mvu8
-package require hardware::scpi
+package require scpi
 package require hardware::agilent::pse3645a
 package require hardware::agilent::mm34410a
 package require tclvisa
@@ -68,7 +68,7 @@ proc setupMM {} {
 
 	# Настраиваем мультиметр для измерения постоянного напряжеия
 	hardware::agilent::mm34410a::configureDcVoltage \
-		-autoRange ONCE -autoZero ONCE -triggerDelay 0	\
+		-autoRange ON -autoZero ON -triggerDelay 0	\
 		-sampleInterval [expr 1.0 / $measure(freq)]	\
 		-sampleCount $measure(numberOfSamples)	\
 		 $mm

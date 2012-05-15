@@ -10,7 +10,7 @@ mMin=min(M(:,2))
 mMax=max(M(:,2))
 mMean=mean(M(:,2))
 mSigma=st_deviation(M(:,2))
-printf("Mean\t%f\nMedian\t%f\nSigma\t%f\nMin\t%f\nMax\t%f\n", mMean, median(M(:,2)), mSigma, mMin, mMax)
+printf("Mean\t%0.6g\nMedian\t%0.6g\nSigma\t%0.6g\nMin\t%0.6g\nMax\t%0.6g\nMax-Min\t%0.6g\n", mMean, median(M(:,2)), mSigma, mMin, mMax, mMax - mMin)
 
 xtitle("Sample", "Time, sec", "Voltage, V")
 plot2d(M(1:m, 1), M(1:m, 2))

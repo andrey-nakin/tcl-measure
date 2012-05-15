@@ -70,6 +70,7 @@ proc openResults {} {
 proc analyzeResults {} {
     global measure
     
+#    startfile::start [file join [file dirname [info script]] analyze.sce]
 	catch { exec "C:/Program Files/scilab-5.3.3/bin/WScilex.exe" -f "analyze.sce" & }
 }
 
