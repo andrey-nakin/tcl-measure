@@ -24,27 +24,28 @@ package require math::statistics
 
 # Измеряет ток и напряжение на образце
 # Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
-proc measureVoltage { } {
+proc measureVoltage { numOfSamples } {
     global mm measure
     
 	# выставим нужный таймаут
 	set timeout [fconfigure $mm -timeout]
-	fconfigure $mm -timeout [expr int(10000 * $measure(numberOfSamples))]
+	fconfigure $mm -timeout [expr int(10000 * $numOfSamples)]
 
 	# запускаем измерение напряжения
-	scpi::cmd $mm "INIT"
+	scpi::cmd $mm "SAMPLE:COUNT $numOfSamples"
+#	scpi::cmd $mm "INIT"
 
 	# ждём завершения измерения напряжения, замеряем продолжительность измерения
 	set tm [clock milliseconds]
-	scpi::query $mm "*OPC?"
+#	scpi::query $mm "*OPC?"
+	set vs [split [scpi::query $mm "READ?"] ","]
 	set tm [expr 0.001 * ([clock milliseconds] - $tm)]
 
     # восстановим таймаут
 	fconfigure $mm -timeout $timeout
 
 	# считываем значения напряжения
-	set n $measure(numberOfSamples)
-	set vs [split [scpi::query $mm "DATA:REMOVE? $n"] ","]
+#	set vs [split [scpi::query $mm "DATA:REMOVE? $numOfSamples"] ","]
 
 	return [list $vs $tm]
 }
@@ -70,7 +71,7 @@ proc setupMM {} {
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-autoRange ON -autoZero ON -triggerDelay 0	\
 		-sampleInterval [expr 1.0 / $measure(freq)]	\
-		-sampleCount $measure(numberOfSamples)	\
+		-sampleCount 1	\
 		 $mm
 }
 
@@ -109,10 +110,10 @@ setupMM
 ###############################################################################
 
 # Холостое измерение для "прогрева" мультиметров
-measureVoltage
+measureVoltage 1
 
 # Снимаем напряжение
-lassign [measureVoltage] vs tm 
+lassign [measureVoltage $measure(numberOfSamples)] vs tm 
 
 # Записываем результаты в файл
 set t 0.0

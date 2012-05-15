@@ -442,19 +442,21 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 		set params(triggerDelay) DEF
 	}
 	if { ![string equal -nocase $params(triggerDelay) "DEF"] } {
-	    scpi::cmd $mm "TRIGGER:DELAY $params(triggerDelay)"
+	    scpi::cmd $mm ":TRIGGER:DELAY $params(triggerDelay)"
 	}
-	if { $params(sampleInterval) != "" } {
-		# Настраиваем периодический съём сигнала
-		scpi::cmd $mm "SAMPLE:SOURCE TIMER"
-		scpi::cmd $mm "SAMPLE:TIMER $params(sampleInterval)"
-	} else {
-        if { $version >= $SCPI_VERSION } {
-	   	   # Настраиваем непрерывный съём сигнала
-	       scpi::cmd $mm "SAMPLE:SOURCE IMMEDIATE"
-	    }
-	}
-    scpi::cmd $mm "SAMPLE:COUNT $params(sampleCount)"
+    if { $version >= $SCPI_VERSION } {
+    	if { $params(sampleInterval) != "" } {
+    		# Настраиваем периодический съём сигнала
+    		scpi::cmd $mm ":SAMPLE:SOURCE TIMER"
+    		scpi::cmd $mm ":SAMPLE:TIMER $params(sampleInterval)"
+    	} else {
+            if { $version >= $SCPI_VERSION } {
+    	   	   # Настраиваем непрерывный съём сигнала
+    	       scpi::cmd $mm ":SAMPLE:SOURCE IMMEDIATE"
+    	    }
+    	}
+    }
+    scpi::cmd $mm ":SAMPLE:COUNT $params(sampleCount)"
 
 	# Проверяем отсутствие ошибки
 	scpi::checkError $mm
