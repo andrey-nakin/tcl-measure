@@ -79,13 +79,11 @@ proc doMeasure { } {
 	switch -exact -- $settings(current.method) {
         0 {
             # измеряем непосредственно ток
-            set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
-#            set cs [split [scpi::query $cmm "DATA:REMOVE? $n;:SAMPLE:COUNT 1"] ","]
+            set cs [split [scpi::query $cmm "DATA:REMOVE? $n;:SAMPLE:COUNT 1"] ","]
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
             # инструментальная погрешность
             set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(cmm.nplc)]
-            scpi::cmd $cmm "SAMPLE:COUNT 1"
         }
         1 {
             # измеряем падение напряжения на эталоне
@@ -154,7 +152,6 @@ proc setupMM {} {
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc $settings(mm.nplc) \
-		-autoRange OFF \
 		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
 		-text2 "V1 VOLTAGE" \
 		 $mm
@@ -238,7 +235,7 @@ proc makeMeasurement { } {
     display $v $sv $c $sc $r $sr $T "result"
 
 	# Выводим результаты в результирующий файл
-	measure::datafile::write $settings(result.fileName) $settings(result.format) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr]
+	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr]
 }
 
 # Отправляем команду термостату 

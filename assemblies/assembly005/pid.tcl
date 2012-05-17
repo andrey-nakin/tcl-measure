@@ -219,7 +219,7 @@ proc setTemperature { t tErr } {
 	tsv::array set tempState [list temperature $t measureError $tErr error [expr $pidState(setPoint) - $t] trend $b sigma $sb timestamp $tm derivative1 $der1]
 	
     # регистрируем температуру и управляющие токи
-	measure::datafile::write [measure::config::get reg.fileName] [measure::config::get reg.format] [list \
+	measure::datafile::write [measure::config::get reg.fileName] [list \
         TIMESTAMP [format %0.4f $t] $pidState(setPoint) \
         [format %0.3g $der1] [format %0.3g $b] [format %0.3g $sb] ]
 	

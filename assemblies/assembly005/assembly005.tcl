@@ -108,6 +108,9 @@ proc quit {} {
 	# завершаем работу модуля термостатирования
 	stopThermostat 1
 
+    # останавливаем поток записи данных
+    ::measure::datafile::shutdown
+     
 	# завершаем работу модуля протоколирования
 	::measure::logger::shutdown
 
@@ -263,7 +266,11 @@ proc setTsTemperature { t tErr trend std } {
 ###############################################################################
 
 set log [measure::logger::init measure]
-measure::logger::server
+# запускаем выделенный поток протоколирования
+::measure::logger::server
+
+# запускаем выделенный поток записи данных
+::measure::datafile::startup
 
 # Создаём окно программы
 set w ""

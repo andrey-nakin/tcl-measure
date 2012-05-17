@@ -170,7 +170,7 @@ proc testMeasureAndDisplay { { traceFileName "" } { traceFileFormat "" } } {
         measure::interop::cmd [list setTemperature $t]
 
         # Трассируем значения температуры и сопротивления         
-    	measure::datafile::write $traceFileName $traceFileFormat [list TIMESTAMP [format %0.3f $tstate(temperature)] [format %0.6g $r]]
+    	measure::datafile::write $traceFileName [list TIMESTAMP [format %0.3f $tstate(temperature)] [format %0.6g $r]]
          
         # Выводим результаты в окно программы
         display $v $sv $c $sc $r $sr $tstate(temperature) test          

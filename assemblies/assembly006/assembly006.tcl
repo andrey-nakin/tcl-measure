@@ -141,10 +141,16 @@ proc openResults {} {
 # Завершение работы программы
 proc quit {} {
 	# Сохраняем параметры программы
-	measure::config::write
+	::measure::config::write
 
 	# завершаем измерительный поток, если он запущен
-	measure::interop::waitForWorkerThreads
+	::measure::interop::waitForWorkerThreads
+
+    # останавливаем поток записи данных
+    ::measure::datafile::shutdown
+     
+    # останавливаем поток протоколирования
+	::measure::logger::shutdown
 
 	exit
 }
@@ -212,7 +218,11 @@ proc addPointToChart { t r { series "result" } } {
 ###############################################################################
 
 set log [measure::logger::init measure]
-measure::logger::server
+# запускаем выделенный поток протоколирования
+::measure::logger::server
+
+# запускаем выделенный поток записи данных
+::measure::datafile::startup
 
 # Создаём окно программы
 set w ""

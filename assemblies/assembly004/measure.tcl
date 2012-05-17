@@ -184,7 +184,7 @@ proc makeMeasurement {} {
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
 
     # Выводим результаты в результирующий файл
-	measure::datafile::write $settings(fileName) $settings(fileFormat) [list $c $sc $v $sv $r $sr]
+	measure::datafile::write $settings(fileName) [list $c $sc $v $sv $r $sr]
 }
 
 ###############################################################################
