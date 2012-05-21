@@ -19,11 +19,6 @@ package require measure::math
 # Константы
 ###############################################################################
 
-# При адаптивном интегральном члене константа определяет паузу в секундах,
-# между временем уставки и моментом, когда начинает анализироваться
-# производная dT/dt
-set ISTOP_DELAY 30
-
 ###############################################################################
 # Глобальные переменные
 ###############################################################################
@@ -32,7 +27,10 @@ set ISTOP_DELAY 30
 set mutexVar 0
 
 # Переменная для хранения состояния ПИД-регулятора
-array set pidState [list lastError 0.0 setPoint 0.0 iaccum 0.0 currentTemperature 0.0 istop 0]
+array set pidState [list lastError 0.0 setPoint 0.0 iaccum 0.0 currentTemperature 0.0]
+
+# Список для хранения значений невязки по времени
+set errs [list]
 
 # Список для хранения значений производной невязки по времени
 set derrs [list]
@@ -44,11 +42,6 @@ set tvalues [list]
 set terrvalues [list]
 set timevalues [list]
 set rtimevalues [list]
-set dervalues [list]
-
-# Число отсчётов температуры, необходимых для фурье-анализа
-set NUM_OF_FOURIER_READINGS 300
-set tvalues_fourier [list]
 
 # Время начала работы, мс
 set START_TIME 0
@@ -62,7 +55,7 @@ source [file join [file dirname [info script]] utils.tcl]
 
 # процедура, реализующая алгоритм ПИД
 proc pidCalc { dt } {
-	global pidState settings log derrs dervalues DTN
+	global pidState settings log errs derrs DTN
 
 	if { ![info exists pidState(currentTemperature)] || ![info exists pidState(setPoint)] } {
 		return 0.0
@@ -71,8 +64,11 @@ proc pidCalc { dt } {
 	# текущее значение невязки	
 	set err [expr $pidState(setPoint) - $pidState(currentTemperature)]
 
+    # добавим значение невязки в список для последующего усреднения
+    measure::listutils::lappend errs $err $settings(pid.nd)
+    
     # пропорциональный член
-    set pTerm [expr $settings(pid.tp) * $err]
+    set pTerm [expr $settings(pid.tp) * [::math::statistics::mean $errs]]
     
     # вычислим производную невязки по времени с усреднением
     measure::listutils::lappend derrs [expr $err - $pidState(lastError)] $settings(pid.nd)
@@ -80,32 +76,16 @@ proc pidCalc { dt } {
     # дифференциальный член
     set dTerm [expr $settings(pid.td) * [::math::statistics::mean $derrs] ]
 
-	if { $pidState(istop) } {
-		if { $pidState(istopDelay) } {
-			if { [clock seconds] >= $pidState(istopTime) } {
-				set pidState(istopDelay) 0
-			}
-		} else {
-			if { sign([lindex $dervalues 0]) != sign([lindex $dervalues end]) } {
-				set pidState(istop) 0
-			}
-		}
-	}
+	# интегральное накопление
+	set pidState(iaccum) [expr $pidState(iaccum) + $err]
 
-	if { !$pidState(istop) } {
-		# интегральное накопление
-		set pidState(iaccum) [expr $pidState(iaccum) + $err]
-
-		# проверка на выход за разрешенный предел
-		if { $settings(pid.maxi) != "" || $settings(pid.maxiNeg) != "" } {
-			::measure::math::validateRange pidState(iaccum) -$settings(pid.maxiNeg) $settings(pid.maxi)
-		}
-		
-		# интегральный член
-		set iTerm [expr $settings(pid.ti) * $pidState(iaccum)]
-	} else {
-		set iTerm 0
+	# проверка на выход за разрешенный предел
+	if { $settings(pid.maxi) != "" || $settings(pid.maxiNeg) != "" } {
+		::measure::math::validateRange pidState(iaccum) -$settings(pid.maxiNeg) $settings(pid.maxi)
 	}
+	
+	# интегральный член
+	set iTerm [expr $settings(pid.ti) * $pidState(iaccum)]
     
     # результирующий ток
 	set result [expr $pTerm + $iTerm + $dTerm]
@@ -148,25 +128,6 @@ proc finish {} {
 	destroyChildren
 }
 
-proc fourierFileName {} {
-    for { set n 1 } { $n < 100 } { incr n } {
-        set fn [format "tf-%03d.txt" $n]
-        if { ![file exists $fn] } {
-            return $fn
-        }
-    }
-    return "tf-000.txt"
-}
-
-proc writeFourierData { data } {
-    return
-    set f [open [fourierFileName] w]
-    foreach v $data {
-        puts $f $v
-    }
-    close $f
-}
-
 proc createRegFile {} {
     measure::datafile::create [measure::config::get reg.fileName] [measure::config::get reg.format] [measure::config::get reg.rewrite] [list "Date/Time" "T (K)" "Set Point (K)" "dT/dt (K/min)" "Slope (K/min)" "Sigma (K)"]
 }
@@ -177,8 +138,8 @@ proc createRegFile {} {
 
 # Процедура вызывается модулем измерения температуры
 proc setTemperature { t tErr } {
-	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues dervalues START_TIME
-	global tvalues_fourier settings NUM_OF_FOURIER_READINGS           
+	global mutexVar pidState log tvalues terrvalues timevalues rtimevalues START_TIME
+	global settings           
 
 	set tm [clock milliseconds]
 
@@ -201,17 +162,6 @@ proc setTemperature { t tErr } {
   	# Переведём наклон тренда в К/мин
   	set der1 [expr 1000.0 * 60.0 * $der1]
   	
-	if { !$pidState(istop) || !$pidState(istopDelay) } {
-      	# Добавим производную в список
-  	    measure::listutils::lappend dervalues $der1 $settings(pid.nt)
-    } 
-
-	lappend tvalues_fourier $t
-    if { [llength $tvalues_fourier] >= $NUM_OF_FOURIER_READINGS } {
-        writeFourierData $tvalues_fourier 
-        set tvalues_fourier [list]    
-    }
-
     # Запишем в состояние ПИДа  	
 	set pidState(currentTemperature) $t
 
@@ -243,18 +193,9 @@ proc currentSet { current voltage } {
 
 # Процедура изменяет значение уставки
 proc setPoint { t } {
-	global pidState log settings dervalues ISTOP_DELAY
+	global pidState log settings
 
 	set pidState(setPoint) $t
-
-	if { $settings(pid.adaptiveIT) } {
-		set pidState(iaccum) 0.0
-		set pidState(istop) 1
-		set pidState(istopDelay) 1
-		set pidState(istopTime) [expr [clock seconds] + $ISTOP_DELAY]
-		set dervalues [list]
-	}
-
 	measure::interop::setVar runtime(setPoint) [format "%0.1f" $t]
 }
 

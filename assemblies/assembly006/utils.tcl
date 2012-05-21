@@ -36,6 +36,7 @@ proc validateSettings {} {
 		ts.port 8080
 		ts.maxErr 0.1
 		ts.maxTrend 0.5
+		ts.timeout 0
 
 		measure.noSystErr 0
 		measure.numOfSamples 1

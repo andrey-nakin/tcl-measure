@@ -545,6 +545,87 @@ proc hardware::agilent::mm34410a::configureDcCurrent { args } {
 	after 500
 }
 
+# Производит конфигурацию устройства для измерения сопротивления
+# 4-х контактным способом
+proc hardware::agilent::mm34410a::configureResistance4w { args } {
+	variable configOptions
+	variable SCPI_VERSION
+    
+	set usage ": configureResistance4w \[options] channel\noptions:"
+	array set params [::cmdline::getoptions args $configOptions $usage]
+
+	set mm [lindex $args 0]
+	
+	# Определим версию протокола SCPI
+	set version [scpi::query $mm "SYSTEM:VERSION?"]
+	
+	# Проверим правильность версии SCPI
+	if { $params(scpiVersion) != "" && $params(scpiVersion) > $version } {
+	   error "SCPI version is $version, but $params(scpiVersion) required";
+    }
+
+	# включаем режим измерения пост. напряжения
+	scpi::cmd $mm "CONFIGURE:FRESISTANCE AUTO"
+
+    # Включить авытовыбор диапазона
+    scpi::cmd $mm "SENSE:FRESISTANCE:RANGE:AUTO $params(autoRange)"
+    
+    if { $version >= $SCPI_VERSION } {
+        # Включить нужный режим автоподстройки нуля
+        scpi::cmd $mm "SENSE:FRESISTANCE:ZERO:AUTO $params(autoZero)"
+
+        # Включить режим автокомпенсации
+        scpi::cmd $mm "SENSE:FRESISTANCE:OCOM ON"
+        
+        if { $params(text2) != "" } {
+            # Отобразим текст на дисплее мультиметра
+            scpi::cmd $mm "DISPLAY:WINDOW2:TEXT \"$params(text2)\""
+        }
+    } else {
+        # Включить нужный режим автоподстройки нуля
+        scpi::cmd $mm "SENSE:ZERO:AUTO $params(autoZero)"
+    }
+
+	if { $params(sampleInterval) != "" } {
+		# Измерять напряжение в течении макс. возможного кол-ва циклов питания
+		set params(nplc) [hardware::agilent::mm34410a::nplc $params(sampleInterval)]
+	} else {
+		# Измерять напряжение в течении указанного кол-ва циклов питания
+		if { $params(nplc) == "" } {
+			set params(nplc) 10
+		}
+	}
+	scpi::cmd $mm "SENSE:FRESISTANCE:NPLC $params(nplc)"
+	checkTimeout $mm [minTimeout $params(nplc)]
+
+	# Настраиваем триггер
+    #scpi::cmd $mm "TRIGGER:SOURCE IMMEDIATE"
+	if { $params(triggerDelay) == "" } {
+		set params(triggerDelay) DEF
+	}
+	if { ![string equal -nocase $params(triggerDelay) "DEF"] } {
+	    scpi::cmd $mm ":TRIGGER:DELAY $params(triggerDelay)"
+	}
+    if { $version >= $SCPI_VERSION } {
+    	if { $params(sampleInterval) != "" } {
+    		# Настраиваем периодический съём сигнала
+    		scpi::cmd $mm ":SAMPLE:SOURCE TIMER"
+    		scpi::cmd $mm ":SAMPLE:TIMER $params(sampleInterval)"
+    	} else {
+            if { $version >= $SCPI_VERSION } {
+    	   	   # Настраиваем непрерывный съём сигнала
+    	       scpi::cmd $mm ":SAMPLE:SOURCE IMMEDIATE"
+    	    }
+    	}
+    }
+    scpi::cmd $mm ":SAMPLE:COUNT $params(sampleCount)"
+
+	# Проверяем отсутствие ошибки
+	scpi::checkError $mm
+	
+	after 500
+}
+
 # Вычисляет продолжительность одного измерения напряжения или тока.
 # Опции - такие же, как у процедур configureDcVoltage, configureDcCurrent 
 # Возвращаемое значение

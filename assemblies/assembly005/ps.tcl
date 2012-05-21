@@ -15,6 +15,10 @@ package require hardware::agilent::pse3645a
 package require measure::com
 
 ###############################################################################
+# Константы
+###############################################################################
+
+###############################################################################
 # Подпрограммы
 ###############################################################################
 
@@ -62,7 +66,7 @@ proc closePs {} {
 
 # Процедура вызывается при инициализации модуля
 proc init { senderId senderCallback } {
-	global log settings
+	global log settings lastCurrent
 
 	# Читаем настройки программы
 	measure::config::read
@@ -72,6 +76,9 @@ proc init { senderId senderCallback } {
 
 	# Инициализируем ИП
     setupPs
+
+    # предыдущий отправленный в ИП ток
+    set lastCurrent 0.0
 
 	# Отправляем сообщение в поток управления
 	thread::send -async $senderId [list $senderCallback [thread::id]]
@@ -95,6 +102,7 @@ proc finish {} {
 #   senderCallback - название процедуры-обработчика события для вызова
 proc setCurrent { current senderId senderCallback } {
 	global log ps hardware::agilent::pse3645a::MAX_CURRENT_HIGH_VOLTAGE
+	global lastCurrent lastC lastV
 
     if { $current < 0.0 } {
         set current 0.0
@@ -108,15 +116,19 @@ proc setCurrent { current senderId senderCallback } {
 		set current $MAX_CURRENT_HIGH_VOLTAGE
 	}
 
-	# Задаём силу тока
-	# После чего измеряем актуальные напряжение и силу тока на выходах ИП
-    set res [scpi::query $ps "CURRENT $current;MEASURE:VOLTAGE?;CURR?"]
-    if { [scan $res "%f;%f" v c] == 2 } {
-    	# Отправляем сообщение в поток управления
-    	thread::send -async $senderId [list $senderCallback $c $v]
-    } else {
-        error "Unexpected response `$res` from device `[scpi::channelName $ps]`"
+    if { abs($lastCurrent - $current) >= 1 || ![info exists lastV] } {
+    	# Задаём силу тока
+    	# После чего измеряем актуальные напряжение и силу тока на выходах ИП
+        set res [scpi::query $ps "CURRENT $current;MEASURE:VOLTAGE?;CURR?"]
+        if { [scan $res "%f;%f" lastV lastC] != 2 } {
+            error "Unexpected response `$res` from device `[scpi::channelName $ps]`"
+        }
     }
+    
+    set lastCurrent $current
+     
+	# Отправляем сообщение в поток управления
+	thread::send -async $senderId [list $senderCallback $lastC $lastV]
 }
 
 ###############################################################################

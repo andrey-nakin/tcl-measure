@@ -121,7 +121,7 @@ array set measure::datafile::channels {}
 array set measure::datafile::closeScripts {} 
 
 proc measure::datafile::makeDateTime {} {
-    return [clock format [clock seconds] -format %Y-%m-%dT%H:%M:%S]
+    return [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S"]
 }
 
 proc measure::datafile::validateDir { fn } {

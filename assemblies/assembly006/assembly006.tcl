@@ -328,6 +328,9 @@ grid [ttk::spinbox $p.maxtrend -width 10 -textvariable settings(ts.maxTrend) -fr
 grid [ttk::label $p.lmaxsigma -text "Пороговый разброс, К:"] -row 3 -column 0 -sticky w
 grid [ttk::spinbox $p.maxsigma -width 10 -textvariable settings(ts.maxSigma) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
 
+grid [ttk::label $p.ltimeout -text "Макс. время уставки, мин:"] -row 4 -column 0 -sticky w
+grid [ttk::spinbox $p.timeout -width 10 -textvariable settings(ts.timeout) -from 0 -to 1000 -increment 10 -validate key -validatecommand {string is double %P}] -row 4 -column 1 -sticky e
+
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5
 grid columnconfigure $p { 1 } -weight 1
@@ -376,31 +379,34 @@ pack $p -fill x -padx 10 -pady 5
 # Правая колонка
 
 # Раздел настроек метода измерения тока
-set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения тока " -pad 10]
+set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения сопротивления " -pad 10]
 
-grid [ttk::label $p.lamp -text "Амперметром:"] -row 0 -column 0 -sticky w
+grid [ttk::label $p.lamp -text "Вольтметром/Амперметром:"] -row 0 -column 0 -sticky w
 grid [ttk::radiobutton $p.amp -value 0 -variable settings(current.method) -command toggleTestResistance] -row 0 -column 1 -sticky e
 
-grid [ttk::label $p.lvolt -text "Напряжением на эталоне:"] -row 1 -column 0 -sticky w
+grid [ttk::label $p.lvolt -text "Вольтметром/Вольтметром:"] -row 1 -column 0 -sticky w
 grid [ttk::radiobutton $p.volt -value 1 -variable settings(current.method) -command toggleTestResistance] -row 1 -column 1 -sticky e
 
-grid [ttk::label $p.lr -text "Эталонное сопротивление, Ом:"] -row 2 -column 0 -sticky w
+grid [ttk::label $p.lr -text "  Эталонное сопротивление, Ом:"] -row 2 -column 0 -sticky w
 grid [ttk::spinbox $p.r -width 10 -textvariable settings(current.reference.resistance) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
 
-grid [ttk::label $p.lrerr -text "Погрешность, Ом:"] -row 3 -column 0 -sticky w
+grid [ttk::label $p.lrerr -text "  Погрешность, Ом:"] -row 3 -column 0 -sticky w
 grid [ttk::spinbox $p.rerr -width 10 -textvariable settings(current.reference.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
 
-grid [ttk::label $p.lman -text "Вручную:"] -row 4 -column 0 -sticky w
+grid [ttk::label $p.lman -text "Вольтметром/Вручную:"] -row 4 -column 0 -sticky w
 grid [ttk::radiobutton $p.man -value 2 -variable settings(current.method) -command toggleTestResistance] -row 4 -column 1 -sticky e
 
-grid [ttk::label $p.lcur -text "Сила тока, мА:"] -row 5 -column 0 -sticky w
+grid [ttk::label $p.lcur -text "  Сила тока, мА:"] -row 5 -column 0 -sticky w
 grid [ttk::spinbox $p.cur -width 10 -textvariable settings(current.manual.current) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 5 -column 1 -sticky e
 
-grid [ttk::label $p.lcurerr -text "Погрешность, мА:"] -row 6 -column 0 -sticky w
+grid [ttk::label $p.lcurerr -text "  Погрешность, мА:"] -row 6 -column 0 -sticky w
 grid [ttk::spinbox $p.curerr -width 10 -textvariable settings(current.manual.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 6 -column 1 -sticky e
 
+grid [ttk::label $p.lohm -text "Омметром:"] -row 7 -column 0 -sticky w
+grid [ttk::radiobutton $p.ohm -value 3 -variable settings(current.method) -command toggleTestResistance] -row 7 -column 1 -sticky e
+
 grid columnconfigure $p { 0 1 } -pad 5
-grid rowconfigure $p { 0 1 2 3 4 5 } -pad 5
+grid rowconfigure $p { 0 1 2 3 4 5 6 7 } -pad 5
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5

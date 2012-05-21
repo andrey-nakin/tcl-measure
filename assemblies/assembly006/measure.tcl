@@ -45,8 +45,6 @@ proc doMeasure { } {
     # сохраняем текущее значение таймаута и вычисляем новое
 	set timeout [fconfigure $mm -timeout]
     set newTimeout [expr int(2.0 * [oneMeasurementDuration])]
-    global log
-    ${log}::debug "doMeasure newTimeout=$newTimeout !!!"
          
 	# запускаем измерение напряжения
 	scpi::cmd $mm "SAMPLE:COUNT $n;:INIT"
@@ -149,12 +147,24 @@ proc setupMM {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $mm
 
-	# Настраиваем мультиметр для измерения постоянного напряжения
-	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc $settings(mm.nplc) \
-		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
-		-text2 "V1 VOLTAGE" \
-		 $mm
+    switch -exact -- $settings(current.method) {
+        { 0 1 2 } {
+        	# Настраиваем мультиметр для измерения постоянного напряжения
+        	hardware::agilent::mm34410a::configureDcVoltage \
+        		-nplc $settings(mm.nplc) \
+        		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
+        		-text2 "V1 VOLTAGE" \
+        		 $mm
+        }
+        { 3 } {
+        	# Настраиваем мультиметр для измерения сопротивления
+        	hardware::agilent::mm34410a::configureResistance4w \
+        		-nplc $settings(mm.nplc) \
+        		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
+        		-text2 "V1 RESISTANCE" \
+        		 $mm
+        }
+    }
 }
 
 # Инициализация амперметра
@@ -286,11 +296,11 @@ proc canMeasure { stateArray setPoint } {
 
 # Процедура измерения одной температурной точки
 proc measureOnePoint { t } {
-    global doSkipSetPoint settings
+    global doSkipSetPoint settings log
 
 	# Цикл продолжается, пока не выйдем на нужную температуру
 	# или оператор не прервёт
-	while { $doSkipSetPoint != "yes" } {
+	while { 1 } {
 		# Проверяем, не была ли нажата кнопка "Стоп"
 		measure::interop::checkTerminated
 
@@ -301,7 +311,7 @@ proc measureOnePoint { t } {
 		# Выводим температуру на экран
 		measure::interop::cmd [list setTemperature $stateList]
 
-		if { [canMeasure state $t] } {
+		if { $doSkipSetPoint == "yes" || [canMeasure state $t] } {
 			# Производим измерения
 			makeMeasurement
 			break
@@ -311,10 +321,12 @@ proc measureOnePoint { t } {
 		set tm [clock milliseconds]
 		testMeasureAndDisplay $settings(trace.fileName) $settings(result.format)
 
-		# Ждём или 1 сек или пока не изменится переменная doSkipSetPoint
-		after [expr int(1000 - ([clock milliseconds] - $tm))] set doSkipSetPoint timeout
-		vwait doSkipSetPoint
-		after cancel set doSkipSetPoint timeout
+        if { $doSkipSetPoint != "yes" } {
+    		# Ждём или 1 сек или пока не изменится переменная doSkipSetPoint
+    		after [expr int(1000 - ([clock milliseconds] - $tm))] set doSkipSetPoint timeout
+    		vwait doSkipSetPoint
+    		after cancel set doSkipSetPoint timeout
+        }
 	}
 }
 
@@ -399,6 +411,11 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 	# Переменная-триггер для пропуска точек в программе температур
 	set doSkipSetPoint ""
 	
+	# Принудительно проводим измерения по истечении заданного таймаута
+	if { $settings(ts.timeout) > 0 } {
+	   after [expr int(60000 * $settings(ts.timeout))] set doSkipSetPoint yes
+    }
+	
 	# Пробегаем по переполюсовкам
 	foreach conn $connectors {
 		# Устанавливаем нужную полярность
@@ -411,12 +428,10 @@ foreach t [measure::ranges::toList [measure::config::get ts.program ""]] {
 
 		# Работаем в заданной температурной точке
 		measureOnePoint $t
-    	
-    	if { $doSkipSetPoint == "yes" } {
-        	# коннекторы в исходное
-    		break
-    	}
     }
+
+    # отменяем взведённый таймаут
+	after cancel set doSkipSetPoint yes
 }
 
 ###############################################################################
