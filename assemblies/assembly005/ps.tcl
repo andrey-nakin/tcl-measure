@@ -116,14 +116,14 @@ proc setCurrent { current senderId senderCallback } {
 		set current $MAX_CURRENT_HIGH_VOLTAGE
 	}
 
-    if { abs($lastCurrent - $current) >= 1 || ![info exists lastV] } {
+#    if { abs($lastCurrent - $current) >= 1 || ![info exists lastV] } {
     	# Задаём силу тока
     	# После чего измеряем актуальные напряжение и силу тока на выходах ИП
         set res [scpi::query $ps "CURRENT $current;MEASURE:VOLTAGE?;CURR?"]
         if { [scan $res "%f;%f" lastV lastC] != 2 } {
             error "Unexpected response `$res` from device `[scpi::channelName $ps]`"
         }
-    }
+#    }
     
     set lastCurrent $current
      
