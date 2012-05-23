@@ -13,6 +13,8 @@ namespace eval measure::expr {
 	namespace export eval
 }
 
+array set argNums {}
+
 # Given numeric expression calculates it and return result
 # Arguments
 #   e - expression string, e.g. "2.0 * x**2 + 3.0 * y"
@@ -20,6 +22,8 @@ namespace eval measure::expr {
 # Return
 #   expression result
 proc measure::expr::eval { e args } {
+    variable argNums
+
 	if {[info procs $e] eq ""} {
 		# find all variable occurencies and add $ prefix to them
 		# e.g. "x ** 2 + x" -> "$x ** 2 + $x"
@@ -45,10 +49,21 @@ proc measure::expr::eval { e args } {
 			lappend argList [list $v 0.0]
 		}
 
-		# create new procedure	
-	    proc $e $argList [list expr $ce]
+		# create new procedure
+        if { 0 == [llength $argList] } {
+	       proc $e {} [list expr $ce]
+        } else {	
+	       proc $e $argList [list expr $ce]
+	    }
+	    
+	    set argNums($e) [llength $argList]
 	}
 
-	return [$e {*}$args]
+    if { $argNums($e) == 0 } {
+    	return [$e]
+    } else {
+    	return [$e {*}$args]
+    }
 }
 
+#puts [measure::expr::eval "10" {}]

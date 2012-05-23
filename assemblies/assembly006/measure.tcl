@@ -388,7 +388,7 @@ if { $settings(switch.current) } {
 # Создаём файлы с результатами измерений
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) {
 	"Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" 
-}
+} $settings(result.comment)
 measure::datafile::create $settings(trace.fileName) $settings(result.format) $settings(result.rewrite) {
 	"Date/Time" "T (K)" "R (Ohm)" 
 }

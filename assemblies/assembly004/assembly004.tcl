@@ -12,7 +12,6 @@
 package require Tcl 8.5
 package require Tk 8.5
 package require Ttk 8.5
-package require Plotchart
 package require Thread
 package require inifile
 package require math::statistics
@@ -150,18 +149,8 @@ proc toggleTestResistance {} {
 }
 
 proc addValueToChart { v } {
-	global chartValues
-
-	if { ![info exists chartValues] } {
-		set chartValues [list]
-	}
-
-	if { [llength $chartValues] >= 200 } {
-		set chartValues [lrange $chartValues [expr [llength $chartValues] - 199] end]
-	}
-	lappend chartValues $v
-
-	doPlot	
+	global canvas
+	measure::chart::${canvas}::addPoint $v
 }
 
 ###############################################################################
@@ -173,7 +162,7 @@ measure::logger::server
 
 # Создаём окно программы
 set w ""
-wm title $w. "Установка № 4: Измерение УС"
+wm title $w. "Установка № 4: Измерение R(I)"
 
 # При нажатии крестика в углу окна вызыватьспециальную процедуру завершения
 wm protocol $w. WM_DELETE_WINDOW { quit }
@@ -186,58 +175,6 @@ ttk::notebook::enableTraversal $w.nb
 # Закладка "Измерение"
 ttk::frame $w.nb.m
 $w.nb add $w.nb.m -text " Измерение "
-
-proc doPlot {} {
-	global w
-	global chartValues chartBgColor
-
-    $w.nb.m.c.c delete all
-	if { ![info exists chartValues] } {
-		return
-	}
-
-	set stats [::math::statistics::basic-stats $chartValues]
-	set s [::Plotchart::createXYPlot $w.nb.m.c.c { 0 200 20 } [measure::chart::limits [lindex $stats 1] [lindex $stats 2]]]
-
-	$s dataconfig series1 -colour green
-	$s ytext "R, \u03a9"
-
-	if { ![info exists chartBgColor] } {
-		set chartBgColor [$w.nb.m.c.c cget -bg]
-	}
-	$s background plot black
-	$s background axes $chartBgColor
-
-	set x 0
-	set xx [list]
-	foreach y $chartValues {
-		$s plot series1 $x $y
-		lappend xx $x
-		incr x
-	}
-
-	if { [llength $xx] > 10 } {
-		lassign [::math::statistics::linear-model $xx $chartValues] a b
-		set lll [expr [llength $xx] - 1]
-		$s dataconfig series2 -colour magenta
-		$s plot series2 [lindex $xx 0] [expr [lindex $xx 0] * $b + $a]
-		$s plot series2 [lindex $xx $lll] [expr [lindex $xx $lll] * $b + $a]
-	}
-}
-
-proc doResize {} {
-    global redo
-
-    #
-    # To avoid redrawing the plot many times during resizing,
-    # cancel the callback, until the last one is left.
-    #
-    if { [info exists redo] } {
-        after cancel $redo
-    }
-
-    set redo [after 50 doPlot]
-}
 
 # Раздел "Управление"
 set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
@@ -273,9 +210,10 @@ grid rowconfigure $p { 0 1 } -pad 5
 # Раздел "График"
 set p [ttk::labelframe $w.nb.m.c -text " Временная зависимость " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
-pack [canvas $p.c -width 400 -height 200] -fill both -expand 1
-#pack [canvas $p.c -background gray -width 400 -height 200] -fill both -expand 1
-bind $p.c <Configure> {doResize}
+set canvas [canvas $p.c -width 400 -height 200]
+pack $canvas -fill both -expand 1
+place [ttk::button $p.cb -text "Очистить" -command "measure::chart::${canvas}::clear"] -anchor ne -relx 1.0 -rely 0.0
+measure::chart::movingChart -ylabel "R, Ом" -xpoints 100 $canvas
 
 # Закладка "Параметры измерения"
 ttk::frame $w.nb.ms
@@ -292,7 +230,6 @@ set p [ttk::labelframe $w.nb.ms.l.curr -text " Питание образца " -
 
 grid [ttk::label $p.lmanualPower -text "Ручное управление:"] -row 0 -column 0 -sticky w
 grid [ttk::checkbutton $p.manualPower -variable settings(manualPower) -command togglePowerControls] -row 0 -column 1 -sticky e
-bind $p.manualPower <Configure> {doResize}
 
 grid [ttk::label $p.lstart -text "Начальный ток, мА:"] -row 1 -column 0 -sticky w
 grid [ttk::spinbox $p.start -width 10 -textvariable settings(startCurrent) -from 0 -to 2200 -increment 10 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
@@ -381,8 +318,11 @@ grid [ttk::combobox $p.format -width 10 -textvariable settings(fileFormat) -stat
 grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 3 -column 0 -sticky w
 grid [ttk::checkbutton $p.rewrite -variable settings(fileRewrite)] -row 3 -column 1 -columnspan 2 -sticky e
 
+grid [ttk::label $p.lcomment -text "Комментарий: " -anchor e] -row 4 -column 0 -sticky w
+grid [ttk::entry $p.comment -textvariable settings(fileComment)] -row 4 -column 1 -columnspan 2 -sticky we
+
 grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3} -pad 5
+grid rowconfigure $p {0 1 2 3 4} -pad 5
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5

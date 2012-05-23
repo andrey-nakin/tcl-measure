@@ -367,11 +367,14 @@ grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -s
 grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 4 -column 0 -sticky w
 grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 4 -column 1 -columnspan 2 -sticky e
 
-grid [ttk::button $p.open -text "Открыть файл R(T)" -command openResults -image ::img::open -compound left] -row 5 -column 0 -columnspan 4 -sticky e
+grid [ttk::label $p.lcomment -text "Комментарий: " -anchor e] -row 5 -column 0 -sticky w
+grid [ttk::entry $p.comment -textvariable settings(result.comment)] -row 5 -column 1 -sticky we
+
+grid [ttk::button $p.open -text "Открыть файл R(T)" -command openResults -image ::img::open -compound left] -row 6 -column 0 -columnspan 4 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p { 0 1 2 3 4 } -pad 5
-grid rowconfigure $p { 5 } -pad 10
+grid rowconfigure $p { 0 1 2 3 4 5 } -pad 5
+grid rowconfigure $p { 6 } -pad 10
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5

@@ -8,7 +8,7 @@
 package require measure::logger
 package require measure::config
 package require hardware::owen::mvu8
-package require hardware::scpi
+package require scpi
 package require hardware::agilent::pse3645a
 package require hardware::agilent::mm34410a
 package require tclvisa
@@ -111,7 +111,6 @@ proc setupMM {} {
 	# Настраиваем мультиметр для измерения постоянного напряжения
 	hardware::agilent::mm34410a::configureDcVoltage \
 		-nplc $settings(nplc) \
-		-autoZero ONCE	\
 		-sampleCount $settings(numberOfSamples)	\
 		 $mm
 }
@@ -132,14 +131,12 @@ proc setupCMM {} {
     	# Настраиваем мультиметр для измерения постоянного напряжения
     	hardware::agilent::mm34410a::configureDcVoltage \
     		-nplc $settings(nplc) \
-    		-autoZero ONCE	\
     		-sampleCount $settings(numberOfSamples)	\
     		 $cmm
 	} else {
     	# Настраиваем мультиметр для измерения постоянного тока
     	hardware::agilent::mm34410a::configureDcCurrent \
     		-nplc $settings(nplc) \
-    		-autoZero ONCE	\
     		-sampleCount $settings(numberOfSamples)	\
     		 $cmm
     }
@@ -204,7 +201,7 @@ measure::config::read
 validateSettings
 
 # Создаём файл с результатами измерений
-measure::datafile::create $settings(fileName) $settings(fileFormat) $settings(fileRewrite) [list "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"]
+measure::datafile::create $settings(fileName) $settings(fileFormat) $settings(fileRewrite) [list "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"] $settings(fileComment)
 
 # Подключаемся к менеджеру ресурсов VISA
 set rm [visa::open-default-rm]

@@ -14,6 +14,7 @@ package require measure::interop
 package require measure::datafile
 package require measure::listutils
 package require measure::math
+package require measure::expr
 
 ###############################################################################
 # Константы
@@ -81,7 +82,10 @@ proc pidCalc { dt } {
 
 	# проверка на выход за разрешенный предел
 	if { $settings(pid.maxi) != "" || $settings(pid.maxiNeg) != "" } {
-		::measure::math::validateRange pidState(iaccum) -$settings(pid.maxiNeg) $settings(pid.maxi)
+		::measure::math::validateRange \
+            pidState(iaccum) \
+            -[measure::expr::eval $settings(pid.maxiNeg) $pidState(setPoint)] \
+            [measure::expr::eval $settings(pid.maxi) $pidState(setPoint)]
 	}
 	
 	# интегральный член

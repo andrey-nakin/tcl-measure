@@ -31,14 +31,14 @@ array set measure::datafile::csvFormat {separator "," comment ""}
 #   format - формат файла (TXT или CSV)
 #   rewrite - переписывать или дополнять файл
 #   headers - список заголовков столбцов
-proc measure::datafile::create { fileName { format TXT } { rewrite 1 } { headers {} } } {
+proc measure::datafile::create { fileName { format TXT } { rewrite 1 } { headers {} } { comment "" } } {
     if { [isStarted] } {
         # запись производится в выделенном потоке
 		set tid [tsv::get measure-datafile thread]
-		thread::send -async $tid [list ::measure::datafile::createInt $fileName $format $rewrite $headers]
+		thread::send -async $tid [list ::measure::datafile::createInt $fileName $format $rewrite $headers $comment]
     } else {
         # запись производится немедленно
-        createInt $fileName $format $rewrite $headers
+        createInt $fileName $format $rewrite $headers $comment
     }
 }
 
@@ -213,8 +213,8 @@ proc measure::datafile::closeFile { fileName } {
         close $channels($fileName)
         unset channels($fileName)
     }
-    
-    unset closeScripts($fileName) 
+
+    unset -nocomplain closeScripts($fileName) 
 }
 
 proc measure::datafile::closeAll { } {
@@ -225,7 +225,7 @@ proc measure::datafile::closeAll { } {
     }
 }
 
-proc measure::datafile::createInt { fileName format rewrite headers } {
+proc measure::datafile::createInt { fileName format rewrite headers comment } {
     variable textFormat 
     variable csvFormat
     variable config
@@ -260,9 +260,14 @@ proc measure::datafile::createInt { fileName format rewrite headers } {
     
     if { $writeHeader } {
         set first 1
-        eval "set comment \$${fmt}(comment)"
+        eval "set commentChar \$${fmt}(comment)"
         eval "set separator \$${fmt}(separator)"
-        puts -nonewline $f $comment
+        
+        if { $comment != "" } {
+            puts $f "$commentChar $comment"
+        }
+        
+        puts -nonewline $f $commentChar
         foreach v $headers {
             if { $first } {
                 set first 0

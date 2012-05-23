@@ -10,7 +10,7 @@
 package require measure::logger
 package require measure::config
 package require hardware::owen::mvu8
-package require hardware::scpi
+package require scpi
 package require hardware::agilent::pse3645a
 package require hardware::agilent::mm34410a
 package require tclvisa

@@ -147,6 +147,6 @@ proc display { v sv c sc r sr } {
 		measure::interop::setVar runtime(voltage) $vf
 		measure::interop::setVar runtime(resistance) $rf
 		measure::interop::setVar runtime(power) $pf
-		measure::interop::cmd "addValueToChart $r"
+		measure::interop::cmd [list addValueToChart $r]
 	}
 }

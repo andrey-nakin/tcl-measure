@@ -25,6 +25,7 @@ proc validateSettings {} {
         result.fileName ""
         result.format TXT
         result.rewrite 1
+        result.comment ""
 
         switch.voltage 0
         switch.current 0
