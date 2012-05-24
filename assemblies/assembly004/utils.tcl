@@ -52,30 +52,22 @@ proc validateSettings {} {
 proc setConnectors { conns } {
     global settings
 
-	# размыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 6 {1000}
-	#after 500
+    if { $settings(current.method) != 3 } {
+    	# размыкаем цепь
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
+    	#after 500
+    
+    	# производим переключение полярности
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
+    	#after 500
 
-	# производим переключение полярности
-    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 0 $conns
-	#after 500
-
-	# замыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 6 {0}
-	#after 500
-}
-
-# Подключает/отключает тестовое сопротивление от схемы 
-# в зависимости от конфигурации Установки
-proc connectTestResistance { } {
-    global settings
-	
-	if { $settings(useTestResistance) } {
-	    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 4 {0 0}
-	} else {
-	    hardware::owen::mvu8::modbus::setChannels $settings(rs485Port) $settings(switchAddr) 4 {1000 1000}
-	}
-	#after 500
+    	# замыкаем цепь
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
+    	#after 500
+    } else {
+    	# в данном режиме цепь всегда разомкнута
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
+    }
 }
 
 # Инициализация источника питания

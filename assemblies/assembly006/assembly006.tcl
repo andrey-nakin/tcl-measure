@@ -320,7 +320,7 @@ grid [ttk::label $p.lprogram -text "Программа:"] -row 0 -column 0 -stic
 grid [ttk::entry $p.program -width 20 -textvariable settings(ts.program)] -row 0 -column 1 -sticky e
 
 grid [ttk::label $p.lmaxerr -text "Пороговая невязка, К:"] -row 1 -column 0 -sticky w
-grid [ttk::spinbox $p.maxerr -width 10 -textvariable settings(ts.maxErr) -from 0 -to 10 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
+grid [ttk::spinbox $p.maxerr -width 10 -textvariable settings(ts.maxErr) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
 
 grid [ttk::label $p.lmaxtrend -text "Пороговый тренд, К/мин:"] -row 2 -column 0 -sticky w
 grid [ttk::spinbox $p.maxtrend -width 10 -textvariable settings(ts.maxTrend) -from 0 -to 10 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
@@ -383,60 +383,20 @@ pack $p -fill x -padx 10 -pady 5
 
 # Раздел настроек метода измерения тока
 set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения сопротивления " -pad 10]
-
-grid [ttk::label $p.lamp -text "Вольтметром/Амперметром:"] -row 0 -column 0 -sticky w
-grid [ttk::radiobutton $p.amp -value 0 -variable settings(current.method) -command toggleTestResistance] -row 0 -column 1 -sticky e
-
-grid [ttk::label $p.lvolt -text "Вольтметром/Вольтметром:"] -row 1 -column 0 -sticky w
-grid [ttk::radiobutton $p.volt -value 1 -variable settings(current.method) -command toggleTestResistance] -row 1 -column 1 -sticky e
-
-grid [ttk::label $p.lr -text "  Эталонное сопротивление, Ом:"] -row 2 -column 0 -sticky w
-grid [ttk::spinbox $p.r -width 10 -textvariable settings(current.reference.resistance) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
-
-grid [ttk::label $p.lrerr -text "  Погрешность, Ом:"] -row 3 -column 0 -sticky w
-grid [ttk::spinbox $p.rerr -width 10 -textvariable settings(current.reference.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
-
-grid [ttk::label $p.lman -text "Вольтметром/Вручную:"] -row 4 -column 0 -sticky w
-grid [ttk::radiobutton $p.man -value 2 -variable settings(current.method) -command toggleTestResistance] -row 4 -column 1 -sticky e
-
-grid [ttk::label $p.lcur -text "  Сила тока, мА:"] -row 5 -column 0 -sticky w
-grid [ttk::spinbox $p.cur -width 10 -textvariable settings(current.manual.current) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 5 -column 1 -sticky e
-
-grid [ttk::label $p.lcurerr -text "  Погрешность, мА:"] -row 6 -column 0 -sticky w
-grid [ttk::spinbox $p.curerr -width 10 -textvariable settings(current.manual.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 6 -column 1 -sticky e
-
-grid [ttk::label $p.lohm -text "Омметром:"] -row 7 -column 0 -sticky w
-grid [ttk::radiobutton $p.ohm -value 3 -variable settings(current.method) -command toggleTestResistance] -row 7 -column 1 -sticky e
-
-grid columnconfigure $p { 0 1 } -pad 5
-grid rowconfigure $p { 0 1 2 3 4 5 6 7 } -pad 5
-grid columnconfigure $p { 1 } -weight 1
-
 pack $p -fill x -padx 10 -pady 5
+measure::widget::resistanceMethodControls $p current
 
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5
 
 # Раздел настроек переполюсовок
 set p [ttk::labelframe $w.nb.ms.r.comm -text " Переполюсовки " -pad 10]
-
-grid [ttk::label $p.lswitchVoltage -text "Переполюсовка напряжения:"] -row 0 -column 0 -sticky w
-grid [ttk::checkbutton $p.switchVoltage -variable settings(switch.voltage)] -row 0 -column 1 -sticky e
-
-grid [ttk::label $p.lswitchCurrent -text "Переполюсовка тока:"] -row 1 -column 0 -sticky w
-grid [ttk::checkbutton $p.switchCurrent -variable settings(switch.current)] -row 1 -column 1 -sticky e
-
-grid [ttk::label $p.ldelay -text "Пауза после переключения, мс:"] -row 2 -column 0 -sticky w
-grid [ttk::spinbox $p.delay -width 10 -textvariable settings(switch.delay) -from 0 -to 10000 -increment 100 -validate key -validatecommand {string is integer %P}] -row 2 -column 1 -sticky e
-
-grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3} -pad 5
-grid columnconfigure $p { 1 } -weight 1
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::switchControls $p "switch"
 
 # Нижний раздел
 pack [ttk::button $w.nb.ms.b.apply -text "Применить настройки" -command applySettings -image ::img::apply -compound left] -side right
 
-pack $p -fill x -padx 10 -pady 5
 
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5
@@ -450,25 +410,14 @@ $w.nb add $w.nb.setup -text " Параметры установки "
 
 set p [ttk::labelframe $w.nb.setup.switch -text " Блок реле " -pad 10]
 pack $p -fill x -padx 10 -pady 5
+::measure::widget::mvu8Controls $p "switch"
 
-grid [ttk::label $p.lrs485 -text "Порт для АС4:"] -row 0 -column 0 -sticky w
-grid [ttk::combobox $p.rs485 -width 10 -textvariable settings(switch.serialAddr) -values [measure::com::allPorts]] -row 0 -column 1 -sticky w
-
-grid [ttk::label $p.lswitchAddr -text "Сетевой адрес МВУ-8:"] -row 0 -column 2 -sticky w
-grid [ttk::spinbox $p.switchAddr -width 10 -textvariable settings(switch.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 3 -sticky w
-
-grid columnconfigure $p { 0 1 2 3 } -pad 5
-grid columnconfigure $p { 1 3 } -weight 1
-grid rowconfigure $p { 0 1 } -pad 5
-
-set p [ttk::labelframe $w.nb.setup.mm -text " Вольтметр на образце " -pad 10]
+set p [ttk::labelframe $w.nb.setup.mm -text " Вольтметр/омметр на образце " -pad 10]
 pack $p -fill x -padx 10 -pady 5
-
 ::measure::widget::mmControls $p mm
 
 set p [ttk::labelframe $w.nb.setup.cmm -text " Амперметр/вольтметр на эталоне " -pad 10]
 pack $p -fill x -padx 10 -pady 5
-
 ::measure::widget::mmControls $p cmm
 
 set p [ttk::labelframe $w.nb.setup.ts -text " Термостат " -pad 10]

@@ -268,6 +268,27 @@ proc hardware::agilent::mm34410a::systematicError { value readingErrors rangeErr
 	return [expr $readingErr + $rangeErr]
 }
 
+# Определяет величину тестового тока для измерения сопротивления омметром
+# Аргументы
+#   r - значение сопротивления в Ом (в режиме автоматического выбора диапазона)
+#       или какое-нибудь значение из нужно диапазона (верхний предел не включается)
+# Результат
+#   Тестовый ток в мА
+proc hardware::agilent::mm34410a::testCurrent { r } {
+    set ranges { 1.0e2 1.0e3 1.0e4 1.0e5 1.0e6 1.0e7 }
+    set currents { 0.1 1.0 0.1 0.01 0.025 0.0025 }
+    
+    set i 0
+    foreach rr $ranges {
+        if { $rr > $r } {
+            return [lindex $currents $i]
+        }
+        incr i 
+    }
+    
+    return [lindex $currents $i-1]
+}
+
 # Производит открытие устройства
 proc hardware::agilent::mm34410a::open { args } {
 	return [hardware::agilent::utils::open "e" {*}$args]
@@ -306,7 +327,7 @@ proc hardware::agilent::mm34410a::init { args } {
     # включаем режим совместимости с Agilent 34401A
     #scpi::cmd $channel {SYSTEM:LANGUAGE "34401A"}
     
-    if { !$params(noFrontCheck) } {
+    if { ![info exists params(noFrontCheck)] } {
     	# Проверяем состояние переключателя front/rear
     	hardware::agilent::mm34410a::checkFrontRear $channel
     } 
@@ -571,9 +592,6 @@ proc hardware::agilent::mm34410a::configureResistance4w { args } {
     scpi::cmd $mm "SENSE:FRESISTANCE:RANGE:AUTO $params(autoRange)"
     
     if { $version >= $SCPI_VERSION } {
-        # Включить нужный режим автоподстройки нуля
-        scpi::cmd $mm "SENSE:FRESISTANCE:ZERO:AUTO $params(autoZero)"
-
         # Включить режим автокомпенсации
         scpi::cmd $mm "SENSE:FRESISTANCE:OCOM ON"
         

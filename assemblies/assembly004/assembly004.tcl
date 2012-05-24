@@ -145,7 +145,11 @@ proc togglePowerControls { } {
 proc toggleTestResistance {} {
 	global w
 	set p "$w.nb.ms.r.curr"
-	::measure::widget::setDisabledByVar settings(useTestResistance) $p.r $p.lr
+	set mode [measure::config::get current.method 0]
+	::measure::widget::setDisabled [expr $mode == 1] $p.r $p.lr
+	::measure::widget::setDisabled [expr $mode == 1] $p.rerr $p.lrerr
+	::measure::widget::setDisabled [expr $mode == 2] $p.cur $p.lcur
+	::measure::widget::setDisabled [expr $mode == 2] $p.curerr $p.lcurerr
 }
 
 proc addValueToChart { v } {
@@ -264,49 +268,8 @@ grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
 
-# Правая колонка
-
-# Раздел настроек метода измерения тока
-set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения тока " -pad 10]
-
-grid [ttk::label $p.lamp -text "Амперметром:"] -row 0 -column 0 -sticky w
-grid [ttk::radiobutton $p.amp -value 0 -variable settings(useTestResistance) -command toggleTestResistance] -row 0 -column 1 -sticky e
-
-grid [ttk::label $p.lvolt -text "Напряжением на эталоне:"] -row 1 -column 0 -sticky w
-grid [ttk::radiobutton $p.volt -value 1 -variable settings(useTestResistance) -command toggleTestResistance] -row 1 -column 1 -sticky e
-
-grid [ttk::label $p.lr -text "Эталонное сопротивление, Ом:"] -row 2 -column 0 -sticky w
-grid [ttk::spinbox $p.r -width 10 -textvariable settings(testResistance) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
-
-grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3} -pad 5
-grid columnconfigure $p { 1 } -weight 1
-
-pack $p -fill x -padx 10 -pady 5
-
-grid columnconfigure $w.nb.m {0 1} -pad 5
-grid rowconfigure $w.nb.m {0 1} -pad 5
-
-# Раздел настроек переполюсовок
-set p [ttk::labelframe $w.nb.ms.r.comm -text " Переполюсовки " -pad 10]
-
-grid [ttk::label $p.lswitchVoltage -text "Переполюсовка напряжения:"] -row 1 -column 0 -sticky w
-grid [ttk::checkbutton $p.switchVoltage -variable settings(switchVoltage)] -row 1 -column 1 -sticky e
-
-grid [ttk::label $p.lswitchCurrent -text "Переполюсовка тока:"] -row 2 -column 0 -sticky w
-grid [ttk::checkbutton $p.switchCurrent -variable settings(switchCurrent)] -row 2 -column 1 -sticky e
-
-grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3} -pad 5
-grid columnconfigure $p { 1 } -weight 1
-
-pack $p -fill x -padx 10 -pady 5
-
-grid columnconfigure $w.nb.m {0 1} -pad 5
-grid rowconfigure $w.nb.m {0 1} -pad 5
-
 # Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.r.msr -text " Файл результатов " -pad 10]
+set p [ttk::labelframe $w.nb.ms.l.res -text " Файл результатов " -pad 10]
 
 grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.name -textvariable settings(fileName)] -row 0 -column 1 -sticky we
@@ -327,6 +290,24 @@ grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
 
+# Правая колонка
+
+# Раздел настроек метода измерения тока
+set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения сопротивления " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+measure::widget::resistanceMethodControls $p current
+
+grid columnconfigure $w.nb.m {0 1} -pad 5
+grid rowconfigure $w.nb.m {0 1} -pad 5
+
+# Раздел настроек переполюсовок
+set p [ttk::labelframe $w.nb.ms.r.comm -text " Переполюсовки " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::switchControls $p "switch"
+
+grid columnconfigure $w.nb.m {0 1} -pad 5
+grid rowconfigure $w.nb.m {0 1} -pad 5
+
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5
 
@@ -334,23 +315,24 @@ grid rowconfigure $w.nb.m {0 1} -pad 5
 ttk::frame $w.nb.setup
 $w.nb add $w.nb.setup -text " Параметры установки "
 
+set p [ttk::labelframe $w.nb.setup.switch -text " Блок реле " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::mvu8Controls $p "switch"
+
+set p [ttk::labelframe $w.nb.setup.ps -text " Источник тока " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::psControls $p ps
+
+set p [ttk::labelframe $w.nb.setup.mm -text " Вольтметр/омметр на образце " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::mmControls $p mm
+
+set p [ttk::labelframe $w.nb.setup.cmm -text " Амперметр/вольтметр на эталоне " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::mmControls $p cmm
+
 set p [ttk::labelframe $w.nb.setup.m -text " Общие параметры " -pad 10]
 pack $p -fill x -padx 10 -pady 5
-
-grid [ttk::label $p.lrs485 -text "Порт для АС4:"] -row 0 -column 0 -sticky w
-grid [ttk::combobox $p.rs485 -width 10 -textvariable settings(rs485Port) -values [measure::com::allPorts]] -row 0 -column 1 -sticky w
-
-grid [ttk::label $p.lswitchAddr -text "Сетевой адрес МВУ-8:"] -row 1 -column 0 -sticky w
-grid [ttk::spinbox $p.switchAddr -width 10 -textvariable settings(switchAddr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 1 -column 1 -sticky w
-
-grid [ttk::label $p.lps -text "VISA адрес источника питания:"] -row 2 -column 0 -sticky w
-grid [ttk::combobox $p.ps -width 40 -textvariable settings(psAddr) -values [measure::visa::allInstruments]] -row 2 -column 1 -sticky we
-
-grid [ttk::label $p.lmm -text "VISA адрес вольтметра на образце:"] -row 4 -column 0 -sticky w
-grid [ttk::combobox $p.mm -width 40 -textvariable settings(mmAddr) -values [measure::visa::allInstruments]] -row 4 -column 1 -sticky we
-
-grid [ttk::label $p.lcmm -text "VISA адрес вольтметра на эталоне:"] -row 5 -column 0 -sticky w
-grid [ttk::combobox $p.cmm -width 40 -textvariable settings(cmmAddr) -values [measure::visa::allInstruments]] -row 5 -column 1 -sticky we
 
 grid [ttk::label $p.lbeepOnExit -text "Звуковой сигнал по окончании:"] -row 7 -column 0 -sticky w
 grid [ttk::checkbutton $p.beepOnExit -variable settings(beepOnExit)] -row 7 -column 1 -sticky w

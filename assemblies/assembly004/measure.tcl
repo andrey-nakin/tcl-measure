@@ -24,124 +24,6 @@ package require math::statistics
 # Подгружаем модель с процедурами общего назначения
 source [file join [file dirname [info script]] utils.tcl]
 
-# Измеряет ток и напряжение на образце
-# Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
-proc measureVoltage { } {
-    global mm cmm settings
-    
-	# запускаем измерение напряжения
-	scpi::cmd $mm "INIT"
-
-	# запускаем измерение тока
-	scpi::cmd $cmm "INIT"
-
-	# выставим нужный таймаут
-	set timeout [fconfigure $mm -timeout]
-	fconfigure $mm -timeout [expr int(10000 * $settings(numberOfSamples))]
-	fconfigure $cmm -timeout [expr int(10000 * $settings(numberOfSamples))]
-
-	# ждём завершения измерения напряжения
-	scpi::query $mm "*OPC?"
-
-	# ждём завершения измерения тока
-	scpi::query $cmm "*OPC?"
-
-    # восстановим таймаут
-	fconfigure $mm -timeout $timeout
-	fconfigure $cmm -timeout $timeout
-
-	# считываем значения напряжения и тока
-	set n $settings(numberOfSamples)
-	set vs [split [scpi::query $mm "DATA:REMOVE? $n"] ","]
-	set cs [split [scpi::query $cmm "DATA:REMOVE? $n"] ","]
-	
-	if { $settings(useTestResistance) } {
-		# пересчитаем падение напряжения на эталонном сопротивлении
-		# в силу тока
-		set newcs [list]
-		foreach c $cs {
-			lappend newcs [expr $c / $settings(testResistance)]
-		}
-		set cs $newcs
-	}
-
-	# вычисляем сопротивление
-	set rs [list]
-	foreach v $vs c $cs {
-		lappend rs [expr $v / $c]
-	}
-
-	# вычисляем средние значения и сигмы
-	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
-	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
-	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]; if { $sr == ""} { set sr 0 }
-
-    if { ![info exists settings(noSystErr)] || !$settings(noSystErr) } {
-    	# определяем инструментальную погрешность
-    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
-		if { $settings(useTestResistance) } {
-	    	set cErr [hardware::agilent::mm34410a::dcvSystematicError [expr $c * $settings(testResistance)] "" $settings(nplc)]
-		} else {
-	    	set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(nplc)]
-		}
-    	set rErr [measure::sigma::div $v $vErr $c $cErr]
-    
-    	# суммируем инструментальную и измерительную погрешности
-    	set sv [measure::sigma::add $vErr $sv]
-    	set sc [measure::sigma::add $cErr $sc]
-    	set sr [measure::sigma::add $rErr $sr]
-    }
-
-	# возвращаем результат измерений, переведённый в милливольты и милливольты
-	return [list [expr 1000.0 * $v] [expr 1000.0 * $sv] [expr 1000.0 * $c] [expr 1000.0 * $sc] $r $sr]
-}
-
-# Инициализация вольтметра
-proc setupMM {} {
-    global mm rm settings
-    
-    # Подключаемся к мультиметру (ММ)
-    if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
-		error "Невозможно подключиться к вольтметру по адресу `$settings(mmAddr)'"
-	}
-
-    # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init $mm
-
-	# Настраиваем мультиметр для измерения постоянного напряжения
-	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc $settings(nplc) \
-		-sampleCount $settings(numberOfSamples)	\
-		 $mm
-}
-
-# Инициализация амперметра
-proc setupCMM {} {
-    global cmm rm settings
-    
-    # Подключаемся к мультиметру (ММ)
-    if { [catch { set cmm [visa::open $rm $settings(cmmAddr)] } ] } {
-		error "Невозможно подключиться к амперметру по адресу `$settings(cmmAddr)'"
-	}
-
-    # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init $cmm
-
-	if { $settings(useTestResistance) } {
-    	# Настраиваем мультиметр для измерения постоянного напряжения
-    	hardware::agilent::mm34410a::configureDcVoltage \
-    		-nplc $settings(nplc) \
-    		-sampleCount $settings(numberOfSamples)	\
-    		 $cmm
-	} else {
-    	# Настраиваем мультиметр для измерения постоянного тока
-    	hardware::agilent::mm34410a::configureDcCurrent \
-    		-nplc $settings(nplc) \
-    		-sampleCount $settings(numberOfSamples)	\
-    		 $cmm
-    }
-}
-
 # Процедура производит одно измерение со всеми нужными переполюсовками
 #   и сохраняет результаты в файле результатов
 proc makeMeasurement {} {
@@ -163,7 +45,7 @@ proc makeMeasurement {} {
 		after 1000
 
 		# Измеряем напряжение
-		set res [measureVoltage]
+		set res [measure::measure::resistance]
 
 		# Накапливаем суммы
 		lassign $res v sv c sc r sr
@@ -210,11 +92,7 @@ set rm [visa::open-default-rm]
 if { !$settings(manualPower) } {
 	setupPs
 }
-setupMM
-setupCMM
-
-# подключаем тестовое сопротивление если требуется
-connectTestResistance
+measure::measure::setupMmsForResistance
 
 # Задаём наборы переполюсовок
 # Основное положение переключателей
@@ -231,6 +109,7 @@ if { $settings(switchCurrent) } {
 		lappend connectors { 1000 1000 1000 1000 } 
 	}
 }
+setConnectors [lindex $connectors 0]
 
 ###############################################################################
 # Основной цикл измерений
@@ -245,7 +124,7 @@ if { !$settings(manualPower) } {
 }
 
 # Холостое измерение для "прогрева" мультиметров
-measureVoltage
+measure::measure::resistance -n 1
 
 if { $settings(manualPower) } {
 	# Ручной режим управления питанием

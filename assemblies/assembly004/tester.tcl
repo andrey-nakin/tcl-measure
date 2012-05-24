@@ -16,84 +16,11 @@ package require hardware::agilent::mm34410a
 package require tclvisa
 package require measure::interop
 package require measure::sigma
+package require measure::measure
 
 ###############################################################################
 # Подпрограммы
 ###############################################################################
-
-# Измеряет ток и напряжение на образце
-# Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
-proc measureVoltage { } {
-    global mm cmm settings
-    
-	# измеряем напряжение и ток
-	set v [expr abs([scpi::query $mm "READ?"])]
-	set c [expr abs([scpi::query $cmm "READ?"])]
-
-	if { $settings(useTestResistance) } {
-		# пересчитаем падение напряжения на эталонном сопротивлении
-		# в силу тока
-		set c [expr $c / $settings(testResistance)]
-	}
-
-	# вычисляем сопротивление
-	set r [expr abs($v / $c)]
-
-	# определяем инструментальную погрешность
-	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $settings(nplc)]
-	if { $settings(useTestResistance) } {
-		set cErr [hardware::agilent::mm34410a::dcvSystematicError [expr $c * $settings(testResistance)] "" $settings(nplc)]
-	} else {
-		set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $settings(nplc)]
-	}
-	set rErr [measure::sigma::div $v $vErr $c $cErr]
-
-	# возвращаем результат измерений, переведённый в милливольты и милливольты
-	return [list [expr 1000.0 * $v] [expr 1000.0 * $vErr] [expr 1000.0 * $c] [expr 1000.0 * $cErr] $r $rErr]
-}
-
-# Инициализация вольтметра
-proc setupMM {} {
-    global mm rm settings
-    
-    # Подключаемся к мультиметру (ММ)
-    if { [catch { set mm [visa::open $rm $settings(mmAddr)] } ] } {
-		error "Невозможно подключиться к вольтметру по адресу `$settings(mmAddr)'"
-	}
-
-    # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init -noFrontCheck $mm
-
-	# Настраиваем мультиметр для измерения постоянного напряжения
-	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc $settings(nplc) \
-		 $mm
-}
-
-# Инициализация амперметра
-proc setupCMM {} {
-    global cmm rm settings
-    
-    # Подключаемся к мультиметру (ММ)
-    if { [catch { set cmm [visa::open $rm $settings(cmmAddr)] } ] } {
-		error "Невозможно подключиться к амперметру по адресу `$settings(cmmAddr)'"
-	}
-
-    # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init -noFrontCheck $cmm
-
-	if { $settings(useTestResistance) } {
-    	# Настраиваем мультиметр для измерения постоянного напряжения
-    	hardware::agilent::mm34410a::configureDcVoltage \
-    		-nplc $settings(nplc) \
-    		 $cmm
-	} else {
-    	# Настраиваем мультиметр для измерения постоянного тока
-    	hardware::agilent::mm34410a::configureDcCurrent \
-    		-nplc $settings(nplc) \
-    		 $cmm
-    }
-}
 
 # Инициализируем устройства
 proc openDevices {} {
@@ -106,8 +33,7 @@ proc openDevices {} {
 	set rm [visa::open-default-rm]
 
 	# Производим подключение к устройствам и их настройку
-	setupMM
-	setupCMM
+	measure::measure::setupMmsForResistance -noFrontCheck
 	if { !$settings(manualPower) } {
 		setupPs
 
@@ -124,15 +50,12 @@ proc run {} {
 	# инициализируем устройства
 	openDevices
 
-	# подключаем тестовое сопротивление если требуется
-	connectTestResistance
-
 	# работаем в цикле пока не получен сигнал останова
 	while { ![measure::interop::isTerminated] }	{
 		set tm [clock milliseconds]
 
 		# Снимаем показания
-		lassign [measureVoltage] v sv c sc r sr
+		lassign [measure::measure::resistance -n 1] v sv c sc r sr
 
         # Выводим результаты в окно программы
         display $v $sv $c $sc $r $sr          

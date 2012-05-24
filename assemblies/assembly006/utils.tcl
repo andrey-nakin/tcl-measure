@@ -54,17 +54,22 @@ proc validateSettings {} {
 proc setConnectors { conns } {
     global settings
 
-	# размыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
-	#after 500
+    if { $settings(current.method) != 3 } {
+    	# размыкаем цепь
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
+    	#after 500
+    
+    	# производим переключение полярности
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
+    	#after 500
 
-	# производим переключение полярности
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
-	#after 500
-
-	# замыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
-	#after 500
+    	# замыкаем цепь
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
+    	#after 500
+    } else {
+    	# в данном режиме цепь всегда разомкнута
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
+    }
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -113,57 +118,11 @@ proc display { v sv c sc r sr { T "" } { series "result" } } {
 	}
 }
 
-# Процедура тестового измерения сопротивления
-# Измеряет ток и напряжение на образце
-# Возвращает напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
-proc testMeasure { } {
-    global mm cmm settings
-    
-	# измеряем напряжение на образце
-	set v [expr abs([scpi::query $mm "READ?"])]
-	# инструментальная погрешность
-	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get mm.nplc]]
-
-	# измеряем силу тока
-	switch -exact -- $settings(current.method) {
-        0 {
-            # измеряем непосредственно ток
-			set c [expr abs([scpi::query $cmm "READ?"])]
-            # инструментальная погрешность
-            set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" [measure::config::get cmm.nplc]]
-        }
-        1 {
-            # измеряем падение напряжения на эталоне
-			set vv [expr abs([scpi::query $cmm "READ?"])] 
-    		set rr [measure::config::get current.reference.resistance 1.0] 
-			set c [expr $vv / $rr]
-    		# инструментальная погрешность
-            set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" [measure::config::get cmm.nplc]]
-    		set rrErr [measure::config::get current.reference.error 0.0] 
-	    	set cErr [measure::sigma::div $vv $vvErr $rr $rrErr]
-        }
-        2 {
-            # ток измеряется вручную
-            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
-            # инструментальная погрешность задаётся вручную
-            set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
-        }
-    }
-
-	# вычисляем сопротивление
-	set r [expr abs($v / $c)]
-	# определяем инструментальную погрешность
-	set rErr [measure::sigma::div $v $vErr $c $cErr]
-
-	# возвращаем результат измерений, переведённый в милливольты и милливольты
-	return [list [expr 1000.0 * $v] [expr 1000.0 * $vErr] [expr 1000.0 * $c] [expr 1000.0 * $cErr] $r $rErr]
-}
-
 # Процедура производит тестовое измерение сопротивления,
 # и выводит результаты в окне
 proc testMeasureAndDisplay { { traceFileName "" } { traceFileFormat "" } } {
 	# Снимаем показания
-	lassign [testMeasure] v sv c sc r sr
+	lassign [measure::measure::resistance -n 1] v sv c sc r sr
 
 	# Считываем значение температуры выводим её на экран
 	if { [ catch {

@@ -16,72 +16,11 @@ package require measure::interop
 package require measure::sigma
 package require measure::tsclient
 package require measure::datafile
+package require measure::measure
 
 ###############################################################################
 # Подпрограммы
 ###############################################################################
-
-# Инициализация вольтметра
-proc setupMM {} {
-    global mm settings
-    
-    # Подключаемся к мультиметру (ММ)
-    set mm [hardware::agilent::mm34410a::open \
-		-baud [measure::config::get mm.baud] \
-		-parity [measure::config::get mm.parity] \
-		-name "V1" \
-		[measure::config::get -required mm.addr] \
-	]
-
-    # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init -noFrontCheck $mm
-
-	# Настраиваем мультиметр для измерения постоянного напряжения
-	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc [measure::config::get mm.nplc 10] \
-		-text2 "V1 VOLTAGE" \
-		 $mm
-}
-
-# Инициализация амперметра
-proc setupCMM {} {
-    global cmm settings
-    
-    if { $settings(current.method) == 2 } {
-        # в ручном режиме второй мультиметр не используется
-        return
-    } 
-
-    # Подключаемся к мультиметру (ММ)
-    set cmm [hardware::agilent::mm34410a::open \
-		-baud [measure::config::get cmm.baud] \
-		-parity [measure::config::get cmm.parity] \
-		-name "V2" \
-		[measure::config::get -required cmm.addr] \
-	]
-
-    # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init -noFrontCheck $cmm
-
-    switch -exact -- $settings(current.method) {
-        0 {
-            # Ток измеряется непосредственно амперметром
-        	# Настраиваем мультиметр для измерения постоянного тока
-			hardware::agilent::mm34410a::configureDcCurrent \
-				-nplc [measure::config::get cmm.nplc 10] \
-				-text2 "V2 CURRENT" \
-				 $cmm
-        }
-        1 {
-            # Ток измеряется измерением надения напряжения на эталонном сопротивлении
-        	# Настраиваем мультиметр для измерения постоянного напряжения
-			hardware::agilent::mm34410a::configureDcVoltage \
-				-nplc [measure::config::get cmm.nplc 10] \
-				-text2 "V2 VOLTAGE" \
-				 $cmm
-        }
-    }
-}
 
 # Инициализируем устройства
 proc openDevices {} {
@@ -89,8 +28,7 @@ proc openDevices {} {
 	setConnectors { 0 0 0 0 }
 
 	# Производим подключение к устройствам и их настройку
-	setupMM
-	setupCMM
+	measure::measure::setupMmsForResistance -noFrontCheck
 }
 
 # Процедура производит периодический опрос приборов и выводит показания на экран
