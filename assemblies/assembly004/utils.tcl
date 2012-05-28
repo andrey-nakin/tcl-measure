@@ -125,9 +125,17 @@ proc finish {} {
 }
 
 proc display { v sv c sc r sr } {
-    set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
-    set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
-    set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
+    set cf [format "%0.6g \u00b1 %0.2g" $c $sc]
+    set vf [format "%0.6g \u00b1 %0.2g" $v $sv]
+    if { $r >= 1.0e9 && $r < 1.0e12  } {
+        set rf [format "%0.6g \u00b1 %0.2g G\u03A9" [expr 1.0e-9 * $r] [expr 1.0e-9 * $sr]]
+    } elseif { $r >= 1.0e6 && $r < 1.0e9  } {
+        set rf [format "%0.6g \u00b1 %0.2g M\u03A9" [expr 1.0e-6 * $r] [expr 1.0e-6 * $sr]]
+    } elseif { $r >= 1.0e3 && $r < 1.0e6  } { 
+        set rf [format "%0.6g \u00b1 %0.2g k\u03A9" [expr 1.0e-3 * $r] [expr 1.0e-3 * $sr]]
+    } else {
+        set rf [format "%0.6g \u00b1 %0.2g" $r $sr]
+    }
     set pf [format "%0.3g" [expr 0.001 * $c * $v]]    
       
 	if { [measure::interop::isAlone] } {

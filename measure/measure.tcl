@@ -108,7 +108,7 @@ proc ::measure::measure::setupMmsForResistance { args } {
 #   Время измерения в мс
 proc ::measure::measure::oneMeasurementDuration {} {
 	return [hardware::agilent::mm34410a::measDur	\
-		-nplc [::tcl::mathfunc::max [measure::config::get mm.nplc 10] [measure::config::get cmm.nplc] ] \
+		-nplc [::tcl::mathfunc::max [measure::config::get mm.nplc 10] [measure::config::get cmm.nplc 10] ] \
 		-sampleCount [measure::config::get measure.numOfSamples 1]	\
 	]
 }

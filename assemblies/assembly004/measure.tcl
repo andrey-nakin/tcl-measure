@@ -16,6 +16,7 @@ package require measure::datafile
 package require measure::interop
 package require measure::sigma
 package require math::statistics
+package require measure::measure
 
 ###############################################################################
 # Подпрограммы

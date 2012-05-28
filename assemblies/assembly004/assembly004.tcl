@@ -153,7 +153,12 @@ proc toggleTestResistance {} {
 }
 
 proc addValueToChart { v } {
-	global canvas
+	global canvas log
+
+	lassign [::measure::chart::${canvas}::getYStat] mean _ _ n
+	if { $n >= 5 && $mean/$v > 100.0 } {
+    	measure::chart::${canvas}::clear
+    }
 	measure::chart::${canvas}::addPoint $v
 }
 
@@ -253,14 +258,11 @@ pack $p -fill x -padx 10 -pady 5
 # Раздел настроек измерения
 set p [ttk::labelframe $w.nb.ms.l.msr -text " Параметры измерения " -pad 10]
 
-grid [ttk::label $p.lnplc -text "Циклов 50 Гц на измерение:"] -row 0 -column 0 -sticky w
-grid [ttk::combobox $p.nplc -width 10 -textvariable settings(nplc) -state readonly -values $hardware::agilent::mm34410a::nplcs ] -row 0 -column 1 -sticky e
-
 grid [ttk::label $p.lnsamples -text "Измерений на точку:"] -row 1 -column 0 -sticky w
-grid [ttk::spinbox $p.nsamples -width 10 -textvariable settings(numberOfSamples) -from 1 -to 50000 -increment 10 -validate key -validatecommand {string is integer %P}] -row 1 -column 1 -sticky e
+grid [ttk::spinbox $p.nsamples -width 10 -textvariable settings(measure.numOfSamples) -from 1 -to 50000 -increment 10 -validate key -validatecommand {string is integer %P}] -row 1 -column 1 -sticky e
 
 grid [ttk::label $p.lsystError -text "Игнорировать инстр. погрешность:"] -row 2 -column 0 -sticky w
-grid [ttk::checkbutton $p.systError -variable settings(noSystErr)] -row 2 -column 1 -sticky e
+grid [ttk::checkbutton $p.systError -variable settings(measure.noSystErr)] -row 2 -column 1 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5
