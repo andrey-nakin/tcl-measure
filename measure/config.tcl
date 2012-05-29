@@ -11,6 +11,7 @@ package provide measure::config 0.1.0
 package require inifile
 package require cmdline
 package require measure::logger
+package require measure::interop
 
 namespace eval measure::config {
   namespace export config read write get
@@ -18,12 +19,13 @@ namespace eval measure::config {
 
 set measure::config::configFileIsRead 0
 
-proc measure::config::read { { configFileName params.ini } } {
+proc measure::config::read { { cfgFileName "" } } {
 	global measure::config::configFileIsRead
 
+    set cfgFileName [configFileName $cfgFileName]
 #	set logConfig [measure::logger::init measure::config]
 
-	if { [catch { set fd [ini::open $configFileName r] } rc ] } {
+	if { [catch { set fd [ini::open $cfgFileName r] } rc ] } {
 		#${logConfig}::error "Ошибка открытия файла конфигурации: $rc"
 		return
 	}
@@ -41,11 +43,11 @@ proc measure::config::read { { configFileName params.ini } } {
 	set configFileIsRead 1
 }
 
-proc measure::config::write { { configFileName params.ini } } {
+proc measure::config::write { { cfgFileName "" } } {
 #	set logConfig [measure::logger::init measure::config]
 	set arrays { settings measure }
 
-	if { [catch { set fd [ini::open $configFileName w+] } rc ] } {
+	if { [catch { set fd [ini::open [configFileName $cfgFileName] w+] } rc ] } {
 #		${logConfig}::error "Ошибка открытия файла конфигурации: $rc"
 		return
 	}
@@ -108,4 +110,11 @@ proc measure::config::validate { lst } {
             set settings($name) $defValue
         }
     }
+}
+
+proc measure::config::configFileName { fn } {
+    if { $fn == "" } {
+        return [file join [pwd] "[file rootname [file tail [measure::interop::mainScriptFileName]]].ini"]
+    }
+    return $fn
 }

@@ -34,7 +34,7 @@ proc ::measure::logger::init { service } {
 # Call this procedure once at the application startup.
 # Arguments
 #   ?logfile? - name of the disk file to write log into.
-proc ::measure::logger::server { {logfile "measure.log"} } {
+proc ::measure::logger::server { {logfile ""} } {
 	set t [thread::create -joinable {
 
 		proc setLogFile { fn } {
@@ -61,6 +61,10 @@ proc ::measure::logger::server { {logfile "measure.log"} } {
 		# enter to event loop
 		thread::wait
 	}]
+
+    if { $logfile == "" } {
+        set logfile [file join [pwd] "[file rootname [file tail [info script]]].log"]
+    }
 
 	thread::send $t [list setLogFile $logfile]
 	tsv::set measure-logger loggerThread $t
