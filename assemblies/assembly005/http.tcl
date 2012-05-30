@@ -26,7 +26,7 @@ source [file join [file dirname [info script]] utils.tcl]
 proc ::measure::http::server::get::state { paramList headerList args } {
     global log
     
-    ${log}::debug "get::stat $paramList $headerList $args"
+    #${log}::debug "get::stat $paramList $headerList $args"
 
     # Считываем последний отсчёт из разделяемых переменных
     array set state [tsv::array get tempState]

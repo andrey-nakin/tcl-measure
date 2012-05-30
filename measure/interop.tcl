@@ -16,6 +16,18 @@ namespace eval measure::interop {
 		setVar
 }
 
+proc measure::interop::mainScriptFileName { } {
+    global mainThreadId_
+    
+    if { [measure::interop::isAlone] } {
+       set sn [info script] 
+    } else {
+        set sn [thread::send $mainThreadId_ { info script }]
+    }
+    
+    return $sn
+}
+
 ##############################################################################
 # Procedures for main threads
 ##############################################################################
@@ -363,7 +375,7 @@ proc measure::interop::childInitialized { childId } {
 }
 
 proc measure::interop::createChildThread { scriptName } {
-	global log
+	global log mainThreadId_
 	variable childThreadIds
 
 	if { ![info exists childThreadIds] } {
@@ -393,6 +405,9 @@ proc measure::interop::createChildThread { scriptName } {
 	
 	lappend childThreadIds $tid
 
+    if { [info exists mainThreadId_] } {
+    	thread::send $tid [list set mainThreadId_ $mainThreadId_]
+    }
 	thread::send -async $tid "_start [thread::id] [file join [file dirname [info script]] ${scriptName}.tcl]"
 	thread::send -async $tid [list init [thread::id] ::measure::interop::childInitialized]
 
