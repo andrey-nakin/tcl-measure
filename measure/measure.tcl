@@ -11,6 +11,7 @@ package provide measure::measure 0.1.0
 package require cmdline
 package require math::statistics
 package require measure::config
+package require measure::sigma
 
 namespace eval ::measure::measure {
   namespace export resistance 

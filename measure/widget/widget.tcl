@@ -14,6 +14,7 @@ package require measure::widget::images
 package require startfile
 package require hardware::agilent::mm34410a
 package require measure::datafile
+package require measure::thermocouple
 
 namespace eval ::measure::widget {
   namespace export setDisabledByVar
@@ -198,6 +199,25 @@ proc ::measure::widget::switchControls { prefix settingsVar } {
     grid columnconfigure $prefix {0 1} -pad 5
     grid rowconfigure $prefix {0 1 2 3} -pad 5
     grid columnconfigure $prefix { 1 } -weight 1
+}
+
+proc ::measure::widget::thermoCoupleControls { prefix settingsVar } {
+    grid [ttk::label $prefix.ltype -text "Тип термопары:"] -row 0 -column 0 -sticky w
+    grid [ttk::combobox $prefix.type -width 6 -textvariable settings(${settingsVar}.type) -state readonly -values [measure::thermocouple::getTcTypes]] -row 0 -column 1 -sticky w
+    
+    grid [ttk::label $prefix.lfixedT -text "Опорная температура, К:"] -row 0 -column 3 -sticky w
+    grid [ttk::spinbox $prefix.fixedT -width 6 -textvariable settings(${settingsVar}.fixedT) -from 0 -to 1200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 4 -sticky w
+    
+    grid [ttk::label $prefix.lnegate -text "Инв. полярность:"] -row 0 -column 6 -sticky w
+    grid [ttk::checkbutton $prefix.negate -variable settings(${settingsVar}.negate)] -row 0 -column 7 -sticky w
+    
+    grid [ttk::label $prefix.lcorrection -text "Выражение для коррекции:"] -row 1 -column 0 -sticky w
+    grid [ttk::entry $prefix.correction -textvariable settings(${settingsVar}.correction)] -row 1 -column 1 -columnspan 7 -sticky we
+    grid [ttk::label $prefix.lcorrectionexample -text "Например: (x - 77.4) * 1.1 + 77.4"] -row 2 -column 1 -columnspan 7 -sticky we
+    
+    grid columnconfigure $prefix { 0 3 6 } -pad 5
+    grid columnconfigure $prefix { 2 5 } -weight 1
+    grid rowconfigure $prefix { 0 1 2 3 4 5 6 7 8 } -pad 5
 }
 
 if { [info commands ttk::spinbox] == "" } {

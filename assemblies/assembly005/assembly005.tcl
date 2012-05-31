@@ -447,23 +447,7 @@ pack $p -fill x -padx 10 -pady 5
 
 set p [ttk::labelframe $frm.tc -text " Термопара " -pad 10]
 pack $p -fill x -padx 10 -pady 5
-
-grid [ttk::label $p.ltype -text "Тип термопары:"] -row 0 -column 0 -sticky w
-grid [ttk::combobox $p.type -width 6 -textvariable settings(mmtc.tc.type) -state readonly -values [measure::thermocouple::getTcTypes]] -row 0 -column 1 -sticky w
-
-grid [ttk::label $p.lfixedT -text "Опорная температура, К:"] -row 0 -column 3 -sticky w
-grid [ttk::spinbox $p.fixedT -width 6 -textvariable settings(mmtc.tc.fixedT) -from 0 -to 1200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 4 -sticky w
-
-grid [ttk::label $p.lnegate -text "Инв. полярность:"] -row 0 -column 6 -sticky w
-grid [ttk::checkbutton $p.negate -variable settings(mmtc.tc.negate)] -row 0 -column 7 -sticky w
-
-grid [ttk::label $p.lcorrection -text "Выражение для коррекции:"] -row 1 -column 0 -sticky w
-grid [ttk::entry $p.correction -textvariable settings(mmtc.tc.correction)] -row 1 -column 1 -columnspan 7 -sticky we
-grid [ttk::label $p.lcorrectionexample -text "Например: (x - 77.4) * 1.1 + 77.4"] -row 2 -column 1 -columnspan 7 -sticky we
-
-grid columnconfigure $p { 0 3 6 } -pad 5
-grid columnconfigure $p { 2 5 } -weight 1
-grid rowconfigure $p { 0 1 2 3 4 5 6 7 8 } -pad 5
+::measure::widget::thermoCoupleControls $p mmtc.tc
 
 ##############################################################################
 # Закладка "Запись температурной схемы"
