@@ -274,16 +274,16 @@ grid [ttk::entry $p.etr -textvariable runtime(trend) -state readonly] -row 2 -co
 grid [ttk::label $p.lsigma -text "Разброс, К:"] -row 2 -column 3 -sticky w
 grid [ttk::entry $p.esigma -textvariable runtime(sigma) -state readonly] -row 2 -column 4 -sticky we
 
-grid [ttk::label $p.lc -text "Ток, мА:"] -row 3 -column 0 -sticky w
+grid [ttk::label $p.lc -text "Ток:"] -row 3 -column 0 -sticky w
 grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 3 -column 1 -sticky we
 
-grid [ttk::label $p.lv -text "Напряжение, мВ:"] -row 3 -column 3 -sticky w
+grid [ttk::label $p.lv -text "Напряжение:"] -row 3 -column 3 -sticky w
 grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 3 -column 4 -sticky we
 
-grid [ttk::label $p.lr -text "Сопротивление, Ом:"] -row 4 -column 0 -sticky w
+grid [ttk::label $p.lr -text "Сопротивление:"] -row 4 -column 0 -sticky w
 grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 4 -column 1 -sticky we
 
-grid [ttk::label $p.lp -text "Мощность, мВт:"] -row 4 -column 3 -sticky w
+grid [ttk::label $p.lp -text "Мощность:"] -row 4 -column 3 -sticky w
 grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 4 -column 4 -sticky we
 
 grid columnconfigure $p { 0 1 3 4 } -pad 5

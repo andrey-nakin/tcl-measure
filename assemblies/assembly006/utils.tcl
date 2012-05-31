@@ -5,6 +5,8 @@
 # Процедуры общего назначения
 ###############################################################################
 
+package require measure::format 
+
 # Процедура проверяет правильность настроек, при необходимости вносит поправки
 proc validateSettings {} {
     global settings
@@ -98,10 +100,10 @@ proc finish {} {
 }
 
 proc display { v sv c sc r sr { T "" } { series "result" } } {
-    set cf [format "%0.9g \u00b1 %0.2g" $c $sc]
-    set vf [format "%0.9g \u00b1 %0.2g" $v $sv]
-    set rf [format "%0.9g \u00b1 %0.2g" $r $sr]
-    set pf [format "%0.3g" [expr 0.001 * $c * $v]]    
+    set cf [::measure::format::valueWithErr -mult 1.0e-3 $c $sc "\u0410"]
+    set vf [::measure::format::valueWithErr -mult 1.0e-3 $v $sv "\u0412"] 
+    set rf [::measure::format::valueWithErr $r $sr "\u03A9"] 
+    set pf [::measure::format::value -prec 2 [expr 1.0e-6 * $c * $v] "\u0412\u0442"] 
 
 	if { [measure::interop::isAlone] } {
 	    # Выводим результаты в консоль

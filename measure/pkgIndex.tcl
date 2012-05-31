@@ -19,6 +19,7 @@ package ifneeded measure::ranges 0.1.0 [list source [file join $dir ranges.tcl]]
 package ifneeded measure::math 0.1.0 [list source [file join $dir math.tcl]]
 package ifneeded measure::tsclient 0.1.0 [list source [file join $dir tsclient.tcl]]
 package ifneeded measure::measure 0.1.0 [list source [file join $dir measure.tcl]]
+package ifneeded measure::format 0.1.0 [list source [file join $dir format.tcl]]
 
 set maindir $dir
 set dir [file join $maindir widget]; source [file join $dir pkgIndex.tcl]
