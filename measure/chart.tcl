@@ -45,6 +45,10 @@ proc measure::chart::limits { min max } {
 
     if { $max >= 0 && $min >= 0 } {
         lassign [calcLimits $min $max] lower upper
+    } elseif { $max <= 0 && $min <= 0 } {
+        lassign [calcLimits [expr -1.0 * $max] [expr -1.0 * $min]] l u
+        set lower [expr -1.0 * $u]
+        set upper [expr -1.0 * $l]
     } else {
     	if { $min < 0.0 && $max < 0.0 } {
     		set lower [expr -1.0 * [calcHigherLimit [expr -1.0 * $min]]]

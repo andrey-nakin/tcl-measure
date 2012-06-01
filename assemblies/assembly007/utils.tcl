@@ -10,6 +10,9 @@ package require measure::thermocouple
 package require measure::listutils
 package require measure::math
 
+# Число измерений, по которым определяется производная dT/dt
+set DERIVATIVE_READINGS 10
+
 # Процедура проверяет правильность настроек, при необходимости вносит поправки
 proc validateSettings {} {
     measure::config::validate {
@@ -78,7 +81,7 @@ proc finish {} {
 	after 1000
 }
 
-proc display { v sv c sc r sr temp tempErr tempDer } {
+proc display { v sv c sc r sr temp tempErr tempDer write } {
 	if { [measure::interop::isAlone] } {
 	    # Выводим результаты в консоль
     	set cv [::measure::format::valueWithErr -mult 1.0e-3 $c $sc A]
@@ -89,7 +92,7 @@ proc display { v sv c sc r sr temp tempErr tempDer } {
     	puts "C=$cv\tV=$vv\tR=$rv\tP=$pw\tT=$tv"
 	} else {
 	    # Выводим результаты в окно программы
-        measure::interop::cmd [list display $v $sv $c $sc $r $sr $temp $tempErr $tempDer]
+        measure::interop::cmd [list display $v $sv $c $sc $r $sr $temp $tempErr $tempDer $write]
 	}
 }
 
@@ -100,7 +103,7 @@ set startTime [clock milliseconds]
 # Снимаем показания вольтметра на термопаре и возвращаем температуру 
 # вместе с инструментальной погрешностью и производной
 proc readTemp {} {
-    global tcmm tempValues timeValues startTime
+    global tcmm tempValues timeValues startTime DERIVATIVE_READINGS
 
     # измеряем напряжение на термопаре    
     set v [scpi::query $tcmm "READ?"]
@@ -113,10 +116,16 @@ proc readTemp {} {
         [measure::config::get tc.fixedT 77.4] \
         $v $vErr] t tErr
 
-    measure::listutils::lappend tempValues $t 10
-    measure::listutils::lappend timeValues [expr [clock milliseconds] - $startTime] 10
+    # накапливаем значения в очереди для вычисления производной 
+    measure::listutils::lappend tempValues $t $DERIVATIVE_READINGS
+    measure::listutils::lappend timeValues [expr [clock milliseconds] - $startTime] $DERIVATIVE_READINGS
+    if { [llength $tempValues] < $DERIVATIVE_READINGS } {
+        set der 0.0
+    } else {
+        set der [expr 60000.0 * [measure::math::slope $timeValues $tempValues]] 
+    }
             
-    return [list $t $tErr [expr 60000.0 * [measure::math::slope $timeValues $tempValues]]]
+    return [list $t $tErr $der]
 }
 
 # Измеряем сопротивление и регистрируем его вместе с температурой
@@ -127,7 +136,7 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } } {
 	lassign [measure::measure::resistance] v sv c sc r sr
 
     # Выводим результаты в окно программы
-    display $v $sv $c $sc $r $sr $temp $tempErr $tempDer
+    display $v $sv $c $sc $r $sr $temp $tempErr $tempDer $write
 
     if { $write } {
     	# Выводим результаты в результирующий файл

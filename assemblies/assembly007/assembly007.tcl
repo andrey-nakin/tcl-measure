@@ -36,12 +36,17 @@ package require hardware::agilent::mm34410a
 
 # Очищаем поля с результатами измерений
 proc clearResults {} {
-	global runtime
+    global runtime chartR_T chartR_t chartT_t chartdT_t
 
 	set runtime(current) ""
 	set runtime(voltage) ""
 	set runtime(resistance) ""
 	set runtime(power) ""
+
+	measure::chart::${chartR_t}::clear
+	measure::chart::${chartT_t}::clear
+	measure::chart::${chartdT_t}::clear
+   	measure::chart::${chartR_T}::clear
 }
 
 # Запускаем тестовый модуль
@@ -79,11 +84,12 @@ proc stopMeasure {} {
      
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
+	$w.nb.m.ctl.measure configure -state disabled
 }
 
 # Запускаем измерения
 proc startMeasure {} {
-	global w log runtime chartCanvas workerId
+	global w log runtime chartR_T workerId
 
 	# запрещаем кнопку запуска измерений
 	$w.nb.m.ctl.start configure -state disabled
@@ -102,12 +108,13 @@ proc startMeasure {} {
 
     # Разрешаем кнопку останова измерений
 	$w.nb.m.ctl.stop configure -state normal
+	$w.nb.m.ctl.measure configure -state normal
 	
     # Очищаем результаты в окне программы
 	clearResults
 
 	# Очищаем график
-	measure::chart::${chartCanvas}::clear
+	measure::chart::${chartR_T}::clear
 }
 
 # Прерываем измерения
@@ -116,6 +123,7 @@ proc terminateMeasure {} {
 
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
+	$w.nb.m.ctl.measure configure -state disabled
 	
 	# Посылаем в измерительный поток сигнал об останове
 	measure::interop::terminate
@@ -170,25 +178,11 @@ proc toggleProgControls {} {
 	::measure::widget::setDisabled [expr $mode == 1] $p.tempStep
 }
 
-# Отправляет команду потоку измерения пропустить текущую уставку
-proc skipSetPoint {} {
+proc makeMeasurement {} {
 	global workerId
 
 	if { [info exists workerId] } {
-		thread::send -async $workerId { skipSetPoint }
-	}
-}
-
-# Отправляет текущие настройки потоку измерения
-proc applySettings {} {
-	global workerId settings
-
-	# Сохраняем параметры программы
-	measure::config::write
-
-	if { [info exists workerId] } {
-		# Отправляем настройки потоку измерения
-		thread::send -async $workerId [list applySettings [array get settings]]
+		thread::send -async $workerId makeMeasurement
 	}
 }
 
@@ -196,21 +190,23 @@ proc applySettings {} {
 # Обработчики событий
 ###############################################################################
 
-proc display { v sv c sc r sr temp tempErr tempDer } {
-    global runtime
+proc display { v sv c sc r sr temp tempErr tempDer write } {
+    global runtime chartR_T chartR_t chartT_t chartdT_t
 
     # Выводим результаты в окно программы
-	set runtime(temperature) [::measure::format::valueWithErr -prec 3 $temp $tempErr "К"]
-	set runtime(derivative1) [::measure::format::value -prec 3 $tempDer "К/мин"]
+	set runtime(temperature) [::measure::format::valueWithErr -prec 6 $temp $tempErr "К"]
+	set runtime(derivative1) [::measure::format::value -prec 3 -- $tempDer "К/мин"]
 	set runtime(current) [::measure::format::valueWithErr -mult 1.0e-3 $c $sc "\u0410"]
 	set runtime(voltage) [::measure::format::valueWithErr -mult 1.0e-3 $v $sv "\u0412"]
 	set runtime(resistance) [::measure::format::valueWithErr $r $sr "\u03A9"]
 	set runtime(power) [::measure::format::value -prec 2 [expr 1.0e-6 * $c * $v] "\u0412\u0442"]
-}
 
-proc addPointToChart { t r { series "result" } } {
-    global chartCanvas
-	measure::chart::${chartCanvas}::addPoint $t $r $series
+	measure::chart::${chartR_t}::addPoint $r
+	measure::chart::${chartT_t}::addPoint $temp
+	measure::chart::${chartdT_t}::addPoint $tempDer
+	if { $write } {
+    	measure::chart::${chartR_T}::addPoint $temp $r result
+    }
 }
 
 ###############################################################################
@@ -244,6 +240,7 @@ $w.nb add $w.nb.m -text " Измерение "
 set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
+grid [ttk::button $p.measure -text "Снять точку" -state disabled -command makeMeasurement -image ::img::next -compound left] -row 0 -column 0 -sticky w
 grid [ttk::button $p.stop -text "Остановить запись" -command terminateMeasure -state disabled -image ::img::stop -compound left] -row 0 -column 1 -sticky e
 grid [ttk::button $p.start -text "Начать запись" -command startMeasure -image ::img::start -compound left] -row 0 -column 2 -sticky e
 
@@ -255,38 +252,55 @@ grid rowconfigure $p { 0 1 } -pad 5
 set p [ttk::labelframe $w.nb.m.v -text " Результаты измерения " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
+grid [ttk::label $p.lc -text "Ток:"] -row 0 -column 0 -sticky w
+grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 0 -column 1 -sticky we
+
+grid [ttk::label $p.lv -text "Напряжение:"] -row 0 -column 3 -sticky w
+grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 0 -column 4 -sticky we
+
+grid [ttk::label $p.lr -text "Сопротивление:"] -row 0 -column 6 -sticky w
+grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 0 -column 7 -sticky we
+
+grid [ttk::label $p.lp -text "Мощность:"] -row 0 -column 9 -sticky w
+grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 0 -column 10 -sticky we
+
 grid [ttk::label $p.lt -text "Температура:"] -row 1 -column 0 -sticky w
 grid [ttk::entry $p.et -textvariable runtime(temperature) -state readonly] -row 1 -column 1 -sticky we
 
 grid [ttk::label $p.lder -text "Производная:"] -row 1 -column 3 -sticky w
 grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 4 -sticky we
 
-grid [ttk::label $p.lc -text "Ток:"] -row 3 -column 0 -sticky w
-grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 3 -column 1 -sticky we
-
-grid [ttk::label $p.lv -text "Напряжение:"] -row 3 -column 3 -sticky w
-grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 3 -column 4 -sticky we
-
-grid [ttk::label $p.lr -text "Сопротивление:"] -row 4 -column 0 -sticky w
-grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 4 -column 1 -sticky we
-
-grid [ttk::label $p.lp -text "Мощность:"] -row 4 -column 3 -sticky w
-grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 4 -column 4 -sticky we
-
-grid columnconfigure $p { 0 1 3 4 } -pad 5
-grid columnconfigure $p { 2 } -minsize 20
-grid columnconfigure $p { 1 4 } -weight 1
+grid columnconfigure $p { 0 1 3 4 5 6 7 8 9 10 } -pad 5
+grid columnconfigure $p { 2 5 8 } -minsize 20
+grid columnconfigure $p { 1 4 7 } -weight 1
 grid rowconfigure $p { 0 1 2 3 } -pad 5
 
 # Раздел "График"
 set p [ttk::labelframe $w.nb.m.c -text " Температурная зависимость " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
-set chartCanvas [canvas $p.c -width 400 -height 200]
-pack $chartCanvas -fill both -expand 1
-measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" -dots 1 -lines 1 $chartCanvas
-# параметры графика
-measure::chart::${chartCanvas}::series result -color green
-measure::chart::${chartCanvas}::series test -maxCount 10 -color #7f7fff
+
+set chartR_T [canvas $p.r_T -width 200 -height 200]
+grid $chartR_T -row 0 -column 0 -sticky news
+measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" -dots 1 -lines 1 $chartR_T
+measure::chart::${chartR_T}::series result -color green
+#measure::chart::${chartR_T}::series test -maxCount 10 -color #7f7fff
+
+set chartR_t [canvas $p.r_t -width 200 -height 200]
+grid $chartR_t -row 0 -column 1 -sticky news
+measure::chart::movingChart -ylabel "R, Ом" -linearTrend $chartR_t
+
+set chartT_t [canvas $p.t_t -width 200 -height 200]
+grid $chartT_t -row 1 -column 0 -sticky news
+measure::chart::movingChart -ylabel "T, К" -linearTrend $chartT_t
+
+set chartdT_t [canvas $p.dt_t -width 200 -height 200]
+grid $chartdT_t -row 1 -column 1 -sticky news
+measure::chart::movingChart -ylabel "dT/dt, К/мин" -linearTrend $chartdT_t
+
+grid columnconfigure $p { 0 1 } -weight 1
+grid rowconfigure $p { 0 1 } -weight 1
+
+place [ttk::button $p.cb -text "Очистить" -command clearResults] -anchor ne -relx 1.0 -rely 0.0
 
 # Закладка "Параметры измерения"
 ttk::frame $w.nb.ms
@@ -315,23 +329,19 @@ grid [ttk::radiobutton $p.temp -value 1 -variable settings(prog.method) -command
 grid [ttk::label $p.ltempStep -text "  Температурный шаг, К:"] -row 3 -column 0 -sticky w
 grid [ttk::spinbox $p.tempStep -width 10 -textvariable settings(prog.temp.step) -from 0 -to 1000 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
 
-grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3 4} -pad 5
-grid columnconfigure $p { 1 } -weight 1
-
-pack $p -fill x -padx 10 -pady 5
-
-# Раздел настроек измерения
-set p [ttk::labelframe $w.nb.ms.l.msr -text " Параметры измерения " -pad 10]
-
-grid [ttk::label $p.lsystError -text "Игнорировать инстр. погрешность:"] -row 1 -column 0 -sticky w
-grid [ttk::checkbutton $p.systError -variable settings(measure.noSystErr)] -row 1 -column 1 -sticky e
+grid [ttk::label $p.lman -text "Вручную:"] -row 4 -column 0 -sticky w
+grid [ttk::radiobutton $p.man -value 2 -variable settings(prog.method) -command toggleProgControls] -row 4 -column 1 -sticky e
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
+
+# Настройки параметров образца
+set p [ttk::labelframe $w.nb.ms.l.dut -text " Параметры образца " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::dutControls $p dut
 
 # Правая колонка
 

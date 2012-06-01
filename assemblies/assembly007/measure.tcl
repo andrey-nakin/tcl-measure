@@ -28,7 +28,7 @@ source [file join [file dirname [info script]] utils.tcl]
                    
 # Производит регистрацию данных по заданному временному шагу
 proc runTimeStep {} {
-    set step [measure::config::get prog.timeStep 1000.0]
+    set step [measure::config::get prog.time.step 1000.0]
     
     # Выполняем цикл пока не прервёт пользователь
     while { ![measure::interop::isTerminated] } {
@@ -47,7 +47,7 @@ proc runTimeStep {} {
 
 # Производит регистрацию данных по заданному температурному шагу
 proc runTempStep {} {
-    set step [measure::config::get prog.tempStep 1.0]
+    set step [measure::config::get prog.temp.step 1.0]
     lassign [readTemp] temp tempErr
     set prevN [expr floor($temp / $step + 0.5)]
     set prevT [expr $prevN * $step]
@@ -57,7 +57,7 @@ proc runTempStep {} {
         # считываем температуру
         lassign [readTemp] temp tempErr tempDer
         
-        if { $temp > $prevT && $temp > [expr ($prevN + 1) * $step]  \\
+        if { $temp > $prevT && $temp > [expr ($prevN + 1) * $step]  \
             || $temp < $prevT && $temp < [expr ($prevN - 1) * $step] } {
             # регистрируем сопротивление
             readResistanceAndWrite $temp $tempErr $tempDer 1
@@ -73,6 +73,24 @@ proc runTempStep {} {
     }
 }
 
+# Производит регистрацию данных по командам оператора
+proc runManual {} {
+    global doMeasurement
+
+    # Выполняем цикл пока не прервёт пользователь
+    while { ![measure::interop::isTerminated] } {
+        # считываем температуру
+        lassign [readTemp] temp tempErr tempDer
+        
+        # регистрируем сопротивление
+        readResistanceAndWrite $temp $tempErr $tempDer $doMeasurement
+        
+        after 500 set doMeasurement 0
+        vwait doMeasurement
+        after cancel set doMeasurement 0
+    }
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
@@ -82,6 +100,13 @@ proc applySettings { lst } {
 	global settings
 
 	array set settings $lst
+}
+
+# Произвести очередное измерение
+proc makeMeasurement {} {
+    global doMeasurement
+    
+    set doMeasurement 1
 }
 
 ###############################################################################
@@ -115,10 +140,13 @@ measure::datafile::create $settings(result.fileName) $settings(result.format) $s
 # Холостое измерение для "прогрева" мультиметров
 measure::measure::resistance -n 1
 
+set doMeasurement 0
 if { $settings(prog.method) == 0 } {
     runTimeStep
-} else {
+} elseif { $settings(prog.method) == 1 } {
     runTempStep
+} else {
+    runManual
 }
 
 ###############################################################################

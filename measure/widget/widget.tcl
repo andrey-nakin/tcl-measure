@@ -220,6 +220,24 @@ proc ::measure::widget::thermoCoupleControls { prefix settingsVar } {
     grid rowconfigure $prefix { 0 1 2 3 4 5 6 7 8 } -pad 5
 }
 
+proc ::measure::widget::dutControls { prefix settingsVar } {
+    grid [ttk::label $prefix.ll -text "Расстояние между потенциальными контактами, мм:"] -row 0 -column 0 -sticky w
+    grid [ttk::spinbox $prefix.l -width 10 -textvariable settings(${settingsVar}.l) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky e
+    
+    grid [ttk::label $prefix.llen -text "Длина, мм:"] -row 1 -column 0 -sticky w
+    grid [ttk::spinbox $prefix.len -width 10 -textvariable settings(${settingsVar}.length) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
+    
+    grid [ttk::label $prefix.lwidth -text "Ширина, мм:"] -row 2 -column 0 -sticky w
+    grid [ttk::spinbox $prefix.width -width 10 -textvariable settings(${settingsVar}.width) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
+    
+    grid [ttk::label $prefix.lth -text "Толщина, мм:"] -row 3 -column 0 -sticky w
+    grid [ttk::spinbox $prefix.th -width 10 -textvariable settings(${settingsVar}.thickness) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
+    
+    grid columnconfigure $prefix {0 1} -pad 5
+    grid rowconfigure $prefix {0 1 2 3 4} -pad 5
+    grid columnconfigure $prefix { 1 } -weight 1
+}
+
 if { [info commands ttk::spinbox] == "" } {
 	proc ::ttk::spinbox args {
 		set cmd "set res \[::spinbox $args\]"

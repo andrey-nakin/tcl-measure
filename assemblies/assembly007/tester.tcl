@@ -17,12 +17,16 @@ package require measure::tsclient
 package require measure::datafile
 package require measure::measure
 
+set DELAY 500
+
 ###############################################################################
 # Подпрограммы
 ###############################################################################
 
 # Процедура производит периодический опрос приборов и выводит показания на экран
 proc run {} {
+    global DELAY
+
 	# инициализируем устройства
 	setup
 
@@ -34,7 +38,7 @@ proc run {} {
         # регистрируем сопротивление
         readResistanceAndWrite $temp $tempErr $tempDer
         
-        after 500
+        after $DELAY
     }
 }
 
