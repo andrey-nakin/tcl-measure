@@ -140,6 +140,7 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } } {
 
     if { $write } {
     	# Выводим результаты в результирующий файл
-    	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $temp $tempErr $tempDer $c $sc $v $sv $r $sr]
+    	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
+    	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $temp $tempErr $tempDer $c $sc $v $sv $r $sr $rho $rhoErr]
     }
 }

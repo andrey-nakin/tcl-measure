@@ -28,6 +28,8 @@ source [file join [file dirname [info script]] utils.tcl]
                    
 # Производит регистрацию данных по заданному временному шагу
 proc runTimeStep {} {
+    global doMeasurement
+    
     set step [measure::config::get prog.time.step 1000.0]
     
     # Выполняем цикл пока не прервёт пользователь
@@ -41,12 +43,16 @@ proc runTimeStep {} {
         readResistanceAndWrite $temp $tempErr $tempDer 1
         
         set t2 [clock milliseconds]
-        measure::interop::sleep [expr int($step - ($t2 - $t1))]
+        after [expr int($step - ($t2 - $t1))] set doMeasurement 0
+        vwait doMeasurement
+        after cancel set doMeasurement 0
     }
 }
 
 # Производит регистрацию данных по заданному температурному шагу
 proc runTempStep {} {
+    global doMeasurement
+    
     set step [measure::config::get prog.temp.step 1.0]
     lassign [readTemp] temp tempErr
     set prevN [expr floor($temp / $step + 0.5)]
@@ -57,7 +63,8 @@ proc runTempStep {} {
         # считываем температуру
         lassign [readTemp] temp tempErr tempDer
         
-        if { $temp > $prevT && $temp > [expr ($prevN + 1) * $step]  \
+        if { $doMeasurement
+            || $temp > $prevT && $temp > [expr ($prevN + 1) * $step]  \
             || $temp < $prevT && $temp < [expr ($prevN - 1) * $step] } {
             # регистрируем сопротивление
             readResistanceAndWrite $temp $tempErr $tempDer 1
@@ -69,7 +76,9 @@ proc runTempStep {} {
             readResistanceAndWrite $temp $tempErr $tempDer 0
         } 
         
-        after 500
+        after 500 set doMeasurement 0
+        vwait doMeasurement
+        after cancel set doMeasurement 0
     }
 }
 
@@ -130,8 +139,8 @@ setup
 
 # Создаём файлы с результатами измерений
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) {
-	"Date/Time" "T (K)" "+/- (K)" "dT/dt (K/min)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" 
-} $settings(result.comment)
+	"Date/Time" "T (K)" "+/- (K)" "dT/dt (K/min)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" "Rho (Ohm*cm)" "+/- (Ohm*cm)" 
+} "$settings(result.comment), [measure::measure::dutParams]"
 
 ###############################################################################
 # Основной цикл измерений

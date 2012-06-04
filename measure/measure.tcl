@@ -251,3 +251,107 @@ proc ::measure::measure::resistance { args } {
 	# возвращаем результат измерений, переведённый в милливольты и амперывольты
 	return [list [expr 1000.0 * $v] [expr 1000.0 * $sv] [expr 1000.0 * $c] [expr 1000.0 * $sc] $r $sr]
 }
+
+# Вычисляет удельное сопротивление по абсолютному сопротивлению.
+# Параметры образца берутся из файла конфигурации.
+# Параметры:
+#   r - сопротивление (Ом)
+#   rErr - погрешность определения сопротивления (Ом)
+#   dutCfgPrefix - префикс с файле конфигурации, используемый для задания параметра образца
+# Результат:
+#   удельное сопротивление (Ом * см) или пустая строка, если вычислить УС невозможно    
+#   погрешность (Ом * см) или пустая строка, если вычислить УС невозможно    
+proc ::measure::measure::calcRho { r rErr { dutCfgPrefix dut } } {
+    set pi 3.141592653589793238462643383279
+    # расстояние между потенциальными контактами и погрешность, мм
+    set l [measure::config::get "${dutCfgPrefix}.l"]
+    set lErr [measure::config::get "${dutCfgPrefix}.lErr" 0.0]
+    # ширина образца и погрешность, мм
+    set w [measure::config::get "${dutCfgPrefix}.width"]
+    set wErr [measure::config::get "${dutCfgPrefix}.widthErr" 0.0]
+    # толщина образца и погрешность, мм
+    set t [measure::config::get "${dutCfgPrefix}.thickness"]
+    set tErr [measure::config::get "${dutCfgPrefix}.thicknessErr" 0.0]
+    
+    if { $l == "" } {
+        # не указано расстояние между потенциальными контактами
+        # определение УС невозможно
+        return { {} {} }
+    }
+    
+    # переведём в см
+    set l [expr 0.1 * $l]
+    set lErr [expr 0.1 * $lErr]
+    
+    if { $w == "" || $t == "" } {
+        # указано расстояние между потенциальными контактами,
+        # но не указано сечение
+        set rho [expr $r * $l * 2 * $pi]
+        set rhoErr [::measure::sigma::mul $r $rErr $l $lErr]
+        return [list $rho $rhoErr]  
+    }
+    
+    # переведём в см
+    set w [expr 0.1 * $w]
+    set wErr [expr 0.1 * $wErr]
+    set t [expr 0.1 * $t]
+    set tErr [expr 0.1 * $tErr]
+    
+    # сечение и его погрешность, см^2
+    set s [expr $w * $t]
+    set sErr [::measure::sigma::mul $w $wErr $t $tErr]
+    
+    # погонное сопротивление и погрешность (Ом/см)
+    set a [expr $r / $l]
+    set aErr [::measure::sigma::div $r $rErr $l $lErr]
+    
+    set rho [expr $a * $s]
+    set rhoErr [::measure::sigma::mul $a $aErr $s $sErr]
+    return [list $rho $rhoErr]  
+}
+
+# Считывает из файла конфигурации параметры образца
+# и формирует строку с параметрами
+# Аргументы
+#   dutCfgPrefix - префикс с файле конфигурации, используемый для задания параметра образца
+# Результат:
+#   строка с параметрами или пустая строка, если параметры не заданы  
+proc measure::measure::dutParams { { dutCfgPrefix dut } } {
+    # расстояние между потенциальными контактами и погрешность, мм
+    set l [measure::config::get "${dutCfgPrefix}.l"]
+    set lErr [measure::config::get "${dutCfgPrefix}.lErr" 0.0]
+    # длина образца и погрешность, мм
+    set len [measure::config::get "${dutCfgPrefix}.length"]
+    set lenErr [measure::config::get "${dutCfgPrefix}.lengthErr" 0.0]
+    # ширина образца и погрешность, мм
+    set w [measure::config::get "${dutCfgPrefix}.width"]
+    set wErr [measure::config::get "${dutCfgPrefix}.widthErr" 0.0]
+    # толщина образца и погрешность, мм
+    set t [measure::config::get "${dutCfgPrefix}.thickness"]
+    set tErr [measure::config::get "${dutCfgPrefix}.thicknessErr" 0.0]
+    
+    set s ""
+    if { $l != "" } {
+        append s "l=$l +/- $lErr mm"
+    } 
+    if { $len != "" } {
+        if { [string length $s] > 0 } {
+            append s ", "
+        }
+        append s "length=$len +/- $lenErr mm"
+    } 
+    if { $w != "" } {
+        if { [string length $s] > 0 } {
+            append s ", "
+        }
+        append s "width=$w +/- $wErr mm"
+    } 
+    if { $t != "" } {
+        if { [string length $s] > 0 } {
+            append s ", "
+        }
+        append s "thickness=$t +/- $tErr mm"
+    } 
+    
+    return $s
+}
