@@ -157,28 +157,28 @@ proc ::measure::widget::mvu8Controls { prefix settingsVar } {
 }
 
 proc ::measure::widget::resistanceMethodControls { prefix settingsVar } {
-    grid [ttk::label $prefix.lamp -text "Вольтметром/Амперметром:"] -row 0 -column 0 -sticky w
+    grid [ttk::label $prefix.lamp -text "\0u412\0u43E\0u43B\0u44C\0u442\0u43C\0u435\0u442\0u440\0u43E\0u43C/\0u410\0u43C\0u43F\0u435\0u440\0u43C\0u435\0u442\0u440\0u43E\0u43C:"] -row 0 -column 0 -sticky w
     grid [ttk::radiobutton $prefix.amp -value 0 -variable settings(${settingsVar}.method) -command toggleTestResistance] -row 0 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lvolt -text "Вольтметром/Вольтметром:"] -row 1 -column 0 -sticky w
+    grid [ttk::label $prefix.lvolt -text "\0u412\0u43E\0u43B\0u44C\0u442\0u43C\0u435\0u442\0u440\0u43E\0u43C/\0u412\0u43E\0u43B\0u44C\0u442\0u43C\0u435\0u442\0u440\0u43E\0u43C:"] -row 1 -column 0 -sticky w
     grid [ttk::radiobutton $prefix.volt -value 1 -variable settings(${settingsVar}.method) -command toggleTestResistance] -row 1 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lr -text "  Эталонное сопротивление, Ом:"] -row 2 -column 0 -sticky w
+    grid [ttk::label $prefix.lr -text "  \0u42D\0u442\0u430\0u43B\0u43E\0u43D\0u43D\0u43E\0u435 \0u441\0u43E\0u43F\0u440\0u43E\0u442\0u438\0u432\0u43B\0u435\0u43D\0u438\0u435, \0u41E\0u43C:"] -row 2 -column 0 -sticky w
     grid [ttk::spinbox $prefix.r -width 10 -textvariable settings(${settingsVar}.reference.resistance) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lrerr -text "  Погрешность, Ом:"] -row 3 -column 0 -sticky w
+    grid [ttk::label $prefix.lrerr -text "  \0u41F\0u43E\0u433\0u440\0u435\0u448\0u43D\0u43E\0u441\0u442\0u44C, \0u41E\0u43C:"] -row 3 -column 0 -sticky w
     grid [ttk::spinbox $prefix.rerr -width 10 -textvariable settings(${settingsVar}.reference.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lman -text "Вольтметром/Вручную:"] -row 4 -column 0 -sticky w
+    grid [ttk::label $prefix.lman -text "\0u412\0u43E\0u43B\0u44C\0u442\0u43C\0u435\0u442\0u440\0u43E\0u43C/\0u412\0u440\0u443\0u447\0u43D\0u443\0u44E:"] -row 4 -column 0 -sticky w
     grid [ttk::radiobutton $prefix.man -value 2 -variable settings(${settingsVar}.method) -command toggleTestResistance] -row 4 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lcur -text "  Сила тока, мА:"] -row 5 -column 0 -sticky w
+    grid [ttk::label $prefix.lcur -text "  \0u421\0u438\0u43B\0u430 \0u442\0u43E\0u43A\0u430, \0u43C\0u410:"] -row 5 -column 0 -sticky w
     grid [ttk::spinbox $prefix.cur -width 10 -textvariable settings(${settingsVar}.manual.current) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 5 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lcurerr -text "  Погрешность, мА:"] -row 6 -column 0 -sticky w
+    grid [ttk::label $prefix.lcurerr -text "  \0u41F\0u43E\0u433\0u440\0u435\0u448\0u43D\0u43E\0u441\0u442\0u44C, \0u43C\0u410:"] -row 6 -column 0 -sticky w
     grid [ttk::spinbox $prefix.curerr -width 10 -textvariable settings(${settingsVar}.manual.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 6 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lohm -text "Омметром:"] -row 7 -column 0 -sticky w
+    grid [ttk::label $prefix.lohm -text "\0u41E\0u43C\0u43C\0u435\0u442\0u440\0u43E\0u43C:"] -row 7 -column 0 -sticky w
     grid [ttk::radiobutton $prefix.ohm -value 3 -variable settings(${settingsVar}.method) -command toggleTestResistance] -row 7 -column 1 -sticky e
     
     grid columnconfigure $prefix { 0 1 } -pad 5
@@ -187,13 +187,13 @@ proc ::measure::widget::resistanceMethodControls { prefix settingsVar } {
 }
 
 proc ::measure::widget::switchControls { prefix settingsVar } {
-    grid [ttk::label $prefix.lswitchVoltage -text "Переполюсовка напряжения:"] -row 0 -column 0 -sticky w
+    grid [ttk::label $prefix.lswitchVoltage -text "\0u41F\0u435\0u440\0u435\0u43F\0u43E\0u43B\0u44E\0u441\0u43E\0u432\0u43A\0u430 \0u43D\0u430\0u43F\0u440\0u44F\0u436\0u435\0u43D\0u438\0u44F:"] -row 0 -column 0 -sticky w
     grid [ttk::checkbutton $prefix.switchVoltage -variable settings(${settingsVar}.voltage)] -row 0 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lswitchCurrent -text "Переполюсовка тока:"] -row 1 -column 0 -sticky w
+    grid [ttk::label $prefix.lswitchCurrent -text "\0u41F\0u435\0u440\0u435\0u43F\0u43E\0u43B\0u44E\0u441\0u43E\0u432\0u43A\0u430 \0u442\0u43E\0u43A\0u430:"] -row 1 -column 0 -sticky w
     grid [ttk::checkbutton $prefix.switchCurrent -variable settings(${settingsVar}.current)] -row 1 -column 1 -sticky e
     
-    grid [ttk::label $prefix.ldelay -text "Пауза после переключения, мс:"] -row 2 -column 0 -sticky w
+    grid [ttk::label $prefix.ldelay -text "\0u41F\0u430\0u443\0u437\0u430 \0u43F\0u43E\0u441\0u43B\0u435 \0u43F\0u435\0u440\0u435\0u43A\0u43B\0u44E\0u447\0u435\0u43D\0u438\0u44F, \0u43C\0u441:"] -row 2 -column 0 -sticky w
     grid [ttk::spinbox $prefix.delay -width 10 -textvariable settings(${settingsVar}.delay) -from 0 -to 10000 -increment 100 -validate key -validatecommand {string is integer %P}] -row 2 -column 1 -sticky e
     
     grid columnconfigure $prefix {0 1} -pad 5
@@ -202,18 +202,18 @@ proc ::measure::widget::switchControls { prefix settingsVar } {
 }
 
 proc ::measure::widget::thermoCoupleControls { prefix settingsVar } {
-    grid [ttk::label $prefix.ltype -text "Тип термопары:"] -row 0 -column 0 -sticky w
+    grid [ttk::label $prefix.ltype -text "\0u422\0u438\0u43F \0u442\0u435\0u440\0u43C\0u43E\0u43F\0u430\0u440\0u44B:"] -row 0 -column 0 -sticky w
     grid [ttk::combobox $prefix.type -width 6 -textvariable settings(${settingsVar}.type) -state readonly -values [measure::thermocouple::getTcTypes]] -row 0 -column 1 -sticky w
     
-    grid [ttk::label $prefix.lfixedT -text "Опорная температура, К:"] -row 0 -column 3 -sticky w
+    grid [ttk::label $prefix.lfixedT -text "\0u41E\0u43F\0u43E\0u440\0u43D\0u430\0u44F \0u442\0u435\0u43C\0u43F\0u435\0u440\0u430\0u442\0u443\0u440\0u430, \0u41A:"] -row 0 -column 3 -sticky w
     grid [ttk::spinbox $prefix.fixedT -width 6 -textvariable settings(${settingsVar}.fixedT) -from 0 -to 1200 -increment 1 -validate key -validatecommand {string is double %P}] -row 0 -column 4 -sticky w
     
-    grid [ttk::label $prefix.lnegate -text "Инв. полярность:"] -row 0 -column 6 -sticky w
+    grid [ttk::label $prefix.lnegate -text "\0u418\0u43D\0u432. \0u43F\0u43E\0u43B\0u44F\0u440\0u43D\0u43E\0u441\0u442\0u44C:"] -row 0 -column 6 -sticky w
     grid [ttk::checkbutton $prefix.negate -variable settings(${settingsVar}.negate)] -row 0 -column 7 -sticky w
     
-    grid [ttk::label $prefix.lcorrection -text "Выражение для коррекции:"] -row 1 -column 0 -sticky w
+    grid [ttk::label $prefix.lcorrection -text "\0u412\0u44B\0u440\0u430\0u436\0u435\0u43D\0u438\0u435 \0u434\0u43B\0u44F \0u43A\0u43E\0u440\0u440\0u435\0u43A\0u446\0u438\0u438:"] -row 1 -column 0 -sticky w
     grid [ttk::entry $prefix.correction -textvariable settings(${settingsVar}.correction)] -row 1 -column 1 -columnspan 7 -sticky we
-    grid [ttk::label $prefix.lcorrectionexample -text "Например: (x - 77.4) * 1.1 + 77.4"] -row 2 -column 1 -columnspan 7 -sticky we
+    grid [ttk::label $prefix.lcorrectionexample -text "\0u41D\0u430\0u43F\0u440\0u438\0u43C\0u435\0u440: (x - 77.4) * 1.1 + 77.4"] -row 2 -column 1 -columnspan 7 -sticky we
     
     grid columnconfigure $prefix { 0 3 6 } -pad 5
     grid columnconfigure $prefix { 2 5 } -weight 1
@@ -221,22 +221,22 @@ proc ::measure::widget::thermoCoupleControls { prefix settingsVar } {
 }
 
 proc ::measure::widget::dutControls { prefix settingsVar } {
-    grid [ttk::label $prefix.ll -text "Расстояние между потенциальными контактами, мм:"] -row 0 -column 0 -sticky w
+    grid [ttk::label $prefix.ll -text "\0u420\0u430\0u441\0u441\0u442\0u43E\0u44F\0u43D\0u438\0u435 \0u43C\0u435\0u436\0u434\0u443 \0u43F\0u43E\0u442\0u435\0u43D\0u446\0u438\0u430\0u43B\0u44C\0u43D\0u44B\0u43C\0u438 \0u43A\0u43E\0u43D\0u442\0u430\0u43A\0u442\0u430\0u43C\0u438, \0u43C\0u43C:"] -row 0 -column 0 -sticky w
     grid [ttk::spinbox $prefix.l -width 10 -textvariable settings(${settingsVar}.l) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky e
     grid [ttk::label $prefix.lle -text "\u00b1"] -row 0 -column 2
     grid [ttk::spinbox $prefix.le -width 10 -textvariable settings(${settingsVar}.lErr) -from 0 -to 100 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 0 -column 3 -sticky e
     
-    grid [ttk::label $prefix.llen -text "Длина, мм:"] -row 1 -column 0 -sticky w
+    grid [ttk::label $prefix.llen -text "\0u414\0u43B\0u438\0u43D\0u430, \0u43C\0u43C:"] -row 1 -column 0 -sticky w
     grid [ttk::spinbox $prefix.len -width 10 -textvariable settings(${settingsVar}.length) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky e
     grid [ttk::label $prefix.llene -text "\u00b1"] -row 1 -column 2
     grid [ttk::spinbox $prefix.lene -width 10 -textvariable settings(${settingsVar}.lengthErr) -from 0 -to 100 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 1 -column 3 -sticky e
     
-    grid [ttk::label $prefix.lwidth -text "Ширина, мм:"] -row 2 -column 0 -sticky w
+    grid [ttk::label $prefix.lwidth -text "\0u428\0u438\0u440\0u438\0u43D\0u430, \0u43C\0u43C:"] -row 2 -column 0 -sticky w
     grid [ttk::spinbox $prefix.width -width 10 -textvariable settings(${settingsVar}.width) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky e
     grid [ttk::label $prefix.lwidthe -text "\u00b1"] -row 2 -column 2
     grid [ttk::spinbox $prefix.widthe -width 10 -textvariable settings(${settingsVar}.widthErr) -from 0 -to 100 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 2 -column 3 -sticky e
     
-    grid [ttk::label $prefix.lth -text "Толщина, мм:"] -row 3 -column 0 -sticky w
+    grid [ttk::label $prefix.lth -text "\0u422\0u43E\0u43B\0u449\0u438\0u43D\0u430, \0u43C\0u43C:"] -row 3 -column 0 -sticky w
     grid [ttk::spinbox $prefix.th -width 10 -textvariable settings(${settingsVar}.thickness) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
     grid [ttk::label $prefix.lthe -text "\u00b1"] -row 3 -column 2
     grid [ttk::spinbox $prefix.the -width 10 -textvariable settings(${settingsVar}.thicknessErr) -from 0 -to 100 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 3 -column 3 -sticky e
