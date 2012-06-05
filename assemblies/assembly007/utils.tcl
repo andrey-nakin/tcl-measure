@@ -104,9 +104,10 @@ set startTime [clock milliseconds]
 # вместе с инструментальной погрешностью и производной
 proc readTemp {} {
     global tcmm tempValues timeValues startTime DERIVATIVE_READINGS
+    global log
 
     # измеряем напряжение на термопаре    
-    set v [scpi::query $tcmm "READ?"]
+    set v [string trim [scpi::query $tcmm "READ?"]]
 	# инструментальная погрешность
    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get tcmm.nplc 10]]
    	
@@ -143,4 +144,9 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } } {
     	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
     	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $temp $tempErr $tempDer $c $sc $v $sv $r $sr $rho $rhoErr]
     }
+    
+	measure::datafile::write $settings(trace.fileName) [list \
+        TIMESTAMP \
+        [format %0.3f $temp] [format %0.3f $tempDer] [format %0.6g $r]  \
+    ]
 }

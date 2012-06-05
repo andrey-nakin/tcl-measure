@@ -307,7 +307,7 @@ $w.nb add $w.nb.ms -text " Параметры измерения "
 
 grid [ttk::frame $w.nb.ms.l] -column 0 -row 0 -sticky nwe
 grid [ttk::frame $w.nb.ms.r] -column 1 -row 0 -sticky nwe
-grid [ttk::frame $w.nb.ms.b -pad 10] -column 1 -row 1 -sticky we
+grid [ttk::frame $w.nb.ms.b] -column 0 -columnspan 2 -row 1 -sticky we
 
 grid columnconfigure $w.nb.ms { 0 1 } -weight 1
 
@@ -352,32 +352,10 @@ grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
 
-# Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.l.reg -text " Файлы результатов " -pad 10]
-
-grid [ttk::label $p.lname -text "Зависимость R(T): " -anchor e] -row 0 -column 0 -sticky w
-grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -sticky we
-
-grid [ttk::label $p.ltname -text "Трасировка T(t), R(t): " -anchor e] -row 1 -column 0 -sticky w
-grid [ttk::entry $p.tname -textvariable settings(trace.fileName)] -row 1 -column 1 -sticky we
-
-grid [ttk::label $p.lformat -text "Формат файла:"] -row 3 -column 0 -sticky w
-grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 3 -column 1 -columnspan 2 -sticky e
-
-grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 4 -column 0 -sticky w
-grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 4 -column 1 -columnspan 2 -sticky e
-
-grid [ttk::label $p.lcomment -text "Комментарий: " -anchor e] -row 5 -column 0 -sticky w
-grid [ttk::entry $p.comment -textvariable settings(result.comment)] -row 5 -column 1 -sticky we
-
-grid [ttk::button $p.open -text "Открыть файл R(T)" -command openResults -image ::img::open -compound left] -row 6 -column 0 -columnspan 4 -sticky e
-
-grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p { 0 1 2 3 4 5 } -pad 5
-grid rowconfigure $p { 6 } -pad 10
-grid columnconfigure $p { 1 } -weight 1
-
+# Раздел настроек переполюсовок
+set p [ttk::labelframe $w.nb.ms.l.comm -text " Переполюсовки " -pad 10]
 pack $p -fill x -padx 10 -pady 5
+::measure::widget::switchControls $p "switch"
 
 # Правая колонка
 
@@ -386,17 +364,44 @@ set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения с�
 pack $p -fill x -padx 10 -pady 5
 measure::widget::resistanceMethodControls $p current
 
+# Настройки параметров образца
+set p [ttk::labelframe $w.nb.ms.r.dut -text " Параметры образца " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::dutControls $p dut
+
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5
 
-# Раздел настроек переполюсовок
-set p [ttk::labelframe $w.nb.ms.r.comm -text " Переполюсовки " -pad 10]
-pack $p -fill x -padx 10 -pady 5
-::measure::widget::switchControls $p "switch"
-
 # Нижний раздел
-pack [ttk::button $w.nb.ms.b.apply -text "Применить настройки" -command applySettings -image ::img::apply -compound left] -side right
 
+# Раздел настроек вывода
+set p [ttk::labelframe $w.nb.ms.b.reg -text " Файлы результатов " -pad 10]
+
+grid [ttk::label $p.lname -text "Зависимость R(T): " -anchor e] -row 0 -column 0 -sticky w
+grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -columnspan 7 -sticky we
+
+grid [ttk::label $p.ltname -text "Трасировка T(t), R(t): " -anchor e] -row 1 -column 0 -sticky w
+grid [ttk::entry $p.tname -textvariable settings(trace.fileName)] -row 1 -column 1 -columnspan 7 -sticky we
+
+grid [ttk::label $p.lformat -text "Формат файлов:"] -row 3 -column 0 -sticky w
+grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 3 -column 1 -columnspan 2 -sticky w
+
+grid [ttk::label $p.lrewrite -text "Переписать файлы:"] -row 3 -column 3 -sticky e
+grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 3 -column 4 -sticky e
+
+grid [ttk::label $p.lcomment -text "Комментарий: " -anchor e] -row 3 -column 6 -sticky w
+grid [ttk::entry $p.comment -textvariable settings(result.comment)] -row 3 -column 7 -sticky we
+
+grid columnconfigure $p {0 1 2 3 4 5 6 7} -pad 5
+grid rowconfigure $p { 0 1 2 3 4 5 } -pad 5
+grid rowconfigure $p { 6 } -pad 10
+grid columnconfigure $p { 2 5 } -weight 1
+
+pack $p -fill x -padx 10 -pady 5
+
+set p [ttk::frame $w.nb.ms.b.bb]
+pack $p -fill x -padx 10 -pady 5
+pack [ttk::button $p.apply -text "Применить настройки" -command applySettings -image ::img::apply -compound left] -side right
 
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5

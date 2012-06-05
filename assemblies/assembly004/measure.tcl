@@ -63,8 +63,11 @@ proc makeMeasurement {} {
 	set v [math::statistics::mean $vs]; set sv [math::statistics::mean $svs]
 	set r [math::statistics::mean $rs]; set sr [math::statistics::mean $srs]
 
+	# Вычисляем удельное сопротивление
+	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
+	
     # Выводим результаты в результирующий файл
-	measure::datafile::write $settings(fileName) [list $c $sc $v $sv $r $sr]
+	measure::datafile::write $settings(fileName) [list $c $sc $v $sv $r $sr $rho $rhoErr]
 }
 
 ###############################################################################
@@ -84,7 +87,9 @@ measure::config::read
 validateSettings
 
 # Создаём файл с результатами измерений
-measure::datafile::create $settings(fileName) $settings(fileFormat) $settings(fileRewrite) [list "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)"] $settings(fileComment)
+measure::datafile::create $settings(fileName) $settings(fileFormat) $settings(fileRewrite) \
+    [list "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" "Rho (Ohm*cm)" "+/- (Ohm*cm)"] \
+    "$settings(fileComment), [measure::measure::dutParams]"
 
 # Подключаемся к менеджеру ресурсов VISA
 set rm [visa::open-default-rm]

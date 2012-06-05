@@ -60,8 +60,11 @@ proc makeMeasurement { } {
     # Выводим результаты в окно программы
     display $v $sv $c $sc $r $sr $T "result"
 
+	# Вычисляем удельное сопротивление
+	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
+	
 	# Выводим результаты в результирующий файл
-	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr]
+	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $T $dT $c $sc $v $sv $r $sr $rho $rhoErr]
 }
 
 # Отправляем команду термостату 
@@ -204,8 +207,8 @@ setConnectors [lindex $connectors 0]
 
 # Создаём файлы с результатами измерений
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) {
-	"Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" 
-} $settings(result.comment)
+	"Date/Time" "T (K)" "+/- (K)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" "Rho (Ohm*cm)" "+/- (Ohm*cm)" 
+} "$settings(result.comment), [measure::measure::dutParams]"
 measure::datafile::create $settings(trace.fileName) $settings(result.format) $settings(result.rewrite) {
 	"Date/Time" "T (K)" "R (Ohm)" 
 }

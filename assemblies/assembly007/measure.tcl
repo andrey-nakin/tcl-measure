@@ -52,6 +52,7 @@ proc runTimeStep {} {
 # Производит регистрацию данных по заданному температурному шагу
 proc runTempStep {} {
     global doMeasurement
+    global log
     
     set step [measure::config::get prog.temp.step 1.0]
     lassign [readTemp] temp tempErr
@@ -66,10 +67,11 @@ proc runTempStep {} {
         if { $doMeasurement
             || $temp > $prevT && $temp > [expr ($prevN + 1) * $step]  \
             || $temp < $prevT && $temp < [expr ($prevN - 1) * $step] } {
+
             # регистрируем сопротивление
             readResistanceAndWrite $temp $tempErr $tempDer 1
             
-            set prevT $temp
+            set prevT [expr floor($temp / $step + 0.5) * $step]
             set prevN [expr floor($temp / $step + 0.5)]
         } else {
             # измеряем сопротивление, но не регистрируем
@@ -141,6 +143,9 @@ setup
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) {
 	"Date/Time" "T (K)" "+/- (K)" "dT/dt (K/min)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" "Rho (Ohm*cm)" "+/- (Ohm*cm)" 
 } "$settings(result.comment), [measure::measure::dutParams]"
+measure::datafile::create $settings(trace.fileName) $settings(result.format) $settings(result.rewrite) {
+	"Date/Time" "T (K)" "dT/dt (K/min)" "R (Ohm)" 
+} "$settings(result.comment), [measure::measure::dutParams]"
 
 ###############################################################################
 # Основной цикл измерений
@@ -148,6 +153,7 @@ measure::datafile::create $settings(result.fileName) $settings(result.format) $s
 
 # Холостое измерение для "прогрева" мультиметров
 measure::measure::resistance -n 1
+readTemp
 
 set doMeasurement 0
 if { $settings(prog.method) == 0 } {

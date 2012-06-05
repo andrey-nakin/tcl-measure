@@ -230,6 +230,7 @@ $w.nb add $w.nb.ms -text " Параметры измерения "
 
 grid [ttk::frame $w.nb.ms.l] -column 0 -row 0 -sticky nwe
 grid [ttk::frame $w.nb.ms.r] -column 1 -row 0 -sticky nwe
+grid [ttk::frame $w.nb.ms.b] -column 0 -columnspan 2 -row 1 -sticky we
 grid columnconfigure $w.nb.ms { 0 1 } -weight 1
 
 # Левая колонка
@@ -270,21 +271,25 @@ grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
 
+# Настройки параметров образца
+set p [ttk::labelframe $w.nb.ms.l.dut -text " Параметры образца " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::dutControls $p dut
+
 # Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.l.res -text " Файл результатов " -pad 10]
+set p [ttk::labelframe $w.nb.ms.b.res -text " Файл результатов " -pad 10]
 
 grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
-grid [ttk::entry $p.name -textvariable settings(fileName)] -row 0 -column 1 -sticky we
-grid [ttk::button $p.bname -text "Обзор..." -command "::measure::widget::fileSaveDialog $w. $p.name" -image ::img::open] -row 0 -column 2 -sticky w
+grid [ttk::entry $p.name -textvariable settings(fileName)] -row 0 -column 1 -columnspan 4 -sticky we
 
-grid [ttk::label $p.lformat -text "Формат файла:"] -row 2 -column 0 -sticky w
-grid [ttk::combobox $p.format -width 10 -textvariable settings(fileFormat) -state readonly -values [list TXT CSV]] -row 2 -column 1 -columnspan 2 -sticky e
+grid [ttk::label $p.lformat -text "Формат файлов:"] -row 3 -column 0 -sticky w
+grid [ttk::combobox $p.format -width 10 -textvariable settings(fileFormat) -state readonly -values [list TXT CSV]] -row 3 -column 1 -columnspan 2 -sticky w
 
-grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 3 -column 0 -sticky w
-grid [ttk::checkbutton $p.rewrite -variable settings(fileRewrite)] -row 3 -column 1 -columnspan 2 -sticky e
+grid [ttk::label $p.lrewrite -text "Переписать файлы:"] -row 3 -column 3 -sticky e
+grid [ttk::checkbutton $p.rewrite -variable settings(fileRewrite)] -row 3 -column 4 -sticky e
 
 grid [ttk::label $p.lcomment -text "Комментарий: " -anchor e] -row 4 -column 0 -sticky w
-grid [ttk::entry $p.comment -textvariable settings(fileComment)] -row 4 -column 1 -columnspan 2 -sticky we
+grid [ttk::entry $p.comment -textvariable settings(fileComment)] -row 4 -column 1 -columnspan 4 -sticky we
 
 grid columnconfigure $p {0 1} -pad 5
 grid rowconfigure $p {0 1 2 3 4} -pad 5

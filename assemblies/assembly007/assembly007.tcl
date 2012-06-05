@@ -358,15 +358,18 @@ grid rowconfigure $w.nb.m {0 1} -pad 5
 # Нижний раздел
 
 # Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.b.reg -text " Файл результатов " -pad 10]
+set p [ttk::labelframe $w.nb.ms.b.reg -text " Файлы " -pad 10]
 
-grid [ttk::label $p.lname -text "Имя файла: " -anchor e] -row 0 -column 0 -sticky w
+grid [ttk::label $p.lname -text "Имя файла результатов: " -anchor e] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -columnspan 4 -sticky we
 
-grid [ttk::label $p.lformat -text "Формат файла:"] -row 3 -column 0 -sticky w
+grid [ttk::label $p.ltname -text "Имя файла трассировки: " -anchor e] -row 1 -column 0 -sticky w
+grid [ttk::entry $p.tname -textvariable settings(trace.fileName)] -row 1 -column 1 -columnspan 4 -sticky we
+
+grid [ttk::label $p.lformat -text "Формат файлов:"] -row 3 -column 0 -sticky w
 grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 3 -column 1 -columnspan 2 -sticky w
 
-grid [ttk::label $p.lrewrite -text "Переписать файл:"] -row 3 -column 3 -sticky e
+grid [ttk::label $p.lrewrite -text "Переписать файлы:"] -row 3 -column 3 -sticky e
 grid [ttk::checkbutton $p.rewrite -variable settings(result.rewrite)] -row 3 -column 4 -sticky e
 
 grid [ttk::label $p.lcomment -text "Комментарий: " -anchor e] -row 4 -column 0 -sticky w

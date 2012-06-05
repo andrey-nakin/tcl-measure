@@ -1591,7 +1591,7 @@ proc measure::thermocouple::calc { tc fixedT v } {
 
 	set idx [::measure::bsearch::lowerBound $data $v]
 	if { $idx < 0 } {
-		return 0.0
+		set idx 0
 	}
 
 	set t0 [expr $idx * $step + $minT]
