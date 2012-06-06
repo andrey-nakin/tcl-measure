@@ -130,7 +130,7 @@ proc readTemp {} {
 }
 
 # Измеряем сопротивление и регистрируем его вместе с температурой
-proc readResistanceAndWrite { temp tempErr tempDer { write 0 } } {
+proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } } {
     global settings
 
 	# Измеряем напряжение
@@ -142,7 +142,12 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } } {
     if { $write } {
     	# Выводим результаты в результирующий файл
     	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
-    	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $temp $tempErr $tempDer $c $sc $v $sv $r $sr $rho $rhoErr]
+    	if { $manual } {
+    	   set manual true
+        } else {
+            set manual ""
+        }
+    	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $temp $tempErr $tempDer $c $sc $v $sv $r $sr $rho $rhoErr $manual]
     }
     
 	measure::datafile::write $settings(trace.fileName) [list \

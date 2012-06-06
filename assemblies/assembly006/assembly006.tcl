@@ -352,11 +352,6 @@ grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
 
-# Раздел настроек переполюсовок
-set p [ttk::labelframe $w.nb.ms.l.comm -text " Переполюсовки " -pad 10]
-pack $p -fill x -padx 10 -pady 5
-::measure::widget::switchControls $p "switch"
-
 # Правая колонка
 
 # Раздел настроек метода измерения тока
@@ -364,10 +359,11 @@ set p [ttk::labelframe $w.nb.ms.r.curr -text " Метод измерения с�
 pack $p -fill x -padx 10 -pady 5
 measure::widget::resistanceMethodControls $p current
 
-# Настройки параметров образца
-set p [ttk::labelframe $w.nb.ms.r.dut -text " Параметры образца " -pad 10]
+# Раздел настроек переполюсовок
+set p [ttk::labelframe $w.nb.ms.r.comm -text " Переполюсовки " -pad 10]
 pack $p -fill x -padx 10 -pady 5
-::measure::widget::dutControls $p dut
+::measure::widget::switchControls $p "switch"
+
 
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5
@@ -408,6 +404,16 @@ grid rowconfigure $w.nb.m {0 1} -pad 5
 
 grid columnconfigure $w.nb.m {0 1} -pad 5
 grid rowconfigure $w.nb.m {0 1} -pad 5
+
+# Закладка "Образец"
+ttk::frame $w.nb.dut
+$w.nb add $w.nb.dut -text " Образец "
+
+# Настройки параметров образца
+set p [ttk::labelframe $w.nb.dut.dut -text " Параметры образца " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::dutControls $p dut
+
 
 # Закладка "Параметры установки"
 ttk::frame $w.nb.setup
