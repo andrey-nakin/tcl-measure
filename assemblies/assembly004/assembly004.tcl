@@ -200,16 +200,16 @@ grid columnconfigure $p { 0 } -weight 1
 set p [ttk::labelframe $w.nb.m.v -text " Результаты измерения " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
-grid [ttk::label $p.lc -text "Ток, мА:"] -row 0 -column 0 -sticky w
+grid [ttk::label $p.lc -text "Ток:"] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 0 -column 1 -sticky we
 
-grid [ttk::label $p.lv -text "Напряжение, мВ:"] -row 0 -column 3 -sticky w
+grid [ttk::label $p.lv -text "Напряжение:"] -row 0 -column 3 -sticky w
 grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 0 -column 4 -sticky we
 
-grid [ttk::label $p.lr -text "Сопротивление, Ом:"] -row 1 -column 0 -sticky w
+grid [ttk::label $p.lr -text "Сопротивление:"] -row 1 -column 0 -sticky w
 grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 1 -column 1 -sticky we
 
-grid [ttk::label $p.lp -text "Мощность, мВт:"] -row 1 -column 3 -sticky w
+grid [ttk::label $p.lp -text "Мощность:"] -row 1 -column 3 -sticky w
 grid [ttk::entry $p.ep -textvariable runtime(power) -state readonly] -row 1 -column 4 -sticky we
 
 grid columnconfigure $p { 2 } -minsize 20
@@ -222,7 +222,7 @@ pack $p -fill both -padx 10 -pady 5 -expand 1
 set canvas [canvas $p.c -width 400 -height 200]
 pack $canvas -fill both -expand 1
 place [ttk::button $p.cb -text "Очистить" -command "measure::chart::${canvas}::clear"] -anchor ne -relx 1.0 -rely 0.0
-measure::chart::movingChart -ylabel "R, Ом" -xpoints 100 $canvas
+measure::chart::movingChart -ylabel "R, Ом" -xpoints 100 -linearTrend $canvas
 
 # Закладка "Параметры измерения"
 ttk::frame $w.nb.ms
