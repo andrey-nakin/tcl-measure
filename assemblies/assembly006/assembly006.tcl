@@ -370,8 +370,27 @@ grid rowconfigure $w.nb.m {0 1} -pad 5
 
 # Нижний раздел
 
+set p [ttk::frame $w.nb.ms.b.bb]
+pack $p -fill x -padx 10 -pady 5
+pack [ttk::button $p.apply -text "Применить настройки" -command applySettings -image ::img::apply -compound left] -side right
+
+grid columnconfigure $w.nb.m {0 1} -pad 5
+grid rowconfigure $w.nb.m {0 1} -pad 5
+
+grid columnconfigure $w.nb.m {0 1} -pad 5
+grid rowconfigure $w.nb.m {0 1} -pad 5
+
+# Закладка "Образец"
+ttk::frame $w.nb.dut
+$w.nb add $w.nb.dut -text " Образец "
+
+# Настройки параметров образца
+set p [ttk::labelframe $w.nb.dut.dut -text " Параметры образца " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::dutControls $p dut
+
 # Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.b.reg -text " Файлы результатов " -pad 10]
+set p [ttk::labelframe $w.nb.dut.reg -text " Файлы результатов " -pad 10]
 
 grid [ttk::label $p.lname -text "Зависимость R(T): " -anchor e] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -columnspan 7 -sticky we
@@ -394,26 +413,6 @@ grid rowconfigure $p { 6 } -pad 10
 grid columnconfigure $p { 2 5 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
-
-set p [ttk::frame $w.nb.ms.b.bb]
-pack $p -fill x -padx 10 -pady 5
-pack [ttk::button $p.apply -text "Применить настройки" -command applySettings -image ::img::apply -compound left] -side right
-
-grid columnconfigure $w.nb.m {0 1} -pad 5
-grid rowconfigure $w.nb.m {0 1} -pad 5
-
-grid columnconfigure $w.nb.m {0 1} -pad 5
-grid rowconfigure $w.nb.m {0 1} -pad 5
-
-# Закладка "Образец"
-ttk::frame $w.nb.dut
-$w.nb add $w.nb.dut -text " Образец "
-
-# Настройки параметров образца
-set p [ttk::labelframe $w.nb.dut.dut -text " Параметры образца " -pad 10]
-pack $p -fill x -padx 10 -pady 5
-::measure::widget::dutControls $p dut
-
 
 # Закладка "Параметры установки"
 ttk::frame $w.nb.setup

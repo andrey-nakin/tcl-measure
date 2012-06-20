@@ -352,8 +352,23 @@ grid rowconfigure $w.nb.m {0 1} -pad 5
 
 # Нижний раздел
 
+grid columnconfigure $w.nb.m {0 1} -pad 5
+grid rowconfigure $w.nb.m {0 1} -pad 5
+
+grid columnconfigure $w.nb.m {0 1} -pad 5
+grid rowconfigure $w.nb.m {0 1} -pad 5
+
+# Закладка "Образец"
+ttk::frame $w.nb.dut
+$w.nb add $w.nb.dut -text " Образец "
+
+# Настройки параметров образца
+set p [ttk::labelframe $w.nb.dut.dut -text " Параметры образца " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::dutControls $p dut
+
 # Раздел настроек вывода
-set p [ttk::labelframe $w.nb.ms.b.reg -text " Файлы " -pad 10]
+set p [ttk::labelframe $w.nb.dut.reg -text " Файлы " -pad 10]
 
 grid [ttk::label $p.lname -text "Имя файла результатов: " -anchor e] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -columnspan 4 -sticky we
@@ -379,24 +394,13 @@ grid rowconfigure $p { 5 } -pad 10
 
 pack $p -fill x -padx 10 -pady 5
 
-grid columnconfigure $w.nb.m {0 1} -pad 5
-grid rowconfigure $w.nb.m {0 1} -pad 5
-
-grid columnconfigure $w.nb.m {0 1} -pad 5
-grid rowconfigure $w.nb.m {0 1} -pad 5
-
-# Закладка "Образец"
-ttk::frame $w.nb.dut
-$w.nb add $w.nb.dut -text " Образец "
-
-# Настройки параметров образца
-set p [ttk::labelframe $w.nb.dut.dut -text " Параметры образца " -pad 10]
-pack $p -fill x -padx 10 -pady 5
-::measure::widget::dutControls $p dut
-
 # Закладка "Параметры установки"
 ttk::frame $w.nb.setup
 $w.nb add $w.nb.setup -text " Параметры установки "
+
+set p [ttk::labelframe $w.nb.setup.switch -text " Блок реле " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::mvu8Controls $p "switch"
 
 set p [ttk::labelframe $w.nb.setup.mm -text " Вольтметр/омметр на образце " -pad 10]
 pack $p -fill x -padx 10 -pady 5
