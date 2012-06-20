@@ -123,7 +123,7 @@ proc ::measure::measure::oneMeasurementDuration {} {
 # Результат:
 #   Напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
 proc ::measure::measure::resistance { args } {
-    global mm cmm
+    global mm cmm log
 
     set configOptions {
     	{n.arg ""   "number of samples"}
@@ -139,6 +139,9 @@ proc ::measure::measure::resistance { args } {
     # сохраняем текущее значение таймаута и вычисляем новое
 	set timeout [fconfigure $mm -timeout]
     set newTimeout [expr int(2.0 * [oneMeasurementDuration])]
+    if { $newTimeout < 1000 } {
+        set newTimeout 1000
+    }
         
     # считываем параметры измерения в локальные переменные 
     set mmethod [measure::config::get current.method 0]
@@ -149,7 +152,11 @@ proc ::measure::measure::resistance { args } {
     if { $mmethod == 3 } {
         # особый случай - измерение сопротивления при помощи омметра
     	fconfigure $mm -timeout $newTimeout 
-	    set rs [split [scpi::query $mm ":SAMPLE:COUNT $params(n);:READ?;:SAMPLE:COUNT 1"] ","]
+    	if { $params(n) != 1 } {
+    	    set rs [split [scpi::query $mm ":SAMPLE:COUNT $params(n);:READ?;:SAMPLE:COUNT 1"] ","]
+        } else {
+    	    set rs [split [scpi::query $mm ":READ?"] ","]
+        }
 	    lassign [math::statistics::basic-stats $rs] r _ _ _ _ _ sr
         if { !$noSystErr } {
             # вычислим и добавим инструментальную погрешность
@@ -166,12 +173,20 @@ proc ::measure::measure::resistance { args } {
     }
     
 	# запускаем измерение напряжения
-	scpi::cmd $mm "SAMPLE:COUNT $params(n);:INIT"
+	if { $params(n) != 1 } {
+    	scpi::cmd $mm "SAMPLE:COUNT $params(n);:INIT"
+    } else {
+    	scpi::cmd $mm ":INIT"
+    }
 	fconfigure $mm -timeout $newTimeout 
 
     if { [info exists cmm] } {
     	# запускаем измерение тока
-    	scpi::cmd $cmm "SAMPLE:COUNT $params(n);:INIT"
+    	if { $params(n) != 1 } {
+        	scpi::cmd $cmm "SAMPLE:COUNT $params(n);:INIT"
+        } else {
+        	scpi::cmd $cmm ":INIT"
+        }
     	fconfigure $cmm -timeout $newTimeout
     }
 
@@ -186,7 +201,11 @@ proc ::measure::measure::resistance { args } {
 	}
 
 	# считываем значение напряжения и вычисляем погрешность измерений
-	set vs [split [scpi::query $mm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
+	if { $params(n) != 1 } {
+    	set vs [split [scpi::query $mm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
+    } else {
+    	set vs [split [scpi::query $mm "DATA:REMOVE? $params(n)"] ","]
+    } 
 	# среднее значение и погрешность измерения
 	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
 	# инструментальная погрешность
@@ -196,7 +215,11 @@ proc ::measure::measure::resistance { args } {
 	switch -exact -- $mmethod {
         0 {
             # измеряем непосредственно ток
-            set cs [split [scpi::query $cmm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
+            if { $params(n) != 1 } {
+                set cs [split [scpi::query $cmm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
+            } else {
+                set cs [split [scpi::query $cmm "DATA:REMOVE? $params(n)"] ","]
+            }
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
             # инструментальная погрешность
@@ -204,8 +227,12 @@ proc ::measure::measure::resistance { args } {
         }
         1 {
             # измеряем падение напряжения на эталоне
-            set rr [measure::config::get current.reference.resistance 1.0] 
-            set vvs [split [scpi::query $cmm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
+            set rr [measure::config::get current.reference.resistance 1.0]
+            if { $params(n) != 1 } {
+                set vvs [split [scpi::query $cmm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
+            } else {
+                set vvs [split [scpi::query $cmm "DATA:REMOVE? $params(n)"] ","]
+            } 
             set vv [expr abs([math::statistics::mean $vvs])] 
     		set cs [list]
     		foreach c $vvs {
