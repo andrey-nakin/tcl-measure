@@ -139,8 +139,8 @@ proc ::measure::measure::resistance { args } {
     # сохраняем текущее значение таймаута и вычисляем новое
 	set timeout [fconfigure $mm -timeout]
     set newTimeout [expr int(2.0 * [oneMeasurementDuration])]
-    if { $newTimeout < 1000 } {
-        set newTimeout 1000
+    if { $newTimeout < 10000 } {
+        set newTimeout 10000
     }
         
     # считываем параметры измерения в локальные переменные 
