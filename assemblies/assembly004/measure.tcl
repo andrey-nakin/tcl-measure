@@ -145,6 +145,9 @@ if { $settings(manualPower) } {
 		
 		# выставляем ток на ИП
 		setCurrent $curr
+		
+		# выдерживаем паузу
+		measure::interop::sleep [measure::config::get pause 0]
 
 		# Делаем очередное измерение из сохраняем результат в файл
 		makeMeasurement

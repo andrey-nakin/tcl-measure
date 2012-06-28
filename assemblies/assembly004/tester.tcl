@@ -37,9 +37,7 @@ proc openDevices {} {
 	if { !$settings(manualPower) } {
 		setupPs
 
-		# Устанавливаем выходной ток
-		setCurrent $settings(startCurrent)
-
+        after 500
 		# Включаем подачу тока на выходы ИП
 		hardware::agilent::pse3645a::setOutput $ps 1
 	}

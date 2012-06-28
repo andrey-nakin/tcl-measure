@@ -115,6 +115,9 @@ proc readTemp {} {
 
     # измеряем напряжение на термопаре    
     set v [string trim [scpi::query $tcmm "READ?"]]
+    if { [measure::config::get tc.negate 0] } {
+        set v [expr -1.0 * $v]
+    }
 	# инструментальная погрешность
    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" [measure::config::get tcmm.nplc 10]]
    	
@@ -122,7 +125,9 @@ proc readTemp {} {
 	lassign [measure::thermocouple::calcKelvin \
         [measure::config::get tc.type K] \
         [measure::config::get tc.fixedT 77.4] \
-        $v $vErr] t tErr
+        $v $vErr \
+        [measure::config::get tc.correction] \
+        ] t tErr
 
     # накапливаем значения в очереди для вычисления производной 
     measure::listutils::lappend tempValues $t $DERIVATIVE_READINGS

@@ -250,8 +250,11 @@ grid [ttk::spinbox $p.end -width 10 -textvariable settings(endCurrent) -from 0 -
 grid [ttk::label $p.lstep -text "Приращение, мА:"] -row 3 -column 0 -sticky w
 grid [ttk::spinbox $p.step -width 10 -textvariable settings(currentStep) -from -2200 -to 2200 -increment 10 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
 
+grid [ttk::label $p.lpause -text "Пауза, мс:"] -row 4 -column 0 -sticky w
+grid [ttk::spinbox $p.pause -width 10 -textvariable settings(pause) -from 0 -to 100000 -increment 500 -validate key -validatecommand {string is double %P}] -row 4 -column 1 -sticky e
+
 grid columnconfigure $p {0 1} -pad 5
-grid rowconfigure $p {0 1 2 3} -pad 5
+grid rowconfigure $p {0 1 2 3 4} -pad 5
 grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5

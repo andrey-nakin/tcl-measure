@@ -192,17 +192,20 @@ proc makeMeasurement {} {
 
 proc display { v sv c sc r sr temp tempErr tempDer write } {
     global runtime chartR_T chartR_t chartT_t chartdT_t
+    
+    global log
+    ${log}::debug "display $temp $tempErr"
 
     # Выводим результаты в окно программы
-	set runtime(temperature) [::measure::format::valueWithErr -prec 6 $temp $tempErr "К"]
+	set runtime(temperature) [::measure::format::valueWithErr -prec 6 -- $temp $tempErr "К"]
 	set runtime(derivative1) [::measure::format::value -prec 3 -- $tempDer "К/мин"]
-	set runtime(current) [::measure::format::valueWithErr -mult 1.0e-3 $c $sc "\u0410"]
-	set runtime(voltage) [::measure::format::valueWithErr -mult 1.0e-3 $v $sv "\u0412"]
-	set runtime(resistance) [::measure::format::valueWithErr $r $sr "\u03A9"]
-	set runtime(power) [::measure::format::value -prec 2 [expr 1.0e-6 * $c * $v] "\u0412\u0442"]
+	set runtime(current) [::measure::format::valueWithErr -mult 1.0e-3 -- $c $sc "\u0410"]
+	set runtime(voltage) [::measure::format::valueWithErr -mult 1.0e-3 -- $v $sv "\u0412"]
+	set runtime(resistance) [::measure::format::valueWithErr -- $r $sr "\u03A9"]
+	set runtime(power) [::measure::format::value -prec 2 -- [expr 1.0e-6 * $c * $v] "\u0412\u0442"]
 
 	measure::chart::${chartR_t}::addPoint $r
-	measure::chart::${chartT_t}::addPoint $temp
+    measure::chart::${chartT_t}::addPoint $temp
 	measure::chart::${chartdT_t}::addPoint $tempDer
 	if { $write } {
     	measure::chart::${chartR_T}::addPoint $temp $r result

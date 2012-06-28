@@ -7,13 +7,42 @@
 
 package require measure::format
 
+set CURRENT_THRESHOLD 0.050
+
 # Устанавливает ток питания образца
 # curr - требуемый ток в мА
 proc setCurrent { curr } {
-    global ps
+    global ps log
+    global CURRENT_THRESHOLD
 
-	# Задаём выходной ток с переводом из мА в А
-    scpi::cmd $ps "CURRENT [expr 0.001 * $curr]"
+    # переведём из мА в А
+    set curr [expr 0.001 * $curr]
+    
+    if { $curr > $CURRENT_THRESHOLD } {
+    	# Задаём непосредственно выходной ток с переводом из мА в А
+        scpi::cmd $ps "CURRENT $curr]"
+    } else {
+        # Задаём падение напряжения на сопротивлении
+
+        # измерим сопротивление
+        set mmethod [measure::config::get current.method 0]
+        if { $mmethod == 0 || $mmethod == 1 } {
+		  lassign [measure::measure::resistance -n 1] _ _ _ _ r
+        } else {
+            # зададим тестовый ток для снятия сопротивления
+            scpi::cmd $ps "APPLY 60,0.001"
+            after 2000 
+            
+            set res [scpi::query $ps "MEASURE:VOLTAGE?;CURR?"]
+            if { [scan $res "%f;%f" v c] != 2 } {
+                error "Unexpected response `$res` from device `[scpi::channelName $ps]`"
+            }
+            set r [expr $v / $c]
+        }
+        
+        # задаем нужное напряжение и макс. ток
+        scpi::cmd $ps "APPLY [expr $curr * $r],$CURRENT_THRESHOLD"
+    }
 }
 
 # Процедура проверяет правильность настроек, при необходимости вносит поправки
@@ -77,15 +106,20 @@ proc setupPs {} {
     global ps rm settings
     
     # Подключаемся к источнику питания (ИП)
-    if { [catch { set ps [visa::open $rm $settings(psAddr)] } ] } {
-		error "Невозможно подключиться к источнику питания по адресу `$settings(psAddr)'"
+    if { [catch { set ps [visa::open $rm $settings(ps.addr)] } ] } {
+		error "Невозможно подключиться к источнику питания по адресу `$settings(ps.addr)'"
 	}
 
     # Иниализируем и опрашиваем ИП
     hardware::agilent::pse3645a::init $ps
     
+    fconfigure $ps -timeout 10000
+    
+	# Работаем в области бОльших напряжений
+    scpi::cmd $ps "VOLTAGE:RANGE HIGH"
+    
 	# Задаём пределы по напряжению и току
-    scpi::cmd $ps "APPLY 35.000,0.001"
+    scpi::cmd $ps "APPLY 60.000,0.001"
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -94,7 +128,6 @@ proc finish {} {
 
     if { [info exists ps] } {
     	# Переводим ИП в исходный режим
-        ${log}::debug "ps=$ps"    	
     	hardware::agilent::pse3645a::done $ps
     	close $ps
     	unset ps
