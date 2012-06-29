@@ -193,9 +193,6 @@ proc makeMeasurement {} {
 proc display { v sv c sc r sr temp tempErr tempDer write } {
     global runtime chartR_T chartR_t chartT_t chartdT_t
     
-    global log
-    ${log}::debug "display $temp $tempErr"
-
     # Выводим результаты в окно программы
 	set runtime(temperature) [::measure::format::valueWithErr -prec 6 -- $temp $tempErr "К"]
 	set runtime(derivative1) [::measure::format::value -prec 3 -- $tempDer "К/мин"]
@@ -287,7 +284,7 @@ pack $p -fill both -padx 10 -pady 5 -expand 1
 set chartR_T [canvas $p.r_T -width 200 -height 200]
 grid $chartR_T -row 0 -column 0 -sticky news
 measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" -dots 1 -lines 1 $chartR_T
-measure::chart::${chartR_T}::series result -color green
+measure::chart::${chartR_T}::series result -maxCount 500 -color green
 measure::chart::${chartR_T}::series test -maxCount 10 -color #7f7fff
 
 set chartR_t [canvas $p.r_t -width 200 -height 200]

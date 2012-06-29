@@ -13,6 +13,7 @@ package require measure::datafile
 package require measure::interop
 package require measure::ranges
 package require measure::measure
+package require measure::listutils
 package require scpi
 
 ###############################################################################
@@ -50,8 +51,10 @@ proc runTimeStep {} {
 }
 
 # Производит регистрацию данных по заданному температурному шагу
+set tempDerValues {}
+
 proc runTempStep {} {
-    global doMeasurement
+    global doMeasurement tempDerValues
     global log
     
     set step [measure::config::get prog.temp.step 1.0]
@@ -61,8 +64,12 @@ proc runTempStep {} {
     
     # Выполняем цикл пока не прервёт пользователь
     while { ![measure::interop::isTerminated] } {
+        # текущее время
+        set t [clock milliseconds]
+    
         # считываем температуру
         lassign [readTemp] temp tempErr tempDer
+        measure::listutils::lappend tempDerValues $tempDer 10 
         
         if { $doMeasurement
             || $temp > $prevT && $temp > [expr ($prevN + 1) * $step]  \
@@ -77,10 +84,17 @@ proc runTempStep {} {
             # измеряем сопротивление, но не регистрируем
             readResistanceAndWrite $temp $tempErr $tempDer 0
         } 
-        
-        after 500 set doMeasurement 0
-        vwait doMeasurement
-        after cancel set doMeasurement 0
+
+        # определим, какую паузу нужно выдержать в зависимости от dT/dt
+        set der [math::statistics::mean $tempDerValues]
+        set delay [expr 0.05 / (abs($der) / 60000.0)]
+        set delay [expr min($delay, 1000)]
+        set delay [expr int($delay - ([clock milliseconds] - $t))]
+        if { $delay > 50 } {
+            after $delay set doMeasurement 0
+            vwait doMeasurement
+            after cancel set doMeasurement 0
+        }
     }
 }
 

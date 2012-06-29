@@ -17,7 +17,7 @@ namespace eval scpi {
 
 set scpi::ADDR_PREFIX_VISA "visa:"
 
-set scpi::DELAY_SERIAL 500
+set scpi::DELAY_SERIAL 50
 set scpi::DELAY_DEFAULT 5
 
 array set scpi::commandTimes {}
