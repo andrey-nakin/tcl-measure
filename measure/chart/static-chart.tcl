@@ -47,6 +47,7 @@ proc measure::chart::staticChart { args } {
 		variable options
 		variable seriesMaxCount
 		variable seriesColor
+		variable seriesThinout
 
         if { ![info exists xValues($series)] } {
             set xValues($series) {} 
@@ -58,8 +59,21 @@ proc measure::chart::staticChart { args } {
         }
         
         if { [info exists seriesMaxCount($series)] && $seriesMaxCount($series) != "" } {
-    		::measure::listutils::lappend xValues($series) $x $seriesMaxCount($series)
-    		::measure::listutils::lappend yValues($series) $y $seriesMaxCount($series)
+            # задано ограничение на число точек графика
+            if { [info exists seriesThinout($series)] && $seriesThinout($series) } {
+                # в данном режиме старые точки прореживаются
+                if { [llength $xValues($series)] >= $seriesMaxCount($series) } {
+                    # достигли предела - проредить старые точки
+            		::measure::listutils::thinout xValues($series) 2
+            		::measure::listutils::thinout yValues($series) 2
+                }
+        		lappend xValues($series) $x
+        		lappend yValues($series) $y
+            } else {
+                # в данном режиме старые точки просто удаляются
+        		::measure::listutils::lappend xValues($series) $x $seriesMaxCount($series)
+        		::measure::listutils::lappend yValues($series) $y $seriesMaxCount($series)
+            } 
         } else {
     		lappend xValues($series) $x
     		lappend yValues($series) $y
@@ -172,6 +186,7 @@ proc measure::chart::staticChart { args } {
     	set opts {
     		{color.arg		"green"	"Series color"}
     		{maxCount.arg	""	"Max number of points on chart"}
+    		{thinout		"1"	"Thinout old dot plots"}
     	}
     
     	set usage ": series series-name \[options]\noptions:"
@@ -179,9 +194,11 @@ proc measure::chart::staticChart { args } {
     	
 		variable seriesColor
 		variable seriesMaxCount
+		variable seriesThinout
 		
         set seriesColor($series) $options(color) 
-        set seriesMaxCount($series) $options(maxCount) 
+        set seriesMaxCount($series) $options(maxCount)
+        set seriesThinout($series) $options(thinout) 
 	
 		doPlot
 	}

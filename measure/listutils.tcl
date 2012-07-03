@@ -36,3 +36,27 @@ proc ::measure::listutils::lremove { lname v } {
     set idx [lsearch $lst $v]
     set lst [lreplace $lst $idx $idx]
 }
+
+# Прореживает список, удаляя каждый n-ый элемент
+# Аргументы:
+#   lname - имя переменной, хранящей список
+#   n - степень прореживания
+proc ::measure::listutils::thinout { lname { n 2 } } {
+    upvar $lname in
+    set res [list]
+    set c $n
+    foreach v $in {
+        if { $c > 1 } {
+            ::lappend res $v
+            set c [expr $c - 1]
+        } else {
+            set c $n
+        }
+    }
+    set in $res
+}
+
+#array set aa {}
+#set aa(a) { 1 2 3 4 5 6 7 8 9 }
+#::measure::listutils::thinout aa(a) 2
+#puts $aa(a)

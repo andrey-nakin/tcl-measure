@@ -54,8 +54,10 @@ proc runTimeStep {} {
 set tempDerValues {}
 
 proc runTempStep {} {
-    global doMeasurement tempDerValues
+    global doMeasurement tempDerValues scpi::commandDelays tcmm
     global log
+    
+    set scpi::commandDelays($tcmm) 0.0
     
     set step [measure::config::get prog.temp.step 1.0]
     lassign [readTemp] temp tempErr
@@ -87,7 +89,7 @@ proc runTempStep {} {
 
         # определим, какую паузу нужно выдержать в зависимости от dT/dt
         set der [math::statistics::mean $tempDerValues]
-        set delay [expr 0.05 / (abs($der) / 60000.0)]
+        set delay [expr 0.05 * $step / (abs($der) / 60000.0)]
         set delay [expr min($delay, 1000)]
         set delay [expr int($delay - ([clock milliseconds] - $t))]
         if { $delay > 50 } {
