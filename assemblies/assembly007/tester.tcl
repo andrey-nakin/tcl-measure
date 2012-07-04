@@ -36,7 +36,7 @@ proc run {} {
         lassign [readTemp] temp tempErr tempDer
         
         # регистрируем сопротивление
-        readResistanceAndWrite $temp $tempErr $tempDer
+        readResistanceAndWrite $temp $tempErr $tempDer 0 0 0
         
         after $DELAY
     }

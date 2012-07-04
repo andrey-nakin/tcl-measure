@@ -142,7 +142,7 @@ proc readTemp {} {
 }
 
 # Измеряем сопротивление и регистрируем его вместе с температурой
-proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } } {
+proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { dotrace 1 } } {
     global settings
 
 	# Измеряем напряжение
@@ -159,13 +159,25 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } } {
         } else {
             set manual ""
         }
-    	measure::datafile::write $settings(result.fileName) [list TIMESTAMP $temp $tempErr $tempDer $c $sc $v $sv $r $sr $rho $rhoErr $manual]
+        if { $rho != "" } {
+            set rho [format %0.6g $rho]
+            set rhoErr [format %0.2g $rhoErr]
+        }
+    	measure::datafile::write $settings(result.fileName) [list \
+            TIMESTAMP [format %0.3f $temp] [format %0.3f $tempErr] [format %0.3f $tempDer]  \
+            [format %0.6g $c] [format %0.2g $sc]    \
+            [format %0.6g $v] [format %0.2g $sv]    \
+            [format %0.6g $r] [format %0.2g $sr]    \
+            $rho $rhoErr  \
+            $manual]
     }
     
-	measure::datafile::write $settings(trace.fileName) [list \
-        TIMESTAMP \
-        [format %0.3f $temp] [format %0.3f $tempDer] [format %0.6g $r]  \
-    ]
+    if { $dotrace } {
+    	measure::datafile::write $settings(trace.fileName) [list \
+            TIMESTAMP \
+            [format %0.3f $temp] [format %0.3f $tempDer] [format %0.6g $r]  \
+        ]
+    }
 }
 
 proc setConnectors { conns } {

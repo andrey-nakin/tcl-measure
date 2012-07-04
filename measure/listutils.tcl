@@ -8,6 +8,8 @@
 package require Tcl 8.4
 package provide measure::listutils 0.1.0
 
+package require math::statistics
+
 namespace eval ::measure::listutils {
   namespace export 
 }
@@ -56,7 +58,53 @@ proc ::measure::listutils::thinout { lname { n 2 } } {
     set in $res
 }
 
-#array set aa {}
-#set aa(a) { 1 2 3 4 5 6 7 8 9 }
-#::measure::listutils::thinout aa(a) 2
-#puts $aa(a)
+# Прореживает список вдвое учитывая время регистрации точек
+# Аргументы:
+#   xvalues - имя переменной, хранящей список значений по оси X
+#   yvalues - имя переменной, хранящей список значений по оси Y
+#   times - имя переменной, хранящей список времён. 
+#           Значения должны идти в порядке возрастания
+proc ::measure::listutils::timedThinout { xvalues yvalues times } {
+    upvar $xvalues x
+    upvar $yvalues y
+    upvar $times t
+    
+    if { [llength $x] < 2 || [llength $y] < 2 || [llength $t] < 2 } {
+        return
+    }
+    
+    set tt [list]
+    for { set i 1 } { $i < [llength $t] } { incr i } {
+        ::lappend tt [expr [lindex $t $i] - [lindex $t $i-1]]
+    }
+    set m [::math::statistics::median $tt]
+     
+    set xx [list]
+    set yy [list]
+    set tt [list]
+    
+    ::lappend xx [lindex $x 0]
+    ::lappend yy [lindex $y 0]
+    ::lappend tt [lindex $t 0]
+    
+    for { set i 1 } { $i < [llength $x] && $i < [llength $y] && $i < [llength $t] } { incr i } {
+        set diff [expr [lindex $t $i] - [lindex $tt end]]
+        if { $diff > $m } {
+            ::lappend xx [lindex $x $i]
+            ::lappend yy [lindex $y $i]
+            ::lappend tt [lindex $t $i]
+        } 
+    }
+    
+    set x $xx
+    set y $yy
+    set t $tt
+}
+
+#set x { 1 2 3 4 5 6 7 8 9 }
+#set y { 10 20 30 40 50 60 70 80 90 }
+#set t { 0 100 150 250 300 400 450 550 600 }
+#::measure::listutils::timedThinout x y t
+#puts $x
+#puts $y
+#puts $t

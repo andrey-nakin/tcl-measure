@@ -31,12 +31,14 @@ proc measure::chart::staticChart { args } {
         variable redo
 		variable xValues
 		variable yValues
+		variable times
 		variable chartBgColor
 		variable canvas
 		variable options
 
 		array set xValues {}
 		array set yValues {}
+		array set times {}
 	}
 
 	proc ::measure::chart::${canvas}::addPoint { x y { series "series1" } } {
@@ -44,6 +46,7 @@ proc measure::chart::staticChart { args } {
 	
 		variable xValues
 		variable yValues
+		variable times
 		variable options
 		variable seriesMaxCount
 		variable seriesColor
@@ -52,6 +55,7 @@ proc measure::chart::staticChart { args } {
         if { ![info exists xValues($series)] } {
             set xValues($series) {} 
             set yValues($series) {}
+            set times($series) {}
             
             if { ![info exists seriesColor($series)] } {
                 set seriesColor($series) [lindex $stdColors [llength [array names seriesColor]]] 
@@ -64,21 +68,25 @@ proc measure::chart::staticChart { args } {
                 # в данном режиме старые точки прореживаются
                 if { [llength $xValues($series)] >= $seriesMaxCount($series) } {
                     # достигли предела - проредить старые точки
-            		::measure::listutils::thinout xValues($series) 2
-            		::measure::listutils::thinout yValues($series) 2
+                    ::measure::listutils::timedThinout xValues($series) yValues($series) times($series)
+            		#::measure::listutils::thinout xValues($series) 2
+            		#::measure::listutils::thinout yValues($series) 2
                 }
         		lappend xValues($series) $x
         		lappend yValues($series) $y
+        		lappend times($series) [clock milliseconds] 
             } else {
                 # в данном режиме старые точки просто удаляются
         		::measure::listutils::lappend xValues($series) $x $seriesMaxCount($series)
         		::measure::listutils::lappend yValues($series) $y $seriesMaxCount($series)
+        		::measure::listutils::lappend times($series) [clock milliseconds] $seriesMaxCount($series) 
             } 
         } else {
     		lappend xValues($series) $x
     		lappend yValues($series) $y
+    		lappend times($series) [clock milliseconds] 
         }
- 
+        
 		doPlot	
 	}
 
@@ -88,8 +96,10 @@ proc measure::chart::staticChart { args } {
 
 		array unset xValues
 		array unset yValues
+		array unset times
 		array set xValues {}
 		array set yValues {}
+		array set times {}
 
 		doPlot	
 	}
