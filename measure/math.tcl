@@ -28,6 +28,10 @@ proc ::tcl::mathfunc::sign { x } {
 	return 0
 }
 
+proc ::tcl::mathfunc::power2 { x } {
+	return [expr $x * $x]
+}
+
 proc ::tcl::mathfunc::roundDown { x  { digits 0 } } {
     set rounder [expr pow(10.0, $digits)]
     return [expr floor(abs($x) * $rounder) / $rounder * sign($x)]

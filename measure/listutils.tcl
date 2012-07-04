@@ -9,6 +9,7 @@ package require Tcl 8.4
 package provide measure::listutils 0.1.0
 
 package require math::statistics
+package require measure::math
 
 namespace eval ::measure::listutils {
   namespace export 
@@ -101,10 +102,46 @@ proc ::measure::listutils::timedThinout { xvalues yvalues times } {
     set t $tt
 }
 
+# Прореживает список вдвое учитывая расстояние между соседними точками
+# Аргументы:
+#   xvalues - имя переменной, хранящей список значений по оси X
+#   yvalues - имя переменной, хранящей список значений по оси Y
+proc ::measure::listutils::xyThinout { xvalues yvalues } {
+    upvar $xvalues x
+    upvar $yvalues y
+    
+    if { [llength $x] < 2 || [llength $y] < 2 } {
+        return
+    }
+    
+    set ranges [list]
+    for { set i 1 } { $i < [llength $x] && $i < [llength $y] } { incr i } {
+        ::lappend ranges [expr power2([lindex $x $i] - [lindex $x $i-1]) + power2([lindex $y $i] - [lindex $y $i-1])]
+    }
+    set m [::math::statistics::median $ranges]
+     
+    set xx [list]
+    set yy [list]
+    
+    ::lappend xx [lindex $x 0]
+    ::lappend yy [lindex $y 0]
+    
+    for { set i 1 } { $i < [llength $x] && $i < [llength $y] } { incr i } {
+        set r [expr power2([lindex $x $i] - [lindex $xx end]) + power2([lindex $y $i] - [lindex $yy end])]
+        if { $r > $m } {
+            ::lappend xx [lindex $x $i]
+            ::lappend yy [lindex $y $i]
+        } 
+    }
+    
+    set x $xx
+    set y $yy
+}
+
 #set x { 1 2 3 4 5 6 7 8 9 }
 #set y { 10 20 30 40 50 60 70 80 90 }
 #set t { 0 100 150 250 300 400 450 550 600 }
-#::measure::listutils::timedThinout x y t
+#::measure::listutils::xyThinout x y
 #puts $x
 #puts $y
 #puts $t

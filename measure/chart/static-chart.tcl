@@ -31,14 +31,12 @@ proc measure::chart::staticChart { args } {
         variable redo
 		variable xValues
 		variable yValues
-		variable times
 		variable chartBgColor
 		variable canvas
 		variable options
 
 		array set xValues {}
 		array set yValues {}
-		array set times {}
 	}
 
 	proc ::measure::chart::${canvas}::addPoint { x y { series "series1" } } {
@@ -46,7 +44,6 @@ proc measure::chart::staticChart { args } {
 	
 		variable xValues
 		variable yValues
-		variable times
 		variable options
 		variable seriesMaxCount
 		variable seriesColor
@@ -55,7 +52,6 @@ proc measure::chart::staticChart { args } {
         if { ![info exists xValues($series)] } {
             set xValues($series) {} 
             set yValues($series) {}
-            set times($series) {}
             
             if { ![info exists seriesColor($series)] } {
                 set seriesColor($series) [lindex $stdColors [llength [array names seriesColor]]] 
@@ -68,23 +64,20 @@ proc measure::chart::staticChart { args } {
                 # в данном режиме старые точки прореживаются
                 if { [llength $xValues($series)] >= $seriesMaxCount($series) } {
                     # достигли предела - проредить старые точки
-                    ::measure::listutils::timedThinout xValues($series) yValues($series) times($series)
+                    ::measure::listutils::xyThinout xValues($series) yValues($series)
             		#::measure::listutils::thinout xValues($series) 2
             		#::measure::listutils::thinout yValues($series) 2
                 }
         		lappend xValues($series) $x
         		lappend yValues($series) $y
-        		lappend times($series) [clock milliseconds] 
             } else {
                 # в данном режиме старые точки просто удаляются
         		::measure::listutils::lappend xValues($series) $x $seriesMaxCount($series)
         		::measure::listutils::lappend yValues($series) $y $seriesMaxCount($series)
-        		::measure::listutils::lappend times($series) [clock milliseconds] $seriesMaxCount($series) 
             } 
         } else {
     		lappend xValues($series) $x
     		lappend yValues($series) $y
-    		lappend times($series) [clock milliseconds] 
         }
         
 		doPlot	
@@ -96,10 +89,8 @@ proc measure::chart::staticChart { args } {
 
 		array unset xValues
 		array unset yValues
-		array unset times
 		array set xValues {}
 		array set yValues {}
-		array set times {}
 
 		doPlot	
 	}
@@ -157,7 +148,23 @@ proc measure::chart::staticChart { args } {
 		variable canvas
 		variable options
 		variable seriesColor
+		variable seriesOrder
 
+        proc cmpSeries { a b } {
+    		variable seriesOrder
+    		
+    		set aa 0
+    		set bb 0
+    		
+    		if { [info exists seriesOrder($a)] } {
+    		  set aa $seriesOrder($a) 
+            }
+    		if { [info exists seriesOrder($b)] } {
+    		  set bb $seriesOrder($b) 
+            }
+            return [expr $bb - $aa]
+        }
+        
 		$canvas delete all
 
 		set s [::Plotchart::createXYPlot $canvas [makeXLimits] [makeYLimits]]
@@ -176,7 +183,8 @@ proc measure::chart::staticChart { args } {
 		$s background plot black
 		$s background axes $chartBgColor
 
-        foreach series [array names xValues] {
+        set names [lsort -command cmpSeries [array names xValues]]
+        foreach series $names {
     		foreach x $xValues($series) y $yValues($series) {
                 if { $options(lines) } {
         			$s plot $series $x $y
@@ -197,6 +205,7 @@ proc measure::chart::staticChart { args } {
     		{color.arg		"green"	"Series color"}
     		{maxCount.arg	""	"Max number of points on chart"}
     		{thinout		"1"	"Thinout old dot plots"}
+    		{order.arg		"0"	"Series order #"}
     	}
     
     	set usage ": series series-name \[options]\noptions:"
@@ -205,10 +214,12 @@ proc measure::chart::staticChart { args } {
 		variable seriesColor
 		variable seriesMaxCount
 		variable seriesThinout
+		variable seriesOrder
 		
         set seriesColor($series) $options(color) 
         set seriesMaxCount($series) $options(maxCount)
         set seriesThinout($series) $options(thinout) 
+        set seriesOrder($series) $options(order) 
 	
 		doPlot
 	}
