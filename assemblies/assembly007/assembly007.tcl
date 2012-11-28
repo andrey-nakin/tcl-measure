@@ -224,7 +224,7 @@ set log [measure::logger::init measure]
 
 # Создаём окно программы
 set w ""
-wm title $w. "Установка № 7: Регистрация R(T)"
+wm title $w. "Установка № 7: Регистрация R(T). Версия 1.0"
 
 # При нажатии крестика в углу окна вызыватьспециальную процедуру завершения
 wm protocol $w. WM_DELETE_WINDOW { quit }
@@ -363,7 +363,7 @@ ttk::frame $w.nb.dut
 $w.nb add $w.nb.dut -text " Образец "
 
 # Настройки параметров образца
-set p [ttk::labelframe $w.nb.dut.dut -text " Параметры образца " -pad 10]
+set p [ttk::labelframe $w.nb.dut.dut -text " Геометрические параметры " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 ::measure::widget::dutControls $p dut
 
