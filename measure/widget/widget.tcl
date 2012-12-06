@@ -145,12 +145,25 @@ proc ::measure::widget::psControls { prefix settingsVar } {
 }
 
 proc ::measure::widget::mvu8Controls { prefix settingsVar } {
+
+    proc ::measure::widget::testMvu8 { portVar idVar btn } {
+        package require hardware::owen::mvu8
+        global settings log
+        
+        eval "set port $$portVar"
+        eval "set id $$idVar"
+        ${log}::debug "port=$port id=$id"
+        ::hardware::owen::mvu8::modbus::test $port $id $btn
+    } 
+
     grid [ttk::label $prefix.lrs485 -text "\u041F\u043E\u0440\u0442 \u0434\u043B\u044F \u0410\u04214:"] -row 0 -column 0 -sticky w
     grid [ttk::combobox $prefix.rs485 -width 10 -textvariable settings(${settingsVar}.serialAddr) -values [measure::com::allPorts]] -row 0 -column 1 -sticky w
     
-    grid [ttk::label $prefix.lswitchAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441 \u041C\u0412\u0423-8:"] -row 0 -column 2 -sticky w
-    grid [ttk::spinbox $prefix.switchAddr -width 10 -textvariable settings(${settingsVar}.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 3 -sticky w
+    grid [ttk::label $prefix.lswitchAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441 \u041C\u0412\u0423-8:"] -row 0 -column 3 -sticky w
+    grid [ttk::spinbox $prefix.switchAddr -width 10 -textvariable settings(${settingsVar}.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 4 -sticky w
 
+    grid [ttk::button $prefix.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testMvu8 settings(${settingsVar}.serialAddr) settings(${settingsVar}.rs485Addr) $prefix.test] ] -row 0 -column 6 -sticky e
+    
 	grid columnconfigure $prefix { 0 1 2 3 4 5 6 } -pad 5
 	grid columnconfigure $prefix { 2 5 } -weight 1
 	grid rowconfigure $prefix { 0 1 } -pad 5

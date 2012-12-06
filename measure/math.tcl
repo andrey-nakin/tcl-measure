@@ -42,6 +42,10 @@ proc ::tcl::mathfunc::roundUp { x  { digits 0 } } {
     return [expr ceil(abs($x) * $rounder) / $rounder * sign($x)]
 }
 
+proc ::tcl::mathfunc::isNaN x {
+    expr {$x != $x || [catch {expr $x-$x}]}
+}
+
 ###############################################################################
 # procedures in own namespace
 ###############################################################################

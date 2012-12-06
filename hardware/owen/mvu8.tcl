@@ -29,6 +29,7 @@ set hardware::owen::mvu8::CHANNEL	0x0000
 #     values - список значений для каналов. Значения целочисленные в диапазоне [0, 1000]
 proc hardware::owen::mvu8::modbus::setChannels { port id first values } {
 	package require modbus
+	global log
 	
 	modbus::configure -mode RTU -com $port
 
@@ -43,20 +44,17 @@ proc hardware::owen::mvu8::modbus::setChannels { port id first values } {
         
         # Отправляем команду
         eval $cmd
-
-        # !!!
-        return
         
+        #!!!
+        #return
+
         # Считываем текущее состояние каналов для сравнения
-        puts "modbus::cmd 0x03 $id $first [llength $values]"      
         set state [modbus::cmd 0x03 $id $first [llength $values]]
-        puts "state = $state"
         set bad 0
         for { set i 0 } { $i < [llength $values] } { incr i } {
-            puts "TEST $i [lindex $values $i] [lindex $state $i]"
             if { [lindex $values $i] != [lindex $state $i] } {
                 # несовпадение!
-                puts "MISMATCH $i [lindex $values $i] [lindex $state $i]"
+                ${log}::error "MVU-8 channel $i state mismatch: expected=[lindex $values $i], actual=[lindex $state $i]"
                 set bad 1
                 break
             }
@@ -69,4 +67,28 @@ proc hardware::owen::mvu8::modbus::setChannels { port id first values } {
     }
     
     error "Cannot set MVU-8 channels" 
+}
+
+proc hardware::owen::mvu8::modbus::test { port id btn } {
+    $btn configure -state disabled
+    after 0 [list hardware::owen::mvu8::modbus::testImpl $port $id $btn]
+}
+
+proc hardware::owen::mvu8::modbus::testImpl { port id btn } {
+	package require modbus
+	
+	global log
+	${log}::debug "testImpl port=$port id=$id"
+	set ok 0
+    catch {
+    	::modbus::configure -mode RTU -com $port
+        set state [::modbus::cmd 0x03 $id 0 8]
+        set ok [expr [llength $state] == 9]
+    } 
+    $btn configure -state enabled
+    if { $ok } {
+        tk_messageBox -icon info -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u0421\u0432\u044F\u0437\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430"
+    } else {
+        tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438"
+    }
 }

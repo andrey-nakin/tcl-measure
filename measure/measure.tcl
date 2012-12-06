@@ -246,7 +246,7 @@ proc ::measure::measure::resistance { args } {
         }
         2 {
             # ток измеряется вручную
-            set c [expr 0.001 * [measure::config::get current.manual.current 0.0]]
+            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
             set cs [list]
             for { set i 0 } { $i < $params(n) } { incr i } {
                 lappend cs $c
@@ -261,7 +261,11 @@ proc ::measure::measure::resistance { args } {
 	# вычисляем сопротивление
 	set rs [list]
 	foreach vv $vs cc $cs {
-		lappend rs [expr $vv / $cc]
+	    set r [expr $vv / $cc]
+	    if { isNaN($r) } {
+	       set r 0.0
+        }
+		lappend rs $r 
 	}
 
 	# вычисляем средние значения и сигмы

@@ -59,6 +59,9 @@ proc measure::sigma::mul { args } {
 # Return
 #   error calculated
 proc measure::sigma::div { a da b db } {
+    if { abs($b) < 1.0e-15 } {
+        return 0.0
+    }
 	set x [expr $db * $a / $b]
 	return [expr 1.0 / $b * sqrt($da * $da + $x * $x)]
 }
