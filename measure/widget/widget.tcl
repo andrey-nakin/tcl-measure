@@ -110,7 +110,7 @@ proc ::measure::widget::getVarValue { varName } {
 
 proc ::measure::widget::mmControls { prefix settingsVar } {
 	grid [ttk::label $prefix.laddr -text "\u0410\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
-	grid [ttk::combobox $prefix.addr -textvariable settings(${settingsVar}.addr) -values [measure::visa::allInstruments]] -row 0 -column 1 -columnspan 7 -sticky we
+	grid [ttk::combobox $prefix.addr -textvariable settings(${settingsVar}.addr) -values [measure::visa::allInstruments]] -row 0 -column 1 -columnspan 9 -sticky we
 
 	grid [ttk::label $prefix.lmode -text "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C RS-232:"] -row 1 -column 0 -sticky w
 	grid [ttk::combobox $prefix.mode -width 6 -textvariable settings(${settingsVar}.baud) -state readonly -values $hardware::agilent::mm34410a::baudRates] -row 1 -column 1 -sticky w
@@ -121,8 +121,10 @@ proc ::measure::widget::mmControls { prefix settingsVar } {
 	grid [ttk::label $prefix.lnplc -text "\u0426\u0438\u043A\u043B\u043E\u0432 50 \u0413\u0446 \u043D\u0430 \u0438\u0437\u043C\u0435\u0440\u0435\u043D\u0438\u0435:"] -row 1 -column 6 -sticky w
 	grid [ttk::combobox $prefix.nplc -width 6 -textvariable settings(${settingsVar}.nplc) -state readonly -values $hardware::agilent::mm34410a::nplcs ] -row 1 -column 7 -sticky w
 
+    grid [ttk::button $prefix.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testMvu8 settings(${settingsVar}.addr) settings(${settingsVar}.mode settings(${settingsVar}.parity) $prefix.test] ] -row 1 -column 9 -sticky e
+
 	grid columnconfigure $prefix { 0 1 3 4 6 } -pad 5
-	grid columnconfigure $prefix { 2 5 } -weight 1
+	grid columnconfigure $prefix { 2 5 8 } -weight 1
 	grid rowconfigure $prefix { 0 1 2 3 4 5 6 7 8 } -pad 5
 }
 
@@ -146,15 +148,24 @@ proc ::measure::widget::psControls { prefix settingsVar } {
 
 proc ::measure::widget::mvu8Controls { prefix settingsVar } {
 
-    proc ::measure::widget::testMvu8 { portVar idVar btn } {
+    proc testMvu8 { portVar idVar btn } {
         package require hardware::owen::mvu8
-        global settings log
+        global settings
         
-        eval "set port $$portVar"
-        eval "set id $$idVar"
-        ${log}::debug "port=$port id=$id"
-        ::hardware::owen::mvu8::modbus::test $port $id $btn
+	    $btn configure -state disabled
+	    eval "set port $$portVar"
+	    eval "set id $$idVar"
+		after 100 [list ::measure::widget::testMvu8Impl $port $id $btn]
     } 
+
+    proc testMvu8Impl { port id btn } {
+		if { [::hardware::owen::mvu8::modbus::test $port $id] } {
+			tk_messageBox -icon info -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u0421\u0432\u044F\u0437\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430"
+		} else {
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438"
+		}
+	    $btn configure -state enabled
+	}
 
     grid [ttk::label $prefix.lrs485 -text "\u041F\u043E\u0440\u0442 \u0434\u043B\u044F \u0410\u04214:"] -row 0 -column 0 -sticky w
     grid [ttk::combobox $prefix.rs485 -width 10 -textvariable settings(${settingsVar}.serialAddr) -values [measure::com::allPorts]] -row 0 -column 1 -sticky w
@@ -226,7 +237,8 @@ proc ::measure::widget::thermoCoupleControls { prefix settingsVar } {
     
     grid [ttk::label $prefix.lcorrection -text "\u0412\u044B\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0434\u043B\u044F \u043A\u043E\u0440\u0440\u0435\u043A\u0446\u0438\u0438:"] -row 1 -column 0 -sticky w
     grid [ttk::entry $prefix.correction -textvariable settings(${settingsVar}.correction)] -row 1 -column 1 -columnspan 7 -sticky we
-    grid [ttk::label $prefix.lcorrectionexample -text "\u041D\u0430\u043F\u0440\u0438\u043C\u0435\u0440: (x - 77.4) * 1.1 + 77.4"] -row 2 -column 1 -columnspan 7 -sticky we
+    grid [ttk::label $prefix.lcorrectionexample -text "\u041D\u0430\u043F\u0440\u0438\u043C\u0435\u0440: (x - 77.4) * 1.1 + 77.4"] -row 2 -column 1 -columnspan 5 -sticky we
+    grid [ttk::button $prefix.autocal -text "\u041A\u0430\u043B\u0438\u0431\u0440\u043E\u0432\u043A\u0430"] -row 2 -column 6 -columnspan 2 -sticky e
     
     grid columnconfigure $prefix { 0 3 6 } -pad 5
     grid columnconfigure $prefix { 2 5 } -weight 1

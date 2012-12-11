@@ -24,6 +24,8 @@ proc validateSettings {} {
 
 		measure.noSystErr 0
 		measure.numOfSamples 1
+
+		current.method 0
     }	
 }
 
