@@ -15,6 +15,8 @@ package require startfile
 package require hardware::agilent::mm34410a
 package require measure::datafile
 package require measure::thermocouple
+package require cmdline
+package require math::statistics
 
 namespace eval ::measure::widget {
   namespace export setDisabledByVar
@@ -108,7 +110,34 @@ proc ::measure::widget::getVarValue { varName } {
 	return $v
 }
 
+proc ::measure::widget::getVar { varName } {
+	set val ""
+	catch { eval "set val $$varName" }
+	return $val
+}
+
 proc ::measure::widget::mmControls { prefix settingsVar } {
+
+    proc testMm { addrVar baudVar parityVar btn } {
+        global settings
+	    $btn configure -state disabled
+		after 100 [list ::measure::widget::testMmImpl [getVar $addrVar] [getVar $baudVar] [getVar $parityVar] $btn]
+    } 
+
+    proc testMmImpl { addr baud parity btn } {
+        package require hardware::agilent::mm34410a
+
+		set res [hardware::agilent::mm34410a::test -baud $baud -parity $parity $addr]
+		if { $res > 0 } {
+			tk_messageBox -icon info -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u0421\u0432\u044F\u0437\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430"
+		} elseif { $res == 0} {
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438"
+		} else {
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\0u423\0u441\0u442\0u440\0u43E\0u439\0u441\0u442\0u432\0u43E \0u43D\0u435 \0u44F\0u432\0u43B\0u44F\0u435\0u442\0u441\0u44F \0u43C\0u443\0u43B\0u44C\0u442\0u438\0u43C\0u435\0u442\0u440\0u43E\0u43C"
+		}
+	    $btn configure -state enabled
+    } 
+
 	grid [ttk::label $prefix.laddr -text "\u0410\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
 	grid [ttk::combobox $prefix.addr -textvariable settings(${settingsVar}.addr) -values [measure::visa::allInstruments]] -row 0 -column 1 -columnspan 9 -sticky we
 
@@ -121,7 +150,7 @@ proc ::measure::widget::mmControls { prefix settingsVar } {
 	grid [ttk::label $prefix.lnplc -text "\u0426\u0438\u043A\u043B\u043E\u0432 50 \u0413\u0446 \u043D\u0430 \u0438\u0437\u043C\u0435\u0440\u0435\u043D\u0438\u0435:"] -row 1 -column 6 -sticky w
 	grid [ttk::combobox $prefix.nplc -width 6 -textvariable settings(${settingsVar}.nplc) -state readonly -values $hardware::agilent::mm34410a::nplcs ] -row 1 -column 7 -sticky w
 
-    grid [ttk::button $prefix.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testMvu8 settings(${settingsVar}.addr) settings(${settingsVar}.mode settings(${settingsVar}.parity) $prefix.test] ] -row 1 -column 9 -sticky e
+    grid [ttk::button $prefix.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testMm settings(${settingsVar}.addr) settings(${settingsVar}.baud) settings(${settingsVar}.parity) $prefix.test] ] -row 1 -column 9 -sticky e
 
 	grid columnconfigure $prefix { 0 1 3 4 6 } -pad 5
 	grid columnconfigure $prefix { 2 5 8 } -weight 1
@@ -225,7 +254,121 @@ proc ::measure::widget::switchControls { prefix settingsVar } {
     grid columnconfigure $prefix { 1 } -weight 1
 }
 
-proc ::measure::widget::thermoCoupleControls { prefix settingsVar } {
+proc ::measure::widget::thermoCoupleControls { args } {
+
+	set options {
+		{nb.arg "" "Id of the notebook control to navigate within"}
+		{workingTs.arg ""	"Id of the notebook tabsheet to switch to when calibrating"}
+		{currentTs.arg "" "Id of the notebook tabsheet to switch to when exiting"}
+	}
+
+	proc tcCalibrate { ctl btn paramList } {
+		global tcCalParams log
+
+		array set params $paramList
+		array set tcCalParams [list t1 "" t2 "" mt1 "Не снята" mt2 "Не снята" ctl $ctl btn $btn paramList $paramList]
+
+	    $btn configure -state disabled
+		measure::thermocouple::useCorrection 0
+
+		set w .tccal
+		tk::toplevel $w
+		wm title $w "Калибровка термопары"
+		wm protocol $w WM_DELETE_WINDOW [list ::measure::widget::tcCalibrateQuit $btn $paramList]
+		wm attributes $w -topmost 1
+		bind . <<ReadTemperature>> "::measure::widget::tcCalibrateRead %d"
+
+		set p [ttk::frame $w.c]
+	    grid [ttk::label $p.lexp -text "Ожидаемая (К)"] -row 0 -column 1 -sticky we
+	    grid [ttk::label $p.lmea -text "Измеренная (К)"] -row 0 -column 2 -sticky we
+
+	    grid [ttk::label $p.lt1 -text "Температурная точка № 1:"] -row 1 -column 0 -sticky w
+	    grid [ttk::spinbox $p.t1 -width 15 -textvariable tcCalParams(t1) -from 1 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky w
+		grid [ttk::entry $p.e1 -width 15 -textvariable tcCalParams(mt1) -state readonly] -row 1 -column 2 -sticky w
+	    grid [ttk::button $p.b1 -text "Снять" -command {::measure::widget::tcCalibrateSet 1}] -row 1 -column 3 -sticky e
+
+	    grid [ttk::label $p.lt2 -text "Температурная точка № 2:"] -row 2 -column 0 -sticky w
+	    grid [ttk::spinbox $p.t2 -width 15 -textvariable tcCalParams(t2) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky w
+		grid [ttk::entry $p.e2 -width 15 -textvariable tcCalParams(mt2) -state readonly] -row 2 -column 2 -sticky w
+	    grid [ttk::button $p.b2 -text "Снять" -command {::measure::widget::tcCalibrateSet 2} -state disabled] -row 2 -column 3 -sticky e
+
+		grid columnconfigure $p { 0 1 2 3 } -pad 5
+		grid rowconfigure $p { 0 1 2 } -pad 5
+		pack $p -fill both -expand 1 -padx 10 -pady 10
+
+		set p [ttk::frame $w.b]
+		pack $p -fill x -side bottom -padx 10 -pady 10
+		pack [ttk::button $p.bcancel -text "Отмена" -image ::img::delete -compound left -command ::measure::widget::tcCalibrateQuit] -side right
+		pack [ttk::button $p.bok -text "Сохранить" -state disabled -image ::img::apply -compound left -command ::measure::widget::tcCalibrateSave] -padx { 0 10 } -side right
+
+		# переносимся на вкладку с измерениями
+		if { [info exist params(nb)] } {
+			$params(nb) select $params(workingTs)
+		}
+	}
+
+	proc tcCalibrateSave { } {
+		global tcCalParams
+
+		$tcCalParams(ctl) delete 0 end
+		$tcCalParams(ctl) insert 0 "x *333 +222"
+		tcCalibrateQuit
+	}
+
+	proc tcCalibrateQuit { } {
+		global tcCalParams log
+		array set params $tcCalParams(paramList)
+
+		destroy .tccal
+	    $tcCalParams(btn) configure -state enabled
+		measure::thermocouple::useCorrection 1
+
+		# переносимся на вкладку с настройками
+		if { [info exist params(nb)] } {
+			$params(nb) select $params(currentTs)
+		}
+	}
+
+	proc tcCalibrateSet { idx } {
+		global tcCalParams
+		set tcCalParams(idx) $idx
+		set tcCalParams(startTime) [clock milliseconds]
+		set tcCalParams(values) [list]
+		set tcCalParams("mt${idx}") "Снимается..."
+		.tccal.c.b${idx} configure -state disabled
+	}
+
+	proc tcCalibrateRead { temp } {
+		global tcCalParams log
+
+		if { ![info exists tcCalParams(idx)] } {
+			return
+		}
+		
+		if { $temp == "??" } { set temp 0 }
+		${log}::debug "tcCalibrateRead temp=$temp"
+		lappend tcCalParams(values) $temp
+
+		if { [llength $tcCalParams(values)] >= 10 } {
+			set idx $tcCalParams(idx)
+			set tcCalParams("mt${idx}") [format %0.2f [::math::statistics::mean $tcCalParams(values)]]
+			set mt $tcCalParams("mt${idx}")
+			${log}::debug "tcCalibrateRead mt${idx}=$mt"
+
+			if { $idx == 1 } {
+				.tccal.c.b2 configure -state normal
+			} elseif { $idx == 2 } {
+				.tccal.b.bok configure -state normal
+			}
+
+			unset tcCalParams(idx)
+		}
+	}
+
+	set usage ": init \[options] channel\noptions:"
+	array set params [::cmdline::getoptions args $options $usage]
+	lassign $args prefix settingsVar
+
     grid [ttk::label $prefix.ltype -text "\u0422\u0438\u043F \u0442\u0435\u0440\u043C\u043E\u043F\u0430\u0440\u044B:"] -row 0 -column 0 -sticky w
     grid [ttk::combobox $prefix.type -width 6 -textvariable settings(${settingsVar}.type) -state readonly -values [measure::thermocouple::getTcTypes]] -row 0 -column 1 -sticky w
     
@@ -238,7 +381,7 @@ proc ::measure::widget::thermoCoupleControls { prefix settingsVar } {
     grid [ttk::label $prefix.lcorrection -text "\u0412\u044B\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0434\u043B\u044F \u043A\u043E\u0440\u0440\u0435\u043A\u0446\u0438\u0438:"] -row 1 -column 0 -sticky w
     grid [ttk::entry $prefix.correction -textvariable settings(${settingsVar}.correction)] -row 1 -column 1 -columnspan 7 -sticky we
     grid [ttk::label $prefix.lcorrectionexample -text "\u041D\u0430\u043F\u0440\u0438\u043C\u0435\u0440: (x - 77.4) * 1.1 + 77.4"] -row 2 -column 1 -columnspan 5 -sticky we
-    grid [ttk::button $prefix.autocal -text "\u041A\u0430\u043B\u0438\u0431\u0440\u043E\u0432\u043A\u0430"] -row 2 -column 6 -columnspan 2 -sticky e
+    grid [ttk::button $prefix.autocal -command [list ::measure::widget::tcCalibrate $prefix.correction $prefix.autocal [array get params]] -text "\u041A\u0430\u043B\u0438\u0431\u0440\u043E\u0432\u043A\u0430"] -row 2 -column 6 -columnspan 2 -sticky e
     
     grid columnconfigure $prefix { 0 3 6 } -pad 5
     grid columnconfigure $prefix { 2 5 } -weight 1

@@ -12,6 +12,7 @@ package require cmdline
 package require math::statistics
 package require measure::config
 package require measure::sigma
+package require hardware::owen::mvu8
 
 namespace eval ::measure::measure {
   namespace export resistance 
@@ -102,6 +103,30 @@ proc ::measure::measure::setupMmsForResistance { args } {
         		 $cmm
         }
     }
+
+	# Настраиваем блок комутации
+	set serialAddr [measure::config::get switch.serialAddr]
+	set rs485Addr [measure::config::get switch.rs485Addr]
+	if { $serialAddr != "" && $rs485Addr != "" } {
+		# Положение переполюсовок по умолчанию
+		set conns { 0 0 0 0 }
+
+	    if { $mmethod == 3 } {
+	    	# в данном режиме цепь всегда разомкнута
+			lappend cons 1000
+		} else {
+			lappend cons 0
+		}
+
+	    if { $mmethod == 2 } {
+	    	# в данном режиме нужно замкнуть цепь вместо амперметра
+			lappend cons 1000
+		} else {
+			lappend cons 0
+		}
+
+        hardware::owen::mvu8::modbus::setChannels $serialAddr $rs485Addr 0 $conns
+	}
 }
 
 # Процедура вычисляет продолжительность одного измерения напряжения/тока в мс

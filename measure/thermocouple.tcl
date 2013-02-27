@@ -12,6 +12,7 @@ package provide measure::thermocouple 0.1.0
 package require math::interpolate
 package require measure::bsearch
 package require measure::expr
+package require Thread
 
 namespace eval measure::thermocouple {
 	namespace export getTcTypes calcKelvin calcCelsius
@@ -35,14 +36,15 @@ proc measure::thermocouple::getTcTypes {} {
 #   temperature and error in Kelvins
 proc measure::thermocouple::calcKelvin { tc fixedT v { vErr 0.0 } { correction "" } } {
 	set t [calc $tc $fixedT $v]
-	if { $correction != "" } {
+	set useCorr [useCorrection]
+	if { $useCorr && $correction != "" } {
 		set t [measure::expr::eval $correction $t]
 	}
 
 	set vErr [expr abs($vErr)]
 	if { $vErr > 0.0 } {
 		set t2 [calc $tc $fixedT [expr $v + $vErr]]
-		if { $correction != "" } {
+		if { $useCorr && $correction != "" } {
 			set t2 [measure::expr::eval $correction $t2]
 		}
 		set tErr [expr abs($t2 - $t)]
@@ -66,14 +68,15 @@ proc measure::thermocouple::calcCelsius { tc fixedT v { vErr 0.0 } { correction 
 	global measure::thermocouple::ZERO_CELCIUM
 
 	set t [expr [calc $tc [expr $fixedT + $ZERO_CELCIUM] $v] - $ZERO_CELCIUM]
-	if { $correction != "" } {
+	set useCorr [useCorrection]
+	if { $useCorr && $correction != "" } {
 		set t [measure::expr::eval $correction $t]
 	}
 
 	set vErr [expr abs($vErr)]
 	if { $vErr > 0.0 } {
 		set t2 [expr [calc $tc [expr $fixedT + $ZERO_CELCIUM] [expr $v + $vErr]] - $ZERO_CELCIUM]
-		if { $correction != "" } {
+		if { $useCorr && $correction != "" } {
 			set t2 [measure::expr::eval $correction $t2]
 		}
 		set tErr [expr abs($t2 - $t)]
@@ -82,6 +85,25 @@ proc measure::thermocouple::calcCelsius { tc fixedT v { vErr 0.0 } { correction 
 	}
 
 	return [list $t $tErr]
+}
+
+# Sets global flag that makes TC-relates procedures using correction expression
+# By default this flag is true
+# Arguments:
+#   v - boolean value, if true - correction is used (in all threads),
+#   if false - correction is not used
+# Return Value
+#   If argument is omitted, returns current flag status
+proc measure::thermocouple::useCorrection { args } {
+	if {  [llength $args] == 0 } {
+		if { [tsv::exists thermocouple useCorrection] } {
+		    return [tsv::get thermocouple useCorrection]
+		} else {
+			return 1
+		}
+	} else {
+	    tsv::set thermocouple useCorrection [lindex $args 0]
+	}
 }
 
 ##############################################################################

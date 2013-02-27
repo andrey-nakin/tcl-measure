@@ -191,7 +191,7 @@ proc makeMeasurement {} {
 ###############################################################################
 
 proc display { v sv c sc r sr temp tempErr tempDer write } {
-    global runtime chartR_T chartR_t chartT_t chartdT_t
+    global runtime chartR_T chartR_t chartT_t chartdT_t w
     
     # Выводим результаты в окно программы
 	set runtime(temperature) [::measure::format::valueWithErr -prec 6 -- $temp $tempErr "К"]
@@ -209,6 +209,8 @@ proc display { v sv c sc r sr temp tempErr tempDer write } {
     } else {
     	measure::chart::${chartR_T}::addPoint $temp $r test
     }
+
+	event generate $w <<ReadTemperature>> -data $temp
 }
 
 ###############################################################################
@@ -228,6 +230,9 @@ wm title $w. "Установка № 7: Регистрация R(T). Верси�
 
 # При нажатии крестика в углу окна вызыватьспециальную процедуру завершения
 wm protocol $w. WM_DELETE_WINDOW { quit }
+
+# Виртуальное событие, генерируемое при каждом чтении температуры
+event add <<ReadTemperature>> <Control-p>
 
 # Панель закладок
 ttk::notebook $w.nb
@@ -416,7 +421,7 @@ pack $p -fill x -padx 10 -pady 5
 
 set p [ttk::labelframe $w.nb.setup.tc -text " Термопара " -pad 10]
 pack $p -fill x -padx 10 -pady 5
-::measure::widget::thermoCoupleControls $p tc
+::measure::widget::thermoCoupleControls -nb $w.nb -workingTs $w.nb.m -currentTs $w.nb.setup $p tc
 
 # Стандартная панель
 ::measure::widget::std-bottom-panel $w

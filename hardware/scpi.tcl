@@ -333,7 +333,7 @@ proc scpi::openVisaChannel { addr mode } {
 		set addr [string range $addr [string length $ADDR_PREFIX_VISA] end]
 	}
 
-	set channel [visa::open $visaResourceManager $addr $visa::EXCLUSIVE_LOCK]
+	set channel [visa::open $visaResourceManager $addr]
 	if { [visa::get-attribute $channel $visa::ATTR_INTF_TYPE] == $visa::INTF_ASRL } {
 		# default delay for serial bus type
 		set commandDelays($channel) $DELAY_SERIAL

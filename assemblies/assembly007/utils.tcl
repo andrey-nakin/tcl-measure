@@ -53,9 +53,6 @@ proc setup {} {
 		-nplc [measure::config::get tcmm.nplc 10] \
 		-text2 "MM3 TC" \
 		 $tcmm
-		 
-	# реле в исходное
-	setConnectors { 0 0 0 0 }
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -185,20 +182,15 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
 proc setConnectors { conns } {
     global settings
 
-    if { $settings(current.method) != 3 } {
-    	# размыкаем цепь
-        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
-    	#after 500
-    
-    	# производим переключение полярности
-        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
-    	#after 500
+	# размыкаем цепь
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
+	#after 500
 
-    	# замыкаем цепь
-        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
-    	#after 500
-    } else {
-    	# в данном режиме цепь всегда разомкнута
-        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
-    }
+	# производим переключение полярности
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
+	#after 500
+
+	# замыкаем цепь
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
+	#after 500
 }
