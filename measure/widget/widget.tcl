@@ -263,7 +263,7 @@ proc ::measure::widget::thermoCoupleControls { args } {
 	}
 
 	proc tcCalibrate { ctl btn paramList } {
-		global tcCalParams log
+		global tcCalParams
 
 		array set params $paramList
 		array set tcCalParams [list t1 "" t2 "" mt1 "Не снята" mt2 "Не снята" ctl $ctl btn $btn paramList $paramList]
@@ -292,8 +292,11 @@ proc ::measure::widget::thermoCoupleControls { args } {
 		grid [ttk::entry $p.e2 -width 15 -textvariable tcCalParams(mt2) -state readonly] -row 2 -column 2 -sticky w
 	    grid [ttk::button $p.b2 -text "Снять" -command {::measure::widget::tcCalibrateSet 2} -state disabled] -row 2 -column 3 -sticky e
 
+	    grid [ttk::label $p.le -text "Выражение для коррекции:"] -row 3 -column 0 -sticky w
+		grid [ttk::entry $p.e -textvariable tcCalParams(e) -state readonly] -row 3 -column 1 -columnspan 3 -sticky we
+
 		grid columnconfigure $p { 0 1 2 3 } -pad 5
-		grid rowconfigure $p { 0 1 2 } -pad 5
+		grid rowconfigure $p { 0 1 2 3 } -pad 5
 		pack $p -fill both -expand 1 -padx 10 -pady 10
 
 		set p [ttk::frame $w.b]
@@ -307,16 +310,29 @@ proc ::measure::widget::thermoCoupleControls { args } {
 		}
 	}
 
+	proc tcCalibrateCalc { } {
+		global tcCalParams
+
+		set a [expr ($tcCalParams(t2) - $tcCalParams(t1)) / ($tcCalParams(mt2) - $tcCalParams(mt1))]
+		set b [expr $tcCalParams(mt1) - $tcCalParams(t1) / $a]
+
+		if { isNaN($a) || isNaN($b) } { 
+			error "Cannot determine correction expression: t1=$tcCalParams(t1), t2=$tcCalParams(t2), mt1=$tcCalParams(mt1), mt2=$tcCalParams(mt2)" 
+		}
+
+		set tcCalParams(e) [format "%0.6g * (x - (%0.6g))" $a $b]
+	}
+
 	proc tcCalibrateSave { } {
 		global tcCalParams
 
 		$tcCalParams(ctl) delete 0 end
-		$tcCalParams(ctl) insert 0 "x *333 +222"
+		$tcCalParams(ctl) insert 0 $tcCalParams(e)
 		tcCalibrateQuit
 	}
 
 	proc tcCalibrateQuit { } {
-		global tcCalParams log
+		global tcCalParams
 		array set params $tcCalParams(paramList)
 
 		destroy .tccal
@@ -334,7 +350,7 @@ proc ::measure::widget::thermoCoupleControls { args } {
 		set tcCalParams(idx) $idx
 		set tcCalParams(startTime) [clock milliseconds]
 		set tcCalParams(values) [list]
-		set tcCalParams("mt${idx}") "Снимается..."
+		set tcCalParams(mt${idx}) "Снимается..."
 		.tccal.c.b${idx} configure -state disabled
 	}
 
@@ -346,19 +362,22 @@ proc ::measure::widget::thermoCoupleControls { args } {
 		}
 		
 		if { $temp == "??" } { set temp 0 }
-		${log}::debug "tcCalibrateRead temp=$temp"
 		lappend tcCalParams(values) $temp
 
-		if { [llength $tcCalParams(values)] >= 10 } {
+		set elapsed [expr [clock milliseconds] - $tcCalParams(startTime)]
+		if { [llength $tcCalParams(values)] >= 25 || $elapsed > 30000 } {
 			set idx $tcCalParams(idx)
-			set tcCalParams("mt${idx}") [format %0.2f [::math::statistics::mean $tcCalParams(values)]]
-			set mt $tcCalParams("mt${idx}")
-			${log}::debug "tcCalibrateRead mt${idx}=$mt"
+			set tcCalParams(mt${idx}) [format %0.2f [::math::statistics::mean $tcCalParams(values)]]
 
 			if { $idx == 1 } {
 				.tccal.c.b2 configure -state normal
 			} elseif { $idx == 2 } {
-				.tccal.b.bok configure -state normal
+				if { [catch { tcCalibrateCalc } rc] } {
+					${log}::error "tcCalibrateSave error $rc"
+					tk_messageBox -icon error -type ok -title "Ошибка" -parent .tccal -message "Невозможно определить поправочные коэффициенты. Проверьте правильность введённых ожидаемых температур."
+				} else {
+					.tccal.b.bok configure -state normal
+				}	
 			}
 
 			unset tcCalParams(idx)
