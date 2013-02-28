@@ -111,6 +111,7 @@ proc ::measure::widget::getVarValue { varName } {
 }
 
 proc ::measure::widget::getVar { varName } {
+    global settings
 	set val ""
 	catch { eval "set val $$varName" }
 	return $val
@@ -119,7 +120,6 @@ proc ::measure::widget::getVar { varName } {
 proc ::measure::widget::mmControls { prefix settingsVar } {
 
     proc testMm { addrVar baudVar parityVar btn } {
-        global settings
 	    $btn configure -state disabled
 		after 100 [list ::measure::widget::testMmImpl [getVar $addrVar] [getVar $baudVar] [getVar $parityVar] $btn]
     } 
@@ -133,7 +133,7 @@ proc ::measure::widget::mmControls { prefix settingsVar } {
 		} elseif { $res == 0} {
 			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438"
 		} else {
-			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\0u423\0u441\0u442\0u440\0u43E\0u439\0u441\0u442\0u432\0u43E \0u43D\0u435 \0u44F\0u432\0u43B\0u44F\0u435\0u442\0u441\0u44F \0u43C\0u443\0u43B\0u44C\0u442\0u438\0u43C\0u435\0u442\0u440\0u43E\0u43C"
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "Device is not a Hewlett Packard 34401A-compatible multumeter"
 		}
 	    $btn configure -state enabled
     } 

@@ -210,7 +210,7 @@ proc display { v sv c sc r sr temp tempErr tempDer write } {
     	measure::chart::${chartR_T}::addPoint $temp $r test
     }
 
-	event generate $w <<ReadTemperature>> -data $temp
+	event generate ${w}. <<ReadTemperature>> -data $temp
 }
 
 ###############################################################################

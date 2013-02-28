@@ -175,6 +175,8 @@ set hardware::agilent::mm34410a::dciRanges { 100.0e-6 1.0e-3 10.0e-3 100.0e-3 1.
 
 set hardware::agilent::mm34410a::resistanceRanges { 100.0 1.0e3 10.0e3 100.0e3 1.0e6 10.0e6 100.0e6 1.0e9 }
 
+set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*" "^HEWLETT-PACKARD,34401A,.*" }
+
 # Calculates and returns systematic DC voltage measure error
 # Automatic ranging mode is assumed. NPLC=10
 # We use "90 Day" error with Tcal +/- 5 C
@@ -342,20 +344,26 @@ proc hardware::agilent::mm34410a::init { args } {
 #  -1 - устройство не является мультиметром
 proc hardware::agilent::mm34410a::test { args } {
 	set result 0
+	global log 
+    variable supportedIds
 
 	catch {
 		set mm [open {*}$args]
 
 		# производим опрос устройства
-		set version [scpi::query $mm "SYSTEM:VERSION?"]
-		if { $version >= 1992 } {
-			set result 1
-		} else {
-			set result -1
-		}
+		set id [scpi::query $mm "*IDN?"]
+		if { $id != "" } {
+		    set result -1
+    		foreach sid $supportedIds {
+                if {[regexp -nocase $sid $id]} {
+                    set result 1
+                    break
+                }
+            }
+        }
 
 		close $mm
-	}
+	} rc inf
 
 	return $result
 }

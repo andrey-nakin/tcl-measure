@@ -22,13 +22,40 @@ namespace eval ::measure::measure {
 # - mm - канал связи с первым мультиметром (вольтметр или омметр)
 # - cmm - канал связи со вторым мультиметром (амперметр или вольтметр), может отсутствовать
 proc ::measure::measure::setupMmsForResistance { args } {
-    global mm cmm
+    global mm cmm log
     
     set configOptions {
     	{noFrontCheck ""   "Do not check Front/Rear switch"}
     }
 	set usage ": setupMmsForResistance \[options]\noptions:"
 	array set params [::cmdline::getoptions args $configOptions $usage]
+	
+	# метод измерения
+    set mmethod [measure::config::get current.method 0]
+    
+	# Настраиваем блок комутации
+	set serialAddr [measure::config::get switch.serialAddr]
+	set rs485Addr [measure::config::get switch.rs485Addr]
+	if { $serialAddr != "" && $rs485Addr != "" } {
+		# Положение переполюсовок по умолчанию
+		set conns { 0 0 0 0 }
+
+	    if { $mmethod == 3 } {
+	    	# в данном режиме цепь всегда разомкнута
+			lappend conns 1000
+		} else {
+			lappend conns 0
+		}
+
+	    if { $mmethod == 2 } {
+	    	# в данном режиме нужно замкнуть цепь вместо амперметра
+			lappend conns 1000
+		} else {
+			lappend conns 0
+		}
+
+        hardware::owen::mvu8::modbus::setChannels $serialAddr $rs485Addr 0 $conns
+	}
 	
     # Подключаемся к мультиметру (ММ)
     set mm [hardware::agilent::mm34410a::open \
@@ -39,14 +66,12 @@ proc ::measure::measure::setupMmsForResistance { args } {
 	]
 
     # Иниализируем и опрашиваем ММ
-    global log
     if { [info exists params(noFrontCheck)] } {
         hardware::agilent::mm34410a::init -noFrontCheck $mm
     } else {
         hardware::agilent::mm34410a::init $mm
     }    
 
-    set mmethod [measure::config::get current.method 0]
     set mmNplc [measure::config::get mm.nplc 10]
     
     if { $mmethod != 3 } {
@@ -104,29 +129,6 @@ proc ::measure::measure::setupMmsForResistance { args } {
         }
     }
 
-	# Настраиваем блок комутации
-	set serialAddr [measure::config::get switch.serialAddr]
-	set rs485Addr [measure::config::get switch.rs485Addr]
-	if { $serialAddr != "" && $rs485Addr != "" } {
-		# Положение переполюсовок по умолчанию
-		set conns { 0 0 0 0 }
-
-	    if { $mmethod == 3 } {
-	    	# в данном режиме цепь всегда разомкнута
-			lappend cons 1000
-		} else {
-			lappend cons 0
-		}
-
-	    if { $mmethod == 2 } {
-	    	# в данном режиме нужно замкнуть цепь вместо амперметра
-			lappend cons 1000
-		} else {
-			lappend cons 0
-		}
-
-        hardware::owen::mvu8::modbus::setChannels $serialAddr $rs485Addr 0 $conns
-	}
 }
 
 # Процедура вычисляет продолжительность одного измерения напряжения/тока в мс
