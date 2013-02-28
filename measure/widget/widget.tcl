@@ -266,33 +266,33 @@ proc ::measure::widget::thermoCoupleControls { args } {
 		global tcCalParams
 
 		array set params $paramList
-		array set tcCalParams [list t1 "" t2 "" mt1 "Не снята" mt2 "Не снята" ctl $ctl btn $btn paramList $paramList]
+		array set tcCalParams [list t1 "" t2 "" mt1 "\u41D\u435 \u441\u43D\u44F\u442\u430" mt2 "\u41D\u435 \u441\u43D\u44F\u442\u430" ctl $ctl btn $btn paramList $paramList]
 
 	    $btn configure -state disabled
 		measure::thermocouple::useCorrection 0
 
 		set w .tccal
 		tk::toplevel $w
-		wm title $w "Калибровка термопары"
+		wm title $w "\u41A\u430\u43B\u438\u431\u440\u43E\u432\u43A\u430 \u442\u435\u440\u43C\u43E\u43F\u430\u440\u44B"
 		wm protocol $w WM_DELETE_WINDOW [list ::measure::widget::tcCalibrateQuit $btn $paramList]
 		wm attributes $w -topmost 1
 		bind . <<ReadTemperature>> "::measure::widget::tcCalibrateRead %d"
 
 		set p [ttk::frame $w.c]
-	    grid [ttk::label $p.lexp -text "Ожидаемая (К)"] -row 0 -column 1 -sticky we
-	    grid [ttk::label $p.lmea -text "Измеренная (К)"] -row 0 -column 2 -sticky we
+	    grid [ttk::label $p.lexp -text "\u41E\u436\u438\u434\u430\u435\u43C\u430\u44F (\u41A)"] -row 0 -column 1 -sticky we
+	    grid [ttk::label $p.lmea -text "\u418\u437\u43C\u435\u440\u435\u43D\u43D\u430\u44F (\u41A)"] -row 0 -column 2 -sticky we
 
-	    grid [ttk::label $p.lt1 -text "Температурная точка № 1:"] -row 1 -column 0 -sticky w
+	    grid [ttk::label $p.lt1 -text "\u422\u435\u43C\u43F\u435\u440\u430\u442\u443\u440\u43D\u430\u44F \u442\u43E\u447\u43A\u430 № 1:"] -row 1 -column 0 -sticky w
 	    grid [ttk::spinbox $p.t1 -width 15 -textvariable tcCalParams(t1) -from 1 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 1 -column 1 -sticky w
 		grid [ttk::entry $p.e1 -width 15 -textvariable tcCalParams(mt1) -state readonly] -row 1 -column 2 -sticky w
-	    grid [ttk::button $p.b1 -text "Снять" -command {::measure::widget::tcCalibrateSet 1}] -row 1 -column 3 -sticky e
+	    grid [ttk::button $p.b1 -text "\u421\u43D\u44F\u442\u44C" -command {::measure::widget::tcCalibrateSet 1}] -row 1 -column 3 -sticky e
 
-	    grid [ttk::label $p.lt2 -text "Температурная точка № 2:"] -row 2 -column 0 -sticky w
+	    grid [ttk::label $p.lt2 -text "\u422\u435\u43C\u43F\u435\u440\u430\u442\u443\u440\u43D\u430\u44F \u442\u43E\u447\u43A\u430 № 2:"] -row 2 -column 0 -sticky w
 	    grid [ttk::spinbox $p.t2 -width 15 -textvariable tcCalParams(t2) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 2 -column 1 -sticky w
 		grid [ttk::entry $p.e2 -width 15 -textvariable tcCalParams(mt2) -state readonly] -row 2 -column 2 -sticky w
-	    grid [ttk::button $p.b2 -text "Снять" -command {::measure::widget::tcCalibrateSet 2} -state disabled] -row 2 -column 3 -sticky e
+	    grid [ttk::button $p.b2 -text "\u421\u43D\u44F\u442\u44C" -command {::measure::widget::tcCalibrateSet 2} -state disabled] -row 2 -column 3 -sticky e
 
-	    grid [ttk::label $p.le -text "Выражение для коррекции:"] -row 3 -column 0 -sticky w
+	    grid [ttk::label $p.le -text "\u412\u44B\u440\u430\u436\u435\u43D\u438\u435 \u434\u43B\u44F \u43A\u43E\u440\u440\u435\u43A\u446\u438\u438:"] -row 3 -column 0 -sticky w
 		grid [ttk::entry $p.e -textvariable tcCalParams(e) -state readonly] -row 3 -column 1 -columnspan 3 -sticky we
 
 		grid columnconfigure $p { 0 1 2 3 } -pad 5
@@ -301,10 +301,9 @@ proc ::measure::widget::thermoCoupleControls { args } {
 
 		set p [ttk::frame $w.b]
 		pack $p -fill x -side bottom -padx 10 -pady 10
-		pack [ttk::button $p.bcancel -text "Отмена" -image ::img::delete -compound left -command ::measure::widget::tcCalibrateQuit] -side right
-		pack [ttk::button $p.bok -text "Сохранить" -state disabled -image ::img::apply -compound left -command ::measure::widget::tcCalibrateSave] -padx { 0 10 } -side right
+		pack [ttk::button $p.bcancel -text "\u41E\u442\u43C\u435\u43D\u430" -image ::img::delete -compound left -command ::measure::widget::tcCalibrateQuit] -side right
+		pack [ttk::button $p.bok -text "\u421\u43E\u445\u440\u430\u43D\u438\u442\u44C" -state disabled -image ::img::apply -compound left -command ::measure::widget::tcCalibrateSave] -padx { 0 10 } -side right
 
-		# переносимся на вкладку с измерениями
 		if { [info exist params(nb)] } {
 			$params(nb) select $params(workingTs)
 		}
@@ -339,7 +338,6 @@ proc ::measure::widget::thermoCoupleControls { args } {
 	    $tcCalParams(btn) configure -state enabled
 		measure::thermocouple::useCorrection 1
 
-		# переносимся на вкладку с настройками
 		if { [info exist params(nb)] } {
 			$params(nb) select $params(currentTs)
 		}
@@ -350,7 +348,7 @@ proc ::measure::widget::thermoCoupleControls { args } {
 		set tcCalParams(idx) $idx
 		set tcCalParams(startTime) [clock milliseconds]
 		set tcCalParams(values) [list]
-		set tcCalParams(mt${idx}) "Снимается..."
+		set tcCalParams(mt${idx}) "\u421\u43D\u438\u43C\u430\u435\u442\u441\u44F..."
 		.tccal.c.b${idx} configure -state disabled
 	}
 
@@ -374,7 +372,7 @@ proc ::measure::widget::thermoCoupleControls { args } {
 			} elseif { $idx == 2 } {
 				if { [catch { tcCalibrateCalc } rc] } {
 					${log}::error "tcCalibrateSave error $rc"
-					tk_messageBox -icon error -type ok -title "Ошибка" -parent .tccal -message "Невозможно определить поправочные коэффициенты. Проверьте правильность введённых ожидаемых температур."
+					tk_messageBox -icon error -type ok -title "\u41E\u448\u438\u431\u43A\u430" -parent .tccal -message "\u41D\u435\u432\u43E\u437\u43C\u43E\u436\u43D\u43E \u43E\u43F\u440\u435\u434\u435\u43B\u438\u442\u44C \u43F\u43E\u43F\u440\u430\u432\u43E\u447\u43D\u44B\u435 \u43A\u43E\u44D\u444\u444\u438\u446\u438\u435\u43D\u442\u44B. \u41F\u440\u43E\u432\u435\u440\u44C\u442\u435 \u43F\u440\u430\u432\u438\u43B\u44C\u43D\u43E\u441\u442\u44C \u432\u432\u435\u434\u451\u43D\u43D\u44B\u445 \u43E\u436\u438\u434\u430\u435\u43C\u44B\u445 \u442\u435\u43C\u43F\u435\u440\u430\u442\u443\u440."
 				} else {
 					.tccal.b.bok configure -state normal
 				}	
