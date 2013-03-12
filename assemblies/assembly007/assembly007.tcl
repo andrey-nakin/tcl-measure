@@ -419,6 +419,10 @@ set p [ttk::labelframe $w.nb.setup.tcmm -text " Вольтметр на терм
 pack $p -fill x -padx 10 -pady 5
 ::measure::widget::mmControls $p tcmm
 
+set p [ttk::labelframe $w.nb.setup.ps -text " Источник питания " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::psControls $p ps
+
 set p [ttk::labelframe $w.nb.setup.tc -text " Термопара " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 ::measure::widget::thermoCoupleControls -nb $w.nb -workingTs $w.nb.m -currentTs $w.nb.setup $p tc

@@ -69,3 +69,20 @@ proc hardware::agilent::pse3645a::setOutput { channel on } {
 	scpi::setAndQuery $channel "OUTPUT" $mode
 }
 
+# Calculates and returns systematic DC voltage measure error
+# Arguments
+#   voltage - voltage value measured in volts
+# Returns
+#   Absolute error.
+proc hardware::agilent::pse3645a::dcvSystematicError { voltage  } {
+	return [expr $voltage * 0.0005]
+}
+
+# Calculates and returns systematic DC current measure error
+# Arguments
+#   current - current value measured in ampers
+# Returns
+#   Absolute error.
+proc hardware::agilent::pse3645a::dciSystematicError { current } {
+    return [expr $current * 0.0015]
+}

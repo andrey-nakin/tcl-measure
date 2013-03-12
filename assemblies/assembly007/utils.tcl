@@ -10,6 +10,7 @@ package require hardware::owen::mvu8
 package require measure::thermocouple
 package require measure::listutils
 package require measure::math
+package require hardware::agilent::pse3645a
 
 # Число измерений, по которым определяется производная dT/dt
 set DERIVATIVE_READINGS 10
@@ -31,12 +32,35 @@ proc validateSettings {} {
 
 # Инициализация приборов
 proc setup {} {
+    global ps tcmm log
+
     # Инициализация мультиметров на образце
     measure::measure::setupMmsForResistance
+
+    if { 2 == [measure::config::get current.method] && [measure::config::get ps.addr] != "" } {
+        # в режиме ручного измерения тока
+        # цепь запитывается при помощи управляемого ИП
+        set ps [hardware::agilent::pse3645a::open \
+    		-baud [measure::config::get ps.baud] \
+    		-parity [measure::config::get ps.parity] \
+    		-name "Power Supply" \
+    		[measure::config::get -required ps.addr] \
+    	]
+    
+        # Иниализируем и опрашиваем ИП
+        hardware::agilent::pse3645a::init $ps
+    
+    	# Работаем в области бОльших напряжений
+        scpi::cmd $ps "VOLTAGE:RANGE HIGH"
+        
+    	# Задаём пределы по напряжению и току
+        scpi::cmd $ps "APPLY 60.000,[expr 0.001 * [measure::config::get current.manual.current]]"
+        
+        # включаем подачу напряжения на выходы ИП
+        hardware::agilent::pse3645a::setOutput $ps 1
+    }
     
     # Инициализация мультиметра на термопаре
-    global tcmm
-    
     # Подключаемся к мультиметру (ММ)
     set tcmm [hardware::agilent::mm34410a::open \
 		-baud [measure::config::get tcmm.baud] \
@@ -57,7 +81,7 @@ proc setup {} {
 
 # Завершаем работу установки, матчасть в исходное.
 proc finish {} {
-    global mm cmm tcmm log
+    global mm cmm tcmm ps log
 
     if { [info exists mm] } {
     	# Переводим вольтметр в исходный режим
@@ -73,6 +97,13 @@ proc finish {} {
     	unset cmm
     }
 	
+    if { [info exists ps] } {
+    	# Переводим ИП в исходный режим
+    	hardware::agilent::pse3645a::done $ps
+    	close $ps
+    	unset ps
+    }
+    
     if { [info exists tcmm] } {
     	# Переводим мультиметр в исходный режим
     	hardware::agilent::mm34410a::done $tcmm
@@ -81,7 +112,7 @@ proc finish {} {
     }
     
 	# реле в исходное
-	setConnectors { 0 0 0 0 }
+	resetConnectors
 	
 	# выдержим паузу
 	after 1000
@@ -179,18 +210,8 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
     }
 }
 
-proc setConnectors { conns } {
+proc resetConnectors { } {
     global settings
 
-	# размыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
-	#after 500
-
-	# производим переключение полярности
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
-	#after 500
-
-	# замыкаем цепь
-    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
-	#after 500
+    hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 {0 0 0 0 0 0 0 0}
 }

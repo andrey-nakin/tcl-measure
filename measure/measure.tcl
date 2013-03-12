@@ -150,7 +150,7 @@ proc ::measure::measure::oneMeasurementDuration {} {
 # Результат:
 #   Напряжение, погрешность в милливольтах, ток и погрешность в миллиамперах, сопротивление и погрешность в омах
 proc ::measure::measure::resistance { args } {
-    global mm cmm log
+    global mm cmm ps log
 
     set configOptions {
     	{n.arg ""   "number of samples"}
@@ -215,6 +215,10 @@ proc ::measure::measure::resistance { args } {
         	scpi::cmd $cmm ":INIT"
         }
     	fconfigure $cmm -timeout $newTimeout
+    } elseif { [info exists ps] } {
+        # ток в цепи измеряем при помощи ИП
+        set c [scpi::query $ps MEASURE:CURR?]
+        set cErr [hardware::agilent::pse3645a::dciSystematicError $c]
     }
 
 	# ждём завершения измерения напряжения и восстанавливаем таймаут
@@ -272,16 +276,18 @@ proc ::measure::measure::resistance { args } {
 	    	set cErr [measure::sigma::div $vv $vvErr $rr [measure::config::get current.reference.error 0.0]]
         }
         2 {
-            # ток измеряется вручную
-            set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
+            if { ![info exists c] } {
+                # ток измеряется вручную
+                set c [expr 0.001 * [measure::config::get current.manual.current 1.0]]
+                # инструментальная погрешность задаётся вручную
+                set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
+            }
             set cs [list]
             for { set i 0 } { $i < $params(n) } { incr i } {
                 lappend cs $c
             }
             # погрешности измерения нет
             set sc 0.0  
-            # инструментальная погрешность задаётся вручную
-            set cErr [expr 0.001 * [measure::config::get current.manual.error 0.0]] 
         }
     }
 
