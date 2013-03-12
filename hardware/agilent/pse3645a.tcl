@@ -19,6 +19,7 @@ namespace eval hardware::agilent::pse3645a {
 }
 
 set hardware::agilent::pse3645a::IDN "Agilent Technologies,E3645A"
+set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,E3645A,.*" }
 
 set hardware::agilent::pse3645a::MAX_CURRENT_LOW_VOLTAGE 2.2
 set hardware::agilent::pse3645a::MAX_CURRENT_HIGH_VOLTAGE 1.3
@@ -86,3 +87,36 @@ proc hardware::agilent::pse3645a::dcvSystematicError { voltage  } {
 proc hardware::agilent::pse3645a::dciSystematicError { current } {
     return [expr $current * 0.0015]
 }
+
+# Производит опрос устройства и возвращает результат
+# Аргументы:
+#   args - параметры устройства, такие же, как в процедуре open
+# Результат: целочисленное значение:
+#   > 0 - опросо произведён успешно
+#  0 - нет связи или неверные параметры устройства
+#  -1 - устройство не является ИП
+proc hardware::agilent::pse3645a::test { args } {
+	set result 0
+    variable supportedIds
+
+	catch {
+		set mm [open {*}$args]
+
+		# производим опрос устройства
+		set id [scpi::query $mm "*IDN?"]
+		if { $id != "" } {
+		    set result -1
+    		foreach sid $supportedIds {
+                if {[regexp -nocase $sid $id]} {
+                    set result 1
+                    break
+                }
+            }
+        }
+
+		close $mm
+	} rc inf
+
+	return $result
+}
+

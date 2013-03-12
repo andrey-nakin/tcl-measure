@@ -158,8 +158,28 @@ proc ::measure::widget::mmControls { prefix settingsVar } {
 }
 
 proc ::measure::widget::psControls { prefix settingsVar } {
+
+    proc testPs { addrVar baudVar parityVar btn } {
+	    $btn configure -state disabled
+		after 100 [list ::measure::widget::testPsImpl [getVar $addrVar] [getVar $baudVar] [getVar $parityVar] $btn]
+    } 
+
+    proc testPsImpl { addr baud parity btn } {
+        package require hardware::agilent::pse3645a
+
+		set res [hardware::agilent::pse3645a::test -baud $baud -parity $parity $addr]
+		if { $res > 0 } {
+			tk_messageBox -icon info -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u0421\u0432\u044F\u0437\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430"
+		} elseif { $res == 0} {
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438"
+		} else {
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u423\u441\u442\u440\u43E\u439\u441\u442\u432\u43E \u43D\u435 \u44F\u432\u43B\u44F\u435\u442\u441\u44F \u438\u441\u442\u43E\u447\u43D\u438\u43A\u43E\u43C \u43F\u438\u442\u430\u43D\u438\u44F Agilent E3645A \u438\u43B\u438 \u430\u43D\u430\u43B\u43E\u433\u43E\u43C"
+		}
+	    $btn configure -state enabled
+    } 
+
 	grid [ttk::label $prefix.laddr -text "\u0410\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
-	grid [ttk::combobox $prefix.addr -textvariable settings(${settingsVar}.addr) -values [measure::visa::allInstruments]] -row 0 -column 1 -columnspan 7 -sticky we
+	grid [ttk::combobox $prefix.addr -textvariable settings(${settingsVar}.addr) -values [measure::visa::allInstruments]] -row 0 -column 1 -columnspan 9 -sticky we
 
 	grid [ttk::label $prefix.lmode -text "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C RS-232:"] -row 1 -column 0 -sticky w
 	grid [ttk::combobox $prefix.mode -width 6 -textvariable settings(${settingsVar}.baud) -state readonly -values $hardware::agilent::mm34410a::baudRates] -row 1 -column 1 -sticky w
@@ -170,8 +190,10 @@ proc ::measure::widget::psControls { prefix settingsVar } {
 	grid [ttk::label $prefix.lnplc -text "\u041C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u044B\u0439 \u0442\u043E\u043A, \u043C\u0410:"] -row 1 -column 6 -sticky w
 	grid [ttk::spinbox $prefix.fixedT -width 6 -textvariable settings(${settingsVar}.maxCurrent) -from 0 -to 1300 -increment 100 -validate key -validatecommand {string is double %P}] -row 1 -column 7 -sticky w
 
+    grid [ttk::button $prefix.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testPs settings(${settingsVar}.addr) settings(${settingsVar}.baud) settings(${settingsVar}.parity) $prefix.test] ] -row 1 -column 9 -sticky e
+
 	grid columnconfigure $prefix { 0 1 2 3 4 5 6 } -pad 5
-	grid columnconfigure $prefix { 2 5 } -weight 1
+	grid columnconfigure $prefix { 2 5 8 } -weight 1
 	grid rowconfigure $prefix { 0 1 } -pad 5
 }
 
