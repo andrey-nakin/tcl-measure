@@ -19,7 +19,7 @@ namespace eval hardware::agilent::pse3645a {
 }
 
 set hardware::agilent::pse3645a::IDN "Agilent Technologies,E3645A"
-set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,E3645A,.*" }
+set hardware::agilent::pse3645a::supportedIds { "^Agilent Technologies,E3645A,.*" }
 
 set hardware::agilent::pse3645a::MAX_CURRENT_LOW_VOLTAGE 2.2
 set hardware::agilent::pse3645a::MAX_CURRENT_HIGH_VOLTAGE 1.3
