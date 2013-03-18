@@ -9,6 +9,7 @@ package require Tcl 8.4
 package provide measure::format 0.1.0
 
 package require cmdline
+package require measure::math
 
 namespace eval ::measure::format {
   namespace export 
@@ -47,9 +48,21 @@ proc ::measure::format::value { args } {
     }
 }
 
+proc ::measure::format::valuePrec { v err } {
+    set result 6
+    catch {
+        set m [expr log10(abs($v))]
+        set m [expr $m >= 0 ? roundUp($m) : roundDown($m)]
+        set errM [expr log10(abs($err))]
+        set errM [expr $errM >= 0 ? roundUp($errM) : roundDown($errM)]
+        set result [expr int($m) - int($errM) + 1]
+    } rc
+    return $result
+}
+
 proc ::measure::format::valueWithErr { args } {
     set configOptions {
-    	{prec.arg      6	"Value precision"}
+    	{prec.arg      ""	"Value precision"}
     	{errPrec.arg   2	"Error precision"}
     	{mult.arg      1.0	"Value multiplier"}
     }
@@ -60,24 +73,28 @@ proc ::measure::format::valueWithErr { args } {
 
     set v [expr $v * $params(mult)]
     set av [expr abs($v)]
-    set err [expr $err * $params(mult)]
+    set err [expr abs($err * $params(mult))]
     set vPrec $params(prec)
     set errPrec $params(errPrec)
+    
+    if { $vPrec == "" } {
+        set vPrec [valuePrec $v $err]
+    }
     	
     if { $av >= 1.0e9 } {
         set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u0413${units}" [expr 1.0e-9 * $v] [expr 1.0e-9 * $err]]
     } elseif { $av >= 1.0e6 && $av < 1.0e9  } {
-        set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u041C${units}" [expr 1.0e-6 * $v] [expr 1.0e-6 * $err]]
+        set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u041C${units}" [expr 1.0e-6 * $v] [expr 1.0e-6 * $err]]
     } elseif { $av >= 1.0e3 && $av < 1.0e6  } { 
-        set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u043A${units}" [expr 1.0e-3 * $v] [expr 1.0e-3 * $err]]
+        set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043A${units}" [expr 1.0e-3 * $v] [expr 1.0e-3 * $err]]
     } elseif { $av >= 1.0e-3 && $av < 1.0e0  } { 
-        set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u043C${units}" [expr 1.0e3 * $v] [expr 1.0e3 * $err]]
+        set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043C${units}" [expr 1.0e3 * $v] [expr 1.0e3 * $err]]
     } elseif { $av >= 1.0e-6 && $av < 1.0e-3  } { 
-        set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u03BC${units}" [expr 1.0e6 * $v] [expr 1.0e6 * $err]]
+        set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u03BC${units}" [expr 1.0e6 * $v] [expr 1.0e6 * $err]]
     } elseif { $av >= 1.0e-9 && $av < 1.0e-6  } { 
-        set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u043D${units}" [expr 1.0e9 * $v] [expr 1.0e9 * $err]]
+        set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043D${units}" [expr 1.0e9 * $v] [expr 1.0e9 * $err]]
     } elseif { $av >= 1.0e-12 && $av < 1.0e-9  } { 
-        set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u043F${units}" [expr 1.0e12 * $v] [expr 1.0e12 * $err]]
+        set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043F${units}" [expr 1.0e12 * $v] [expr 1.0e12 * $err]]
     } else {
         set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g ${units}" $v $err]
     }

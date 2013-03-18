@@ -194,7 +194,7 @@ proc display { v sv c sc r sr temp tempErr tempDer write } {
     global runtime chartR_T chartR_t chartT_t chartdT_t w
     
     # Выводим результаты в окно программы
-	set runtime(temperature) [::measure::format::valueWithErr -prec 6 -- $temp $tempErr "К"]
+	set runtime(temperature) [::measure::format::valueWithErr -- $temp $tempErr "К"]
 	set runtime(derivative1) [::measure::format::value -prec 3 -- $tempDer "К/мин"]
 	set runtime(current) [::measure::format::valueWithErr -mult 1.0e-3 -- $c $sc "\u0410"]
 	set runtime(voltage) [::measure::format::valueWithErr -mult 1.0e-3 -- $v $sv "\u0412"]
