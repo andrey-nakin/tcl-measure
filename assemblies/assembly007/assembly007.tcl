@@ -201,6 +201,7 @@ proc display { v sv c sc r sr temp tempErr tempDer write } {
 	set runtime(resistance) [::measure::format::valueWithErr -- $r $sr "\u03A9"]
 	set runtime(power) [::measure::format::value -prec 2 -- [expr 1.0e-6 * $c * $v] "\u0412\u0442"]
 
+	measure::chart::${chartR_t}::setYErr $sr
 	measure::chart::${chartR_t}::addPoint $r
     measure::chart::${chartT_t}::addPoint $temp
 	measure::chart::${chartdT_t}::addPoint $tempDer
@@ -334,7 +335,7 @@ grid [ttk::label $p.ltemp -text "Температурная зависимост
 grid [ttk::radiobutton $p.temp -value 1 -variable settings(prog.method) -command toggleProgControls] -row 2 -column 1 -sticky e
 
 grid [ttk::label $p.ltempStep -text "  Температурный шаг, К:"] -row 3 -column 0 -sticky w
-grid [ttk::spinbox $p.tempStep -width 10 -textvariable settings(prog.temp.step) -from 0 -to 1000 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
+grid [ttk::spinbox $p.tempStep -width 10 -textvariable settings(prog.temp.step) -from 0 -to 1000 -increment 1 -validate key -validatecommand {string is double %P}] -row 3 -column 1 -sticky e
 
 grid [ttk::label $p.lman -text "Вручную:"] -row 4 -column 0 -sticky w
 grid [ttk::radiobutton $p.man -value 2 -variable settings(prog.method) -command toggleProgControls] -row 4 -column 1 -sticky e

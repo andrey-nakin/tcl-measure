@@ -54,11 +54,22 @@ proc measure::chart::movingChart { args } {
 		doPlot	
 	}
 	
+	proc ::measure::chart::${canvas}::setYErr { { yerr "" } } {
+		variable yErr
+
+        if { $yerr != "" } {
+        	set yErr $yerr
+        } else {
+            unset yErr
+        }
+	}
+	
 	proc ::measure::chart::${canvas}::doPlot {} {
 		variable chartValues
 		variable chartBgColor
 		variable canvas
 		variable options
+		variable yErr
 
 		$canvas delete all
 
@@ -90,10 +101,26 @@ proc measure::chart::movingChart { args } {
 
 		if { $options(linearTrend) && [llength $xx] > 10 } {
 			lassign [::math::statistics::linear-model $xx $chartValues] a b
-			set lll [expr [llength $xx] - 1]
-			$s dataconfig series2 -colour magenta
-			$s plot series2 [lindex $xx 0] [expr [lindex $xx 0] * $b + $a]
-			$s plot series2 [lindex $xx $lll] [expr [lindex $xx $lll] * $b + $a]
+			set x1 [lindex $xx 0]
+			set x2 [lindex $xx end]
+			
+			$s dataconfig series2 -colour #ff00ff
+			$s plot series2 $x1 [expr $x1 * $b + $a]
+			$s plot series2 $x2 [expr $x2 * $b + $a]
+			
+			if { [info exists yErr] } {
+                # add two paralel lines above and below
+                # to visualize measurement error
+                set delta [expr $yErr / sqrt(1 + $b * $b)]			 
+                
+    			$s dataconfig series2_1 -colour "#800080"
+    			$s plot series2_1 $x1 [expr $x1 * $b + $a + $delta]
+    			$s plot series2_1 $x2 [expr $x2 * $b + $a + $delta]
+    			
+    			$s dataconfig series2_2 -colour "#800080"
+    			$s plot series2_2 $x1 [expr $x1 * $b + $a - $delta]
+    			$s plot series2_2 $x2 [expr $x2 * $b + $a - $delta]
+            }
 		}
 	}
 
