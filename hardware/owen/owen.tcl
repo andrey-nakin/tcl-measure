@@ -28,16 +28,78 @@ proc ::owen::configure {args} {
 	}
 }
 
-proc ::owen::readIEEE32 { addr addrType parameter } {
+proc ::owen::readString { addr addrType parameter } {
+    set result ""
+
     port_open
 
     set res [port_send [pack_frame $addr $addrType $parameter]]
-    if { [string length $res] == 9 || [string length $res] == 10 } {
-        puts "RESULT LENGTH=[string length $res]"
+    set result [encoding convertfrom cp1251 [string reverse [unpack_frame $res]]]
+    
+    port_close
+    
+    return $result    
+}
+
+proc ::owen::readInt { addr addrType parameter } {
+    set result ""
+
+    port_open
+
+    set res [port_send [pack_frame $addr $addrType $parameter]]
+    if { [string length $res] >= 7 || [string length $res] <= 10 } {
         set data [unpack_frame $res]
+        if { $data != "" } {
+            while { [string length $data] < 4 } {
+                set s "\x00"
+                append s $data
+                set data $s 
+            }
+            
+            # convert to little-endian form
+            binary scan $data I result
+        }
     }
     
-    port_close    
+    port_close
+    
+    return $result    
+}
+
+proc ::owen::readFloat24 { addr addrType parameter index } {
+    set result ""
+
+    port_open
+
+    set res [port_send [pack_frame $addr $addrType $parameter 1 [binary format S $index]]]
+    if { [string length $res] == 11 } {
+        set data [unpack_frame $res]
+        if { $data != "" } {
+            # convert to little-endian form
+            binary scan [string reverse "[string range $data 0 2]\x00"] f result
+        }
+    }
+    
+    port_close
+    
+    return $result    
+}
+
+proc ::owen::writeFloat24 { addr addrType parameter index value } {
+    set result ""
+
+    port_open
+
+    set res [port_send [pack_frame $addr $addrType $parameter 0 "[string reverse [string range [binary format f $value] 1 3]][binary format S $index]"]]
+    set data [unpack_frame $res]
+    if { $data != "" } {
+        # convert to little-endian form
+        binary scan [string reverse "[string range $data 0 2]\x00"] f result
+    }
+    
+    port_close
+    
+    return $result    
 }
 
 ###############################################################################
@@ -81,17 +143,27 @@ proc ::owen::unpack_frame { data } {
         return ""
     }
     
-    set crcStr [string range $data $len-3 end]
-    binary scan $crcStr cc crcHi crcLo
-    set crc [calc_crc_str [expr $len-2]]
-    if { $crc != $crcHi * 256 + $crcLo } {
-        puts "crc = $crc, crcHi=$crcHi, $crcLo=$crcLo"
-        return ""
+    binary scan [string range $data $len-2 end] cc crcHi crcLo
+    set crc [calc_crc_str $data [expr $len - 2]]
+    if { $crc != (($crcHi & 0xff) << 8) + ($crcLo & 0xff) } {
+        # bad CRC
+        return "" 
     }
          
-    binary scan $data cccc addr8 len hashHi hashLo
-    set plen [expr $len & 0xf]
-    puts "$addr8 $len $plen $hashHi $hashLo" 
+    binary scan $data ccccc b1 b2 hashHi hashLo err
+    set hash [expr (($hashHi & 0xff) << 8) + ($hashLo & 0xff)]
+    if { $hash == [str2hash n.Err] } {
+        puts "ERROR [format %0.2x $err]"
+        return ""
+    }
+    
+    set datalen [expr $b2 & 0xf]
+    if { $datalen != $len - 6 } {
+        # bad data len field
+        return ""
+    }
+    
+    return [string range $data 4 end-2]
 }
 
 proc ::owen::calc_crc_str { s { l -1} } {
@@ -199,6 +271,7 @@ proc ::owen::port_send { data } {
         scan $c %c ascii
         append dts [binary format cc [expr ($ascii >> 4) + 0x47] [expr ($ascii & 0xf) + 0x47]]
     }
+    puts "DTS=$dts"
     append dts "\x0d"
 
 	puts -nonewline $fd $dts
