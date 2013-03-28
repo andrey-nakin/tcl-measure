@@ -9,61 +9,62 @@
 package require Tcl 8.4
 package provide hardware::owen::trm201 0.1.0
 
+package require owen
+
 namespace eval hardware::owen::trm201 {
   namespace export init
+  
+    variable thermoCoupleMapping
+    array set thermoCoupleMapping { B 14 J 15 K 16 N 18 R 19 S 20 T 21 }  
 }
 
-# addresses of registers
-set hardware::owen::trm201::STAT	0x0000
-set hardware::owen::trm201::PV		0x0001
-set hardware::owen::trm201::SP		0x0002
-set hardware::owen::trm201::dAC		0x0409
-set hardware::owen::trm201::CtL		0x040C
-set hardware::owen::trm201::DEV		0x1000
-
-# possible values of dAC register
-set hardware::owen::trm201::dAC-REGISTRATOR	0
-set hardware::owen::trm201::dAC-CONTROLLER	1
-
-# possible values of CtL register
-set hardware::owen::trm201::CtL-HEATER	0
-set hardware::owen::trm201::CtL-FREEZER 1
-
-proc hardware::owen::trm201::init { service } {
-	global hardware::owen::trm201::DEV
-	set descriptor 32
-	set res [::modbus::cmd 03 $descriptor DEV 4]
+proc ::hardware::owen::trm201::test { port addr } {
+    ::owen::configure -com $port
+    set res [::owen::readString $addr 0 DEV]
+    if { [regexp "^...201$" $res] } {
+        return 1
+    }
+    if { $res != "" } {
+        return -1
+    }
+    return 0
 }
 
-# Reads current temperature from device
-# Blocking
-# Arguments
-#   descriptor - device descriptor
-# Returns
-#   temperature
-proc hardware::owen::trm201::readTemperature { descriptor } {
-	package require modbus
+proc ::hardware::owen::trm201::init { port addr } {
 }
 
-# Sets desired temperature on device
-# Blocking
-# Arguments
-#   descriptor - device descriptor
-#   temperature - desired temperature
-proc hardware::owen::trm201::setTemperature { descriptor temperature } {
-	package require modbus
-	set res [::modbus::cmd 16 $descriptor 0x0002 ]
+# Устанавливает тип термопары на устройстве
+# Аргументы:
+#   port - последовательный порт
+#   addr - адрес устройства в сети RS-485
+#   tcType - тип термопары (K, M и т.д.)
+proc ::hardware::owen::trm201::setTcType { port addr tcType } {
+    variable thermoCoupleMapping
+    
+    if { ![info exists thermoCoupleMapping($tcType)] } {
+        error "Unsupported thermocopule type $tcType"
+    }
+    set tc $thermoCoupleMapping($tcType) 
+
+    ::owen::configure -com $port
+    set res [::owen::writeInt8 $addr 0 in.t 0 $tc]
+    if { $res != $tc } {
+        error "Cannot setup thermocouple type on TRM-201: $tc is set but $res is actually returned"
+    } 
 }
 
-# Sends Modbus command to device, waits for and returns response
-# Arguments
-#   descriptor - device descriptor
-#   cmd - Modbus command (decimal)
-#   args - command arguments
-# Returns
-#   Modbus response (binary)
-proc hardware::owen::trm201::cmd { descriptor cmd args } {
-	package require modbus
-	return [::modbus::cmd $cmd $descriptor {*} $args]
+# Считывает температуру и возвращает значение в кельвинах вместе с инструментальной погрешностью 
+# Аргументы:
+#   port - последовательный порт
+#   addr - адрес устройства в сети RS-485
+# Результат
+#    температура в К и инструментальная погрешность
+proc ::hardware::owen::trm201::readTemperature { port addr } {
+    ::owen::configure -com $port
+    set t [::owen::readFloat24 $addr 0 PV]
+    if {  $t != "" } {
+        return [list [expr 273.15 + $t] [expr abs($t) * 0.005] ] 
+    } else {
+        return {0.0 0.0}
+    } 
 }
-

@@ -54,10 +54,14 @@ proc ::measure::widget::fileSaveDialog { w ent } {
 proc ::measure::widget::setDisabled { v args } {
 	foreach ctrl $args {
 		if { $v } {
-			$ctrl configure -state normal
+			catch { $ctrl configure -state normal }
 		} else {
-			$ctrl configure -state disabled
+			catch { $ctrl configure -state disabled }
 		}
+		
+		foreach child [winfo children $ctrl] {
+		    setDisabled $v $child
+        }
 	}
 }
 
@@ -65,20 +69,28 @@ proc ::measure::widget::setDisabledByVar { varName args } {
 	set v [getVarValue $varName]
 	foreach ctrl $args {
 		if { $v } {
-			$ctrl configure -state normal
+			catch { $ctrl configure -state normal }
 		} else {
-			$ctrl configure -state disabled
+			catch { $ctrl configure -state disabled }
 		}
+
+		foreach child [winfo children $ctrl] {
+		    setDisabled $v $child
+        }
 	}
 }
 
 proc ::measure::widget::setDisabledInv { v args } {
 	foreach ctrl $args {
 		if { $v } {
-			$ctrl configure -state disabled
+			catch { $ctrl configure -state disabled }
 		} else {
-			$ctrl configure -state normal
+			catch { $ctrl configure -state normal }
 		}
+
+		foreach child [winfo children $ctrl] {
+		    setDisabled $v $child
+        }
 	}
 }
 
@@ -86,10 +98,14 @@ proc ::measure::widget::setDisabledByVarInv { varName args } {
 	set v [getVarValue $varName]
 	foreach ctrl $args {
 		if { $v } {
-			$ctrl configure -state disabled
+			catch { $ctrl configure -state disabled }
 		} else {
-			$ctrl configure -state normal
+			catch { $ctrl configure -state normal }
 		}
+		
+		foreach child [winfo children $ctrl] {
+		    setDisabled $v $child
+        }
 	}
 }
 
@@ -225,6 +241,46 @@ proc ::measure::widget::mvu8Controls { prefix settingsVar } {
     grid [ttk::spinbox $prefix.switchAddr -width 10 -textvariable settings(${settingsVar}.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 4 -sticky w
 
     grid [ttk::button $prefix.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testMvu8 settings(${settingsVar}.serialAddr) settings(${settingsVar}.rs485Addr) $prefix.test] ] -row 0 -column 6 -sticky e
+    
+	grid columnconfigure $prefix { 0 1 2 3 4 5 6 } -pad 5
+	grid columnconfigure $prefix { 2 5 } -weight 1
+	grid rowconfigure $prefix { 0 1 } -pad 5
+}
+
+proc ::measure::widget::trm201Controls { prefix settingsVar } {
+
+    proc testTrm201 { portVar idVar btn } {
+        global settings
+        
+	    $btn configure -state disabled
+	    set port ""; set id ""
+	    catch {
+    	    eval "set port $$portVar"
+    	    eval "set id $$idVar"
+        }
+		after 100 [list ::measure::widget::testTrm201Impl $port $id $btn]
+    } 
+
+    proc testTrm201Impl { port id btn } {
+        package require hardware::owen::trm201
+        set res [::hardware::owen::trm201::test $port $id] 
+		if { $res > 0 } {
+			tk_messageBox -icon info -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u0421\u0432\u044F\u0437\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430"
+        } elseif { $res < 0 } {			
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "Attached device is not a TRM-201"
+		} else {
+			tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438"
+		}
+	    $btn configure -state enabled
+	}
+
+    grid [ttk::label $prefix.lrs485 -text "\u041F\u043E\u0440\u0442 \u0434\u043B\u044F \u0410\u04214:"] -row 0 -column 0 -sticky w
+    grid [ttk::combobox $prefix.rs485 -width 10 -textvariable settings(${settingsVar}.serialAddr) -values [measure::com::allPorts]] -row 0 -column 1 -sticky w
+    
+    grid [ttk::label $prefix.lswitchAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441 TPM-201:"] -row 0 -column 3 -sticky w
+    grid [ttk::spinbox $prefix.switchAddr -width 10 -textvariable settings(${settingsVar}.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 4 -sticky w
+
+    grid [ttk::button $prefix.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testTrm201 settings(${settingsVar}.serialAddr) settings(${settingsVar}.rs485Addr) $prefix.test] ] -row 0 -column 6 -sticky e
     
 	grid columnconfigure $prefix { 0 1 2 3 4 5 6 } -pad 5
 	grid columnconfigure $prefix { 2 5 } -weight 1

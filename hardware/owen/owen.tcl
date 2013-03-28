@@ -7,12 +7,29 @@ package provide owen 1.0
 package require crc16
 
 namespace eval ::owen {
+    set STATUS_OK 0
+    set STATUS_EXCEPTION -1
+    set STATUS_NETWORK_ERROR -2
+    set STATUS_PORT_ERROR -3
+    
+    set ERROR_BAD_CRC -1
+    set ERROR_BAD_LENGTH -2 
+
+    set EXCEPTION_INPUT 0xfd
+    set EXCEPTION_NO_DAC 0xfe
+    set EXCEPTION_BAD_VALUE 0xf0
+    
 	variable Priv
 	array set  Priv [list \
 		-com "/dev/ttyUSB0" \
 		-settings "9600,n,8,1" \
 		-timeout 500 \
 	]
+	
+	variable Status
+	array set Status [list lastError 0 lastStatus $STATUS_OK ]
+	
+	variable ErrorHash
 }
 
 proc ::owen::configure {args} {
@@ -28,6 +45,16 @@ proc ::owen::configure {args} {
 	}
 }
 
+proc ::owen::lastError {} {
+    variable Status
+    return $Status(lastError)
+}
+
+proc ::owen::lastStatus {} {
+    variable Status
+    return $Status(lastStatus)
+}
+
 proc ::owen::readString { addr addrType parameter } {
     set result ""
 
@@ -41,22 +68,85 @@ proc ::owen::readString { addr addrType parameter } {
     return $result    
 }
 
-proc ::owen::readInt { addr addrType parameter } {
+proc ::owen::readInt { addr addrType parameter { index -1 } } {
+    set data ""
+    if { $index >= 0 } {
+        set data [binary format S $index] 
+    }
+    return [readIntPriv $addr $addrType $parameter $index 1 $data]
+}
+
+proc ::owen::writeInt8 { addr addrType parameter index value } {
+    set data [binary format c $value]
+    if { $index >= 0 } {
+        append data [binary format S $index] 
+    }
+    return [readIntPriv $addr $addrType $parameter $index 0 $data]
+}
+
+proc ::owen::writeInt16 { addr addrType parameter index value } {
+    set data [binary format S $value]
+    if { $index >= 0 } {
+        append data [binary format S $index] 
+    }
+    return [readIntPriv $addr $addrType $parameter $index 0 $data]
+}
+
+proc ::owen::readFloat24 { addr addrType parameter { index -1 } } {
+    set data ""
+    if { $index >= 0 } {
+        set data [binary format S $index] 
+    }
+    return [readFloat24Priv $addr $addrType $parameter 1 $data]
+}
+
+proc ::owen::writeFloat24 { addr addrType parameter index value } {
+    set data [string reverse [string range [binary format f $value] 1 3]]
+    if { $index >= 0 } {
+        append data [binary format S $index] 
+    }
+    return [readFloat24Priv $addr $addrType $parameter 0 $data]
+}
+
+###############################################################################
+# Private
+###############################################################################
+
+proc ::owen::dump { s { msg "" } } {
+    puts -nonewline $msg
+    for { set i 0 } { $i < [string length $s] } { incr i } {
+        set c [string index $s $i]
+        scan $c %ca ascii
+        puts -nonewline [format %0.2x $ascii]  
+    }
+    puts ""
+}
+
+proc ::owen::readIntPriv { addr addrType parameter index request data } {
+    variable Status
+
+    if { "" == [port_open] } {
+        return ""
+    }
+    
     set result ""
+    set res [port_send [pack_frame $addr $addrType $parameter $request $data]]
+    set data [unpack_frame $res]
+    set len [string length $data]
 
-    port_open
+    if { $index >= 0 && $len >= 2 } {
+        set data [string range $data 0 $len-2]
+        incr len -2
+    }
 
-    set res [port_send [pack_frame $addr $addrType $parameter]]
-    if { [string length $res] >= 7 || [string length $res] <= 10 } {
-        set data [unpack_frame $res]
-        if { $data != "" } {
-            while { [string length $data] < 4 } {
-                set s "\x00"
-                append s $data
-                set data $s 
-            }
-            
-            # convert to little-endian form
+    switch -exact -- $len {
+        1 {
+            binary scan $data c result
+        }
+        2 {
+            binary scan $data S result
+        }
+        4 {
             binary scan $data I result
         }
     }
@@ -66,33 +156,27 @@ proc ::owen::readInt { addr addrType parameter } {
     return $result    
 }
 
-proc ::owen::readFloat24 { addr addrType parameter index } {
+proc ::owen::readFloat24Priv { addr addrType parameter request data } {
+    global ::owen::STATUS_EXCEPTION 
+    variable Status
+    
+    if { "" == [port_open] } {
+        return ""
+    }
+
     set result ""
-
-    port_open
-
-    set res [port_send [pack_frame $addr $addrType $parameter 1 [binary format S $index]]]
-    if { [string length $res] == 11 } {
-        set data [unpack_frame $res]
-        if { $data != "" } {
-            # convert to little-endian form
-            binary scan [string reverse "[string range $data 0 2]\x00"] f result
-        }
+    set res [port_send [pack_frame $addr $addrType $parameter $request $data]]
+    set data [unpack_frame $res]
+    set len [string length $data]
+    
+    if { $len == 1 } {
+        # error
+        scan [string index $data 0] %c ascii
+        set Status(lastError) $ascii
+        set Status(lastStatus) $STATUS_EXCEPTION
     }
     
-    port_close
-    
-    return $result    
-}
-
-proc ::owen::writeFloat24 { addr addrType parameter index value } {
-    set result ""
-
-    port_open
-
-    set res [port_send [pack_frame $addr $addrType $parameter 0 "[string reverse [string range [binary format f $value] 1 3]][binary format S $index]"]]
-    set data [unpack_frame $res]
-    if { $data != "" } {
+    if { $len >= 3 } {
         # convert to little-endian form
         binary scan [string reverse "[string range $data 0 2]\x00"] f result
     }
@@ -101,10 +185,6 @@ proc ::owen::writeFloat24 { addr addrType parameter index value } {
     
     return $result    
 }
-
-###############################################################################
-# Private
-###############################################################################
 
 proc ::owen::pack_frame { addr addrType parameter { request 1 } { data "" } } {
     set res ""
@@ -138,8 +218,14 @@ proc ::owen::pack_frame { addr addrType parameter { request 1 } { data "" } } {
 }
 
 proc ::owen::unpack_frame { data } {
+    global ::owen::STATUS_NETWORK_ERROR ::owen::ERROR_BAD_CRC ::owen::ERROR_BAD_LENGTH 
+    variable Status
+    variable ErrorHash
+
     set len [string length $data]  
     if { $len < 6 } {
+        set Status(lastError) $ERROR_BAD_LENGTH
+        set Status(lastStatus) $STATUS_NETWORK_ERROR
         return ""
     }
     
@@ -147,19 +233,24 @@ proc ::owen::unpack_frame { data } {
     set crc [calc_crc_str $data [expr $len - 2]]
     if { $crc != (($crcHi & 0xff) << 8) + ($crcLo & 0xff) } {
         # bad CRC
+        set Status(lastError) $ERROR_BAD_CRC
+        set Status(lastStatus) $STATUS_NETWORK_ERROR
         return "" 
     }
          
     binary scan $data ccccc b1 b2 hashHi hashLo err
     set hash [expr (($hashHi & 0xff) << 8) + ($hashLo & 0xff)]
-    if { $hash == [str2hash n.Err] } {
-        puts "ERROR [format %0.2x $err]"
+    if { $hash == $ErrorHash } {
+        set Status(lastError) $err
+        set Status(lastStatus) $STATUS_NETWORK_ERROR
         return ""
     }
     
     set datalen [expr $b2 & 0xf]
     if { $datalen != $len - 6 } {
         # bad data len field
+        set Status(lastError) $ERROR_BAD_LENGTH
+        set Status(lastStatus) $STATUS_NETWORK_ERROR
         return ""
     }
     
@@ -241,14 +332,21 @@ proc ::owen::port_close {} {
 }
 
 proc ::owen::port_open {} {
+    global ::owen::STATUS_OK ::owen::STATUS_PORT_ERROR 
 	variable Priv
+	variable Status
 	
+    set Status(lastError) 0
+    set Status(lastStatus) $STATUS_OK
+    
 	if {[catch {set fd [open $Priv(-com) r+]} err]} {
-		puts $err
+        set Status(lastError) $err
+        set Status(lastStatus) $STATUS_PORT_ERROR
 		return ""
 	}
 	if {[catch {fconfigure $fd -blocking 0 -encoding binary -translation binary -mode $Priv(-settings)} err]} {
-		puts $err
+        set Status(lastError) $err
+        set Status(lastStatus) $STATUS_PORT_ERROR
 		return ""
 	}
 
@@ -271,7 +369,6 @@ proc ::owen::port_send { data } {
         scan $c %c ascii
         append dts [binary format cc [expr ($ascii >> 4) + 0x47] [expr ($ascii & 0xf) + 0x47]]
     }
-    puts "DTS=$dts"
     append dts "\x0d"
 
 	puts -nonewline $fd $dts
@@ -295,7 +392,6 @@ proc ::owen::port_send { data } {
     }
     
     set result ""
-    puts "ret=$ret"
     for { set i 1; set l [string length $ret] } { $i < $l } { incr i } {
         set c [string index $ret $i]
         scan $c %c ascii
@@ -323,3 +419,5 @@ proc ::owen::port_send { data } {
 	
 	return $result
 }
+
+set ::owen::ErrorHash [::owen::str2hash n.Err]

@@ -178,6 +178,19 @@ proc toggleProgControls {} {
 	::measure::widget::setDisabled [expr $mode == 1] $p.tempStep
 }
 
+# Процедура разрешает/запрещает элементы настройки термопары
+proc toggleTcMethodControls {} {
+	global w
+	set p "$w.nb.tsetup"
+	set mode [measure::config::get tc.method 0]
+	::measure::widget::setDisabled [expr $mode == 0] $p.tcmm
+	::measure::widget::setDisabled [expr $mode == 0] $p.tc.fixedT
+	::measure::widget::setDisabled [expr $mode == 0] $p.tc.lfixedT
+	::measure::widget::setDisabled [expr $mode == 0] $p.tc.negate
+	::measure::widget::setDisabled [expr $mode == 0] $p.tc.lnegate
+	::measure::widget::setDisabled [expr $mode == 1] $p.tcm
+}
+
 proc makeMeasurement {} {
 	global workerId
 
@@ -227,7 +240,7 @@ set log [measure::logger::init measure]
 
 # Создаём окно программы
 set w ""
-wm title $w. "Установка № 7: Регистрация R(T). Версия 1.0"
+wm title $w. "Установка № 7: Регистрация R(T). Версия 2.0"
 
 # При нажатии крестика в углу окна вызыватьспециальную процедуру завершения
 wm protocol $w. WM_DELETE_WINDOW { quit }
@@ -400,9 +413,9 @@ grid rowconfigure $p { 5 } -pad 10
 
 pack $p -fill x -padx 10 -pady 5
 
-# Закладка "Параметры установки"
+# Закладка "Параметры измерения сопротивления"
 ttk::frame $w.nb.setup
-$w.nb add $w.nb.setup -text " Параметры установки "
+$w.nb add $w.nb.setup -text " Параметры измерения сопротивления "
 
 set p [ttk::labelframe $w.nb.setup.switch -text " Блок реле " -pad 10]
 pack $p -fill x -padx 10 -pady 5
@@ -416,15 +429,39 @@ set p [ttk::labelframe $w.nb.setup.cmm -text " Амперметр/вольтме
 pack $p -fill x -padx 10 -pady 5
 ::measure::widget::mmControls $p cmm
 
-set p [ttk::labelframe $w.nb.setup.tcmm -text " Вольтметр на термопаре " -pad 10]
-pack $p -fill x -padx 10 -pady 5
-::measure::widget::mmControls $p tcmm
-
 set p [ttk::labelframe $w.nb.setup.ps -text " Источник питания " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 ::measure::widget::psControls $p ps
 
-set p [ttk::labelframe $w.nb.setup.tc -text " Термопара " -pad 10]
+# Закладка "Параметры измерения температуры"
+ttk::frame $w.nb.tsetup
+$w.nb add $w.nb.tsetup -text " Параметры измерения температуры "
+
+set p [ttk::labelframe $w.nb.tsetup.tcc -text " Способ подключения термопары " -pad 10]
+
+grid [ttk::label $p.ltime -text "К вольтметру:"] -row 0 -column 0 -sticky w
+grid [ttk::radiobutton $p.time -value 0 -variable settings(tc.method) -command toggleTcMethodControls] -row 0 -column 1 -sticky e
+
+grid [ttk::label $p.ltemp -text "К ТРМ-201:"] -row 0 -column 3 -sticky w
+grid [ttk::radiobutton $p.temp -value 1 -variable settings(tc.method) -command toggleTcMethodControls] -row 0 -column 4 -sticky e
+
+grid [ttk::label $p.lpad -text " "] -row 0 -column 2 -sticky w
+
+grid columnconfigure $p {0 1 3 4} -pad 5
+grid rowconfigure $p {0 1} -pad 5
+grid columnconfigure $p { 2 } -pad 50
+
+pack $p -fill x -padx 10 -pady 5
+
+set p [ttk::labelframe $w.nb.tsetup.tcmm -text " Вольтметр на термопаре " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::mmControls $p tcmm
+
+set p [ttk::labelframe $w.nb.tsetup.tcm -text " Измеритель-регулятор ТРМ-201 " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::trm201Controls $p "tcm"
+
+set p [ttk::labelframe $w.nb.tsetup.tc -text " Термопара " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 ::measure::widget::thermoCoupleControls -nb $w.nb -workingTs $w.nb.m -currentTs $w.nb.setup $p tc
 
@@ -437,6 +474,7 @@ measure::config::read
 # Настраиваем элементы управления
 toggleTestResistance
 toggleProgControls
+toggleTcMethodControls
 
 # Запускаем тестер
 startTester

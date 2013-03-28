@@ -11,6 +11,7 @@ package require measure::thermocouple
 package require measure::listutils
 package require measure::math
 package require hardware::agilent::pse3645a
+package require hardware::owen::trm201
 
 # Число измерений, по которым определяется производная dT/dt
 set DERIVATIVE_READINGS 10
@@ -72,11 +73,16 @@ proc setup {} {
     # Иниализируем и опрашиваем ММ
     hardware::agilent::mm34410a::init $tcmm
 
-	# Настраиваем мультиметр для измерения постоянного напряжения
-	hardware::agilent::mm34410a::configureDcVoltage \
-		-nplc [measure::config::get tcmm.nplc 10] \
-		-text2 "MM3 TC" \
-		 $tcmm
+    if { 0 == [measure::config::get tc.method 0]} {
+    	# Настраиваем мультиметр для измерения постоянного напряжения на термопаре
+    	hardware::agilent::mm34410a::configureDcVoltage \
+    		-nplc [measure::config::get tcmm.nplc 10] \
+    		-text2 "MM3 TC" \
+    		 $tcmm
+    } else {
+        # Настраиваем ТРМ-201 для измерения температуры
+        ::hardware::owen::trm201::setTcType [measure::config::get tcm.serialAddr] [measure::config::get tcm.rs485Addr] [measure::config::get tc.type] 
+    }
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -137,10 +143,38 @@ set tempValues [list]
 set timeValues [list]
 set startTime [clock milliseconds]
 
-# Снимаем показания вольтметра на термопаре и возвращаем температуру 
-# вместе с инструментальной погрешностью и производной
+# Измеряем температуру и возвращаем вместе с инструментальной погрешностью и производной
 proc readTemp {} {
-    global tcmm tempValues timeValues startTime DERIVATIVE_READINGS
+    global tempValues timeValues startTime DERIVATIVE_READINGS
+    
+    if { 0 == [measure::config::get tc.method 0]} {
+        lassign [readTempMm] t tErr
+    } else {
+        lassign [readTempTrm] t tErr
+    }
+
+    # накапливаем значения в очереди для вычисления производной 
+    measure::listutils::lappend tempValues $t $DERIVATIVE_READINGS
+    measure::listutils::lappend timeValues [expr [clock milliseconds] - $startTime] $DERIVATIVE_READINGS
+    if { [llength $tempValues] < $DERIVATIVE_READINGS } {
+        set der 0.0
+    } else {
+        set der [expr 60000.0 * [measure::math::slope $timeValues $tempValues]] 
+    }
+            
+    return [list $t $tErr $der]
+}
+
+# Снимаем показания вольтметра на термопаре и возвращаем температуру 
+# вместе с инструментальной погрешностью
+proc readTempTrm {} {
+    return [::hardware::owen::trm201::readTemperature [measure::config::get tcm.serialAddr] [measure::config::get tcm.rs485Addr]]
+}
+
+# Снимаем показания вольтметра на термопаре и возвращаем температуру 
+# вместе с инструментальной погрешностью
+proc readTempMm {} {
+    global tcmm
     global log
 
     # измеряем напряжение на термопаре    
@@ -159,16 +193,7 @@ proc readTemp {} {
         [measure::config::get tc.correction] \
         ] t tErr
 
-    # накапливаем значения в очереди для вычисления производной 
-    measure::listutils::lappend tempValues $t $DERIVATIVE_READINGS
-    measure::listutils::lappend timeValues [expr [clock milliseconds] - $startTime] $DERIVATIVE_READINGS
-    if { [llength $tempValues] < $DERIVATIVE_READINGS } {
-        set der 0.0
-    } else {
-        set der [expr 60000.0 * [measure::math::slope $timeValues $tempValues]] 
-    }
-            
-    return [list $t $tErr $der]
+    return [list $t $tErr]
 }
 
 # Измеряем сопротивление и регистрируем его вместе с температурой
