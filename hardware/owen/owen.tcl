@@ -12,8 +12,9 @@ namespace eval ::owen {
     set STATUS_NETWORK_ERROR -2
     set STATUS_PORT_ERROR -3
     
-    set ERROR_BAD_CRC -1
+    set ERROR_BAD_DATA -1
     set ERROR_BAD_LENGTH -2 
+    set ERROR_TIMEOUT -3 
 
     set EXCEPTION_INPUT 0xfd
     set EXCEPTION_NO_DAC 0xfe
@@ -24,6 +25,7 @@ namespace eval ::owen {
 		-com "/dev/ttyUSB0" \
 		-settings "9600,n,8,1" \
 		-timeout 500 \
+		-numOfAttempts 3
 	]
 	
 	variable Status
@@ -55,13 +57,19 @@ proc ::owen::lastStatus {} {
     return $Status(lastStatus)
 }
 
+proc ::owen::sendCommand { addr addrType cmd } {
+    port_open
+    port_send [bin2ascii [pack_frame $addr $addrType $cmd 0]]
+    port_close
+}
+
 proc ::owen::readString { addr addrType parameter } {
     set result ""
 
     port_open
 
-    set res [port_send [pack_frame $addr $addrType $parameter]]
-    set result [encoding convertfrom cp1251 [string reverse [unpack_frame $res]]]
+    set res [send_frame [pack_frame $addr $addrType $parameter]]
+    set result [encoding convertfrom cp1251 [string reverse $res]]
     
     port_close
     
@@ -130,8 +138,7 @@ proc ::owen::readIntPriv { addr addrType parameter index request data } {
     }
     
     set result ""
-    set res [port_send [pack_frame $addr $addrType $parameter $request $data]]
-    set data [unpack_frame $res]
+    set data [send_frame [pack_frame $addr $addrType $parameter $request $data]]
     set len [string length $data]
 
     if { $index >= 0 && $len >= 2 } {
@@ -165,8 +172,7 @@ proc ::owen::readFloat24Priv { addr addrType parameter request data } {
     }
 
     set result ""
-    set res [port_send [pack_frame $addr $addrType $parameter $request $data]]
-    set data [unpack_frame $res]
+    set data [send_frame [pack_frame $addr $addrType $parameter $request $data]]
     set len [string length $data]
     
     if { $len == 1 } {
@@ -184,6 +190,33 @@ proc ::owen::readFloat24Priv { addr addrType parameter request data } {
     port_close
     
     return $result    
+}
+
+proc ::owen::send_frame { data } {
+    global ::owen::ERROR_BAD_DATA ::owen::STATUS_NETWORK_ERROR ::owen::STATUS_OK ::owen::ERROR_TIMEOUT
+	variable Priv
+	variable Status
+
+    set data [bin2ascii $data]	
+    for { set i $Priv(-numOfAttempts) } { $i > 0 } { incr i -1 } {
+        set Status(lastError) 0
+        set Status(lastStatus) $STATUS_OK
+        
+        set res [port_send $data]
+        if { $Status(lastStatus) == $STATUS_OK } {
+            set res [ascii2bin $res]
+        }
+        if { $Status(lastStatus) == $STATUS_OK } {
+            set res [unpack_frame $res]
+        }
+        if { $Status(lastStatus) == $STATUS_NETWORK_ERROR && ($Status(lastError) == $ERROR_BAD_DATA || $Status(lastError) == $ERROR_TIMEOUT)} {
+            continue
+        }
+        
+        break
+    }
+    
+    return $res
 }
 
 proc ::owen::pack_frame { addr addrType parameter { request 1 } { data "" } } {
@@ -218,7 +251,7 @@ proc ::owen::pack_frame { addr addrType parameter { request 1 } { data "" } } {
 }
 
 proc ::owen::unpack_frame { data } {
-    global ::owen::STATUS_NETWORK_ERROR ::owen::ERROR_BAD_CRC ::owen::ERROR_BAD_LENGTH 
+    global ::owen::STATUS_NETWORK_ERROR ::owen::ERROR_BAD_DATA ::owen::ERROR_BAD_LENGTH 
     variable Status
     variable ErrorHash
 
@@ -233,7 +266,7 @@ proc ::owen::unpack_frame { data } {
     set crc [calc_crc_str $data [expr $len - 2]]
     if { $crc != (($crcHi & 0xff) << 8) + ($crcLo & 0xff) } {
         # bad CRC
-        set Status(lastError) $ERROR_BAD_CRC
+        set Status(lastError) $ERROR_BAD_DATA
         set Status(lastStatus) $STATUS_NETWORK_ERROR
         return "" 
     }
@@ -355,55 +388,44 @@ proc ::owen::port_open {} {
 	return $fd
 }
 
-proc ::owen::port_send { data } {
-	variable Priv
-
-	set fd $Priv(fd)
-	set timeout $Priv(-timeout)	
-	
-	set buf [read $fd]
-
-    set dts "#"
+proc ::owen::bin2ascii { data } {
+    set dts ""
     for { set i 0; set l [string length $data] } { $i < $l } { incr i } {
         set c [string index $data $i]
         scan $c %c ascii
         append dts [binary format cc [expr ($ascii >> 4) + 0x47] [expr ($ascii & 0xf) + 0x47]]
     }
-    append dts "\x0d"
+    return $dts
+}
 
-	puts -nonewline $fd $dts
-	flush $fd
+proc ::owen::ascii2bin { ret } {
+    global ::owen::STATUS_NETWORK_ERROR ::owen::ERROR_TIMEOUT ::owen::ERROR_BAD_DATA
+	variable Status
 	
-	set t1 [clock milliseconds]
-	set t2 $t1
-	set ret ""
-	while {($t2-$t1) < $timeout} {
-		set buf [read $fd]
-		if {$buf != ""} {
-			append ret $buf
-			set t1 [clock milliseconds]
-		}
-		if {[string first "\x0d" $ret] > 0} {break}
-		set t2 [clock milliseconds]
-	}
-
-    if { [string index $ret 0] != "#" } {
+    if { $ret == "" } {
+        set Status(lastError) $ERROR_TIMEOUT
+        set Status(lastStatus) $STATUS_NETWORK_ERROR
         return "";  # invalid packet
     }
     
     set result ""
-    for { set i 1; set l [string length $ret] } { $i < $l } { incr i } {
+    for { set i 0; set l [string length $ret]; set l1 [expr $l - 1] } { $i < $l } { incr i } {
         set c [string index $ret $i]
         scan $c %c ascii
-        if { $ascii == 0x0d } {
-            break
-        }
+        
+        #if { $ascii == 0x0d } {
+        #    break
+        #}
         
         if { $ascii < 0x47 || $ascii > 0x56 } {
+            set Status(lastError) $ERROR_BAD_DATA
+            set Status(lastStatus) $STATUS_NETWORK_ERROR
             return "";  # invalid packet
         }
         
-        if { $i >= $l-1 } {
+        if { $i >= $l1 } {
+            set Status(lastError) $ERROR_BAD_DATA
+            set Status(lastStatus) $STATUS_NETWORK_ERROR
             return "";  # invalid packet
         }
         
@@ -418,6 +440,43 @@ proc ::owen::port_send { data } {
     }
 	
 	return $result
+}
+
+proc ::owen::port_send { data } {
+	variable Priv
+
+	set fd $Priv(fd)
+	set timeout $Priv(-timeout)	
+	
+    # dirty read	
+	read $fd
+
+    set dts "#${data}\x0d"
+    #puts stderr "SENT:\t$dts"
+	puts -nonewline $fd $dts
+	flush $fd
+	
+	set t1 [clock milliseconds]
+	set t2 $t1
+	set ret ""
+	set tmp ""
+	while {($t2-$t1) < $timeout} {
+		set buf [read $fd]
+		if {$buf != ""} {
+			append tmp $buf
+			set t1 [clock milliseconds]
+		}
+		set pos1 [string first "#" $tmp] 
+		set pos2 [string first "\x0d" $tmp]
+		if {$pos1 >= 0 && $pos2 > $pos1} {
+  		    set ret [string range $tmp $pos1+1 $pos2-1]
+            break
+        }
+		set t2 [clock milliseconds]
+	}
+    #puts stderr "RECV:\t$tmp"
+
+    return $ret
 }
 
 set ::owen::ErrorHash [::owen::str2hash n.Err]

@@ -63,7 +63,7 @@ proc ::hardware::owen::trm201::readTemperature { port addr } {
     ::owen::configure -com $port
     set t [::owen::readFloat24 $addr 0 PV]
     if {  $t != "" } {
-        return [list [expr 273.15 + $t] [expr abs($t) * 0.005] ] 
+        return [list [expr 273.15 + $t] 0.1 ] 
     } else {
         return {0.0 0.0}
     } 
