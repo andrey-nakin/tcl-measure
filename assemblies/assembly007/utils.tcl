@@ -33,7 +33,7 @@ proc validateSettings {} {
 
 # Инициализация приборов
 proc setup {} {
-    global ps tcmm log
+    global ps tcmm log trm
 
     # Инициализация мультиметров на образце
     measure::measure::setupMmsForResistance
@@ -80,14 +80,16 @@ proc setup {} {
     		-text2 "MM3 TC" \
     		 $tcmm
     } else {
+        set trm [::hardware::owen::trm201::init [measure::config::get tcm.serialAddr] [measure::config::get tcm.rs485Addr]]
+    
         # Настраиваем ТРМ-201 для измерения температуры
-        ::hardware::owen::trm201::setTcType [measure::config::get tcm.serialAddr] [measure::config::get tcm.rs485Addr] [measure::config::get tc.type] 
+        ::hardware::owen::trm201::setTcType $trm [measure::config::get tc.type] 
     }
 }
 
 # Завершаем работу установки, матчасть в исходное.
 proc finish {} {
-    global mm cmm tcmm ps log
+    global mm cmm tcmm ps log trm
 
     if { [info exists mm] } {
     	# Переводим вольтметр в исходный режим
@@ -115,6 +117,12 @@ proc finish {} {
     	hardware::agilent::mm34410a::done $tcmm
     	close $tcmm
     	unset tcmm
+    }
+    
+    if { [info exists trm] } {
+        # Переводим ТРМ-201 в исходное состояние
+        ::hardware::owen::trm201::done $trm
+        unset trm
     }
     
 	# реле в исходное
@@ -168,7 +176,8 @@ proc readTemp {} {
 # Снимаем показания вольтметра на термопаре и возвращаем температуру 
 # вместе с инструментальной погрешностью
 proc readTempTrm {} {
-    return [::hardware::owen::trm201::readTemperature [measure::config::get tcm.serialAddr] [measure::config::get tcm.rs485Addr]]
+    global trm
+    return [::hardware::owen::trm201::readTemperature $trm]
 }
 
 # Снимаем показания вольтметра на термопаре и возвращаем температуру 

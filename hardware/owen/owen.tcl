@@ -2,9 +2,19 @@
 #\
 exec tclsh "$0" ${1+"$@"}
 
-package provide owen 1.0
+##############################################################################
+# owen.tcl --
+#
+# This file is part of owen Tcl library.
+#
+# Copyright (c) 2011 Andrey V. Nakin <andrey.nakin@gmail.com>
+# All rights reserved.
+#
+# See the file "COPYING" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+##############################################################################
 
-package require crc16
+package provide owen 1.0
 
 namespace eval ::owen {
     set STATUS_OK 0
@@ -20,12 +30,17 @@ namespace eval ::owen {
     set EXCEPTION_NO_DAC 0xfe
     set EXCEPTION_BAD_VALUE 0xf0
     
-	variable Priv
-	array set  Priv [list \
-		-com "/dev/ttyUSB0" \
+    set ADDR_TYPE_8BIT 0
+    set ADDR_TYPE_11BIT 1
+    
+	variable Config
+	array set Config [list \
+		-port "/dev/ttyUSB0" \
 		-settings "9600,n,8,1" \
 		-timeout 500 \
-		-numOfAttempts 3
+		-numOfAttempts 3  \
+		-addr 16   \
+		-addrType $ADDR_TYPE_8BIT 
 	]
 	
 	variable Status
@@ -34,86 +49,156 @@ namespace eval ::owen {
 	variable ErrorHash
 }
 
+# Creates a device descriptor to be used in subsequent calls
+# Arguments:
+#   args - <name value> pairs with device options. See Config variable definition above to know all possible options
+# Returns:
+#   Device descriptor
 proc ::owen::configure {args} {
-	variable Priv
-	set names [lsort [array names Priv -*]]
+	variable Config
+	set names [lsort [array names Config -*]]
 	
+	array set desc [array get Config]
 	foreach {opt val} $args {
 		if {[lsearch $names $opt] < 0} {
 			puts "bad option \"$opt\": must be $names"
 			exit
 		}
-		set Priv($opt) $val
+		set desc($opt) $val
 	}
+	
+	return [array get desc]
 }
 
+# Returns code or description of error of last operation
 proc ::owen::lastError {} {
     variable Status
     return $Status(lastError)
 }
 
+# Returns status code of last operation
 proc ::owen::lastStatus {} {
     variable Status
     return $Status(lastStatus)
 }
 
-proc ::owen::sendCommand { addr addrType cmd } {
-    port_open
-    port_send [bin2ascii [pack_frame $addr $addrType $cmd 0]]
-    port_close
+# Sends a command to OWEN device
+# Arguments:
+#   desc - device descriptor returned by ::owen::configure
+#   cmd - command to send   
+proc ::owen::sendCommand { desc cmd } {
+    array set Desc $desc
+    
+    port_open Desc
+    if { [info exists Desc(fd)] } {
+        port_send Desc [bin2ascii [pack_frame Desc $cmd 0]]
+        port_close Desc
+    }
 }
 
-proc ::owen::readString { addr addrType parameter } {
+# Reads a string parameter
+# Arguments:
+#   desc - device descriptor returned by ::owen::configure
+#   parameter - parameter to read   
+# Returns:
+#   Parameter value or empty string if error occurs
+proc ::owen::readString { desc parameter } {
+    array set Desc $desc
+    
     set result ""
 
-    port_open
-
-    set res [send_frame [pack_frame $addr $addrType $parameter]]
-    set result [encoding convertfrom cp1251 [string reverse $res]]
-    
-    port_close
+    port_open Desc
+    if { [info exists Desc(fd)] } {
+        set res [send_frame Desc [pack_frame Desc $parameter]]
+        set result [encoding convertfrom cp1251 [string reverse $res]]
+        
+        port_close Desc
+    }
     
     return $result    
 }
 
-proc ::owen::readInt { addr addrType parameter { index -1 } } {
+# Reads an integer parameter
+# Arguments:
+#   desc - device descriptor returned by ::owen::configure
+#   parameter - parameter to read
+#   index - parameter index (if any)   
+# Returns:
+#   Parameter value or empty string if error occurs
+proc ::owen::readInt { desc parameter { index -1 } } {
+    array set Desc $desc
     set data ""
     if { $index >= 0 } {
         set data [binary format S $index] 
     }
-    return [readIntPriv $addr $addrType $parameter $index 1 $data]
+    return [readIntPriv Desc $parameter $index 1 $data]
 }
 
-proc ::owen::writeInt8 { addr addrType parameter index value } {
+# Writes a 8-bit integer parameter
+# Arguments:
+#   desc - device descriptor returned by ::owen::configure
+#   parameter - parameter to read
+#   index - parameter index or -1 if parameter has no index
+#   value - value to set   
+# Returns:
+#   New parameter value or empty string if error occurs
+proc ::owen::writeInt8 { desc parameter index value } {
+    array set Desc $desc
     set data [binary format c $value]
     if { $index >= 0 } {
         append data [binary format S $index] 
     }
-    return [readIntPriv $addr $addrType $parameter $index 0 $data]
+    return [readIntPriv Desc $parameter $index 0 $data]
 }
 
-proc ::owen::writeInt16 { addr addrType parameter index value } {
+# Writes a 16-bit integer parameter
+# Arguments:
+#   desc - device descriptor returned by ::owen::configure
+#   parameter - parameter to read
+#   index - parameter index or -1 if parameter has no index
+#   value - value to set   
+# Returns:
+#   New parameter value or empty string if error occurs
+proc ::owen::writeInt16 { desc parameter index value } {
+    array set Desc $desc
     set data [binary format S $value]
     if { $index >= 0 } {
         append data [binary format S $index] 
     }
-    return [readIntPriv $addr $addrType $parameter $index 0 $data]
+    return [readIntPriv Desc $parameter $index 0 $data]
 }
 
-proc ::owen::readFloat24 { addr addrType parameter { index -1 } } {
+# Reads a 24-bit float parameter
+# Arguments:
+#   desc - device descriptor returned by ::owen::configure
+#   parameter - parameter to read
+#   index - parameter index (if any)   
+# Returns:
+#   Parameter value or empty string if error occurs
+proc ::owen::readFloat24 { desc parameter { index -1 } } {
+    array set Desc $desc
     set data ""
     if { $index >= 0 } {
         set data [binary format S $index] 
     }
-    return [readFloat24Priv $addr $addrType $parameter 1 $data]
+    return [readFloat24Priv Desc $parameter 1 $data]
 }
 
-proc ::owen::writeFloat24 { addr addrType parameter index value } {
+# Writes a 24-bit float parameter
+# Arguments:
+#   desc - device descriptor returned by ::owen::configure
+#   parameter - parameter to read
+#   index - parameter index or -1 if parameter has no index
+#   value - value to set   
+# Returns:
+#   New parameter value or empty string if error occurs
+proc ::owen::writeFloat24 { desc parameter index value } {
+    array set Desc $desc
     set data [string reverse [string range [binary format f $value] 1 3]]
     if { $index >= 0 } {
         append data [binary format S $index] 
     }
-    return [readFloat24Priv $addr $addrType $parameter 0 $data]
+    return [readFloat24Priv Desc $parameter 0 $data]
 }
 
 ###############################################################################
@@ -130,15 +215,16 @@ proc ::owen::dump { s { msg "" } } {
     puts ""
 }
 
-proc ::owen::readIntPriv { addr addrType parameter index request data } {
+proc ::owen::readIntPriv { desc parameter index request data } {
+    upvar $desc Desc
     variable Status
 
-    if { "" == [port_open] } {
+    if { "" == [port_open Desc] } {
         return ""
     }
     
     set result ""
-    set data [send_frame [pack_frame $addr $addrType $parameter $request $data]]
+    set data [send_frame Desc [pack_frame Desc $parameter $request $data]]
     set len [string length $data]
 
     if { $index >= 0 && $len >= 2 } {
@@ -158,21 +244,22 @@ proc ::owen::readIntPriv { addr addrType parameter index request data } {
         }
     }
     
-    port_close
+    port_close Desc
     
     return $result    
 }
 
-proc ::owen::readFloat24Priv { addr addrType parameter request data } {
+proc ::owen::readFloat24Priv { desc parameter request data } {
     global ::owen::STATUS_EXCEPTION 
+    upvar $desc Desc
     variable Status
     
-    if { "" == [port_open] } {
+    if { "" == [port_open Desc] } {
         return ""
     }
 
     set result ""
-    set data [send_frame [pack_frame $addr $addrType $parameter $request $data]]
+    set data [send_frame Desc [pack_frame Desc $parameter $request $data]]
     set len [string length $data]
     
     if { $len == 1 } {
@@ -187,22 +274,22 @@ proc ::owen::readFloat24Priv { addr addrType parameter request data } {
         binary scan [string reverse "[string range $data 0 2]\x00"] f result
     }
     
-    port_close
+    port_close Desc
     
     return $result    
 }
 
-proc ::owen::send_frame { data } {
+proc ::owen::send_frame { desc data } {
     global ::owen::ERROR_BAD_DATA ::owen::STATUS_NETWORK_ERROR ::owen::STATUS_OK ::owen::ERROR_TIMEOUT
-	variable Priv
 	variable Status
+	upvar $desc Desc
 
     set data [bin2ascii $data]	
-    for { set i $Priv(-numOfAttempts) } { $i > 0 } { incr i -1 } {
+    for { set i $Desc(-numOfAttempts) } { $i > 0 } { incr i -1 } {
         set Status(lastError) 0
         set Status(lastStatus) $STATUS_OK
         
-        set res [port_send $data]
+        set res [port_send Desc $data]
         if { $Status(lastStatus) == $STATUS_OK } {
             set res [ascii2bin $res]
         }
@@ -219,7 +306,10 @@ proc ::owen::send_frame { data } {
     return $res
 }
 
-proc ::owen::pack_frame { addr addrType parameter { request 1 } { data "" } } {
+proc ::owen::pack_frame { desc parameter { request 1 } { data "" } } {
+    global ::owen::ADDR_TYPE_8BIT
+    upvar $desc Desc
+    
     set res ""
     
     if { $request } {
@@ -229,12 +319,12 @@ proc ::owen::pack_frame { addr addrType parameter { request 1 } { data "" } } {
     }
     
     set len [expr [string length $data] & 0xf]
-    if { $addrType == 0 } {
+    if { $Desc(-addrType) == $ADDR_TYPE_8BIT } {
         # 8-bit address
-        append res [binary format cc [expr $addr & 0xff] [expr $r | $len]]
+        append res [binary format cc [expr $Desc(-addr) & 0xff] [expr $r | $len]]
     } else {
         # 11-bit address
-        append res [binary format cc [expr ($addr & 0xff) >> 3] [expr (($addr & 0x07) << 5) | $r | $len]]
+        append res [binary format cc [expr ($Desc(-addr) & 0xff) >> 3] [expr (($Desc(-addr) & 0x07) << 5) | $r | $len]]
     }
     
     set hash [str2hash $parameter]
@@ -357,35 +447,46 @@ proc ::owen::str2hash { s } {
     return [expr $hash & 0xffff]
 }
 
-proc ::owen::port_close {} {
-	variable Priv
+proc ::owen::port_close { desc } {
+    upvar $desc Desc
 	
-	catch {close $Priv(fd)}
-	set Priv(fd) ""
+	catch {close $Desc(fd)}
+	unset Desc(fd)
 }
 
-proc ::owen::port_open {} {
+proc ::owen::port_open { desc } {
     global ::owen::STATUS_OK ::owen::STATUS_PORT_ERROR 
-	variable Priv
 	variable Status
+    upvar $desc Desc
 	
-    set Status(lastError) 0
-    set Status(lastStatus) $STATUS_OK
+    for { set i $Desc(-numOfAttempts) } { $i > 0 } { incr i -1 } {
+        set Status(lastError) 0
+        set Status(lastStatus) $STATUS_OK
+    	if {[catch {set fd [open $Desc(-port) r+]} err]} {
+            set Status(lastError) $err
+            set Status(lastStatus) $STATUS_PORT_ERROR
+            if { $i > 1 } {
+                after $Desc(-timeout)
+            }
+    	} else {
+    	   break
+        }
+    }
     
-	if {[catch {set fd [open $Priv(-com) r+]} err]} {
-        set Status(lastError) $err
-        set Status(lastStatus) $STATUS_PORT_ERROR
-		return ""
-	}
-	if {[catch {fconfigure $fd -blocking 0 -encoding binary -translation binary -mode $Priv(-settings)} err]} {
-        set Status(lastError) $err
-        set Status(lastStatus) $STATUS_PORT_ERROR
-		return ""
-	}
-
-	set Priv(fd) $fd
-
-	return $fd
+    if { [info exists fd] } {
+    	if {[catch {fconfigure $fd -blocking 0 -encoding binary -translation binary -mode $Desc(-settings)} err]} {
+    	    close $fd
+            set Status(lastError) $err
+            set Status(lastStatus) $STATUS_PORT_ERROR
+    		return ""
+    	}
+    
+    	set Desc(fd) $fd
+    
+    	return $fd
+    }
+    
+    return ""
 }
 
 proc ::owen::bin2ascii { data } {
@@ -442,11 +543,11 @@ proc ::owen::ascii2bin { ret } {
 	return $result
 }
 
-proc ::owen::port_send { data } {
-	variable Priv
+proc ::owen::port_send { desc data } {
+	upvar $desc Desc
 
-	set fd $Priv(fd)
-	set timeout $Priv(-timeout)	
+	set fd $Desc(fd)
+	set timeout $Desc(-timeout)	
 	
     # dirty read	
 	read $fd

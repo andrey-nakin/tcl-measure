@@ -19,8 +19,8 @@ namespace eval hardware::owen::trm201 {
 }
 
 proc ::hardware::owen::trm201::test { port addr } {
-    ::owen::configure -com $port
-    set res [::owen::readString $addr 0 DEV]
+    set desc [::owen::configure -port $port -addr $addr]
+    set res [::owen::readString $desc DEV]
     if { [regexp "^...201$" $res] } {
         return 1
     }
@@ -31,6 +31,10 @@ proc ::hardware::owen::trm201::test { port addr } {
 }
 
 proc ::hardware::owen::trm201::init { port addr } {
+    return [::owen::configure -port $port -addr $addr]
+}
+
+proc ::hardware::owen::trm201::done { desc } {
 }
 
 # Устанавливает тип термопары на устройстве
@@ -38,7 +42,7 @@ proc ::hardware::owen::trm201::init { port addr } {
 #   port - последовательный порт
 #   addr - адрес устройства в сети RS-485
 #   tcType - тип термопары (K, M и т.д.)
-proc ::hardware::owen::trm201::setTcType { port addr tcType } {
+proc ::hardware::owen::trm201::setTcType { desc tcType } {
     variable thermoCoupleMapping
     
     if { ![info exists thermoCoupleMapping($tcType)] } {
@@ -46,8 +50,7 @@ proc ::hardware::owen::trm201::setTcType { port addr tcType } {
     }
     set tc $thermoCoupleMapping($tcType) 
 
-    ::owen::configure -com $port
-    set res [::owen::writeInt8 $addr 0 in.t 0 $tc]
+    set res [::owen::writeInt8 $desc in.t 0 $tc]
     if { $res != $tc } {
         error "Cannot setup thermocouple type on TRM-201: $tc is set but $res is actually returned"
     } 
@@ -59,9 +62,8 @@ proc ::hardware::owen::trm201::setTcType { port addr tcType } {
 #   addr - адрес устройства в сети RS-485
 # Результат
 #    температура в К и инструментальная погрешность
-proc ::hardware::owen::trm201::readTemperature { port addr } {
-    ::owen::configure -com $port
-    set t [::owen::readFloat24 $addr 0 PV]
+proc ::hardware::owen::trm201::readTemperature { desc } {
+    set t [::owen::readFloat24 $desc PV]
     if {  $t != "" } {
         return [list [expr 273.15 + $t] 0.1 ] 
     } else {
