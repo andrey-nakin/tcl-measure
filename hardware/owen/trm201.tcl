@@ -52,7 +52,7 @@ proc ::hardware::owen::trm201::setTcType { desc tcType } {
 
     set res [::owen::writeInt8 $desc in.t 0 $tc]
     if { $res != $tc } {
-        error "Cannot setup thermocouple type on TRM-201: $tc is set but $res is actually returned"
+        error "Cannot setup thermocouple type on TRM-201: '$tc' is set but '$res' is actually returned"
     } 
 }
 
@@ -67,6 +67,10 @@ proc ::hardware::owen::trm201::readTemperature { desc } {
     if {  $t != "" } {
         return [list [expr 273.15 + $t] 0.1 ] 
     } else {
-        return {0.0 0.0}
+        set status [::owen::lastStatus]
+        if { $status == $::owen::STATUS_EXCEPTION } {
+            return {0.0 0.0}
+        }
+        error "Error reading temperature from TRM201, status $status, error [::owen::lastError]"
     } 
 }
