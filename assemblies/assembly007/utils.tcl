@@ -61,19 +61,19 @@ proc setup {} {
         hardware::agilent::pse3645a::setOutput $ps 1
     }
     
-    # Инициализация мультиметра на термопаре
-    # Подключаемся к мультиметру (ММ)
-    set tcmm [hardware::agilent::mm34410a::open \
-		-baud [measure::config::get tcmm.baud] \
-		-parity [measure::config::get tcmm.parity] \
-		-name "MM3" \
-		[measure::config::get -required tcmm.addr] \
-	]
-
-    # Иниализируем и опрашиваем ММ
-    hardware::agilent::mm34410a::init $tcmm
-
     if { 0 == [measure::config::get tc.method 0]} {
+        # Инициализация мультиметра на термопаре
+        # Подключаемся к мультиметру (ММ)
+        set tcmm [hardware::agilent::mm34410a::open \
+    		-baud [measure::config::get tcmm.baud] \
+    		-parity [measure::config::get tcmm.parity] \
+    		-name "MM3" \
+    		[measure::config::get -required tcmm.addr] \
+    	]
+    
+        # Иниализируем и опрашиваем ММ
+        hardware::agilent::mm34410a::init $tcmm
+    
     	# Настраиваем мультиметр для измерения постоянного напряжения на термопаре
     	hardware::agilent::mm34410a::configureDcVoltage \
     		-nplc [measure::config::get tcmm.nplc 10] \

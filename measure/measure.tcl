@@ -114,7 +114,6 @@ proc ::measure::measure::setupMmsForResistance { args } {
         	# Настраиваем мультиметр для измерения постоянного тока
         	hardware::agilent::mm34410a::configureDcCurrent \
         		-nplc $cmmNplc \
-        		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
         		-text2 "MM2 CURRENT" \
         		 $cmm
         }
@@ -123,7 +122,6 @@ proc ::measure::measure::setupMmsForResistance { args } {
         	# Настраиваем мультиметр для измерения постоянного напряжения
         	hardware::agilent::mm34410a::configureDcVoltage \
         		-nplc $cmmNplc \
-        		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
         		-text2 "MM2 VOLTAGE" \
         		 $cmm
         }
@@ -235,7 +233,7 @@ proc ::measure::measure::resistance { args } {
 	if { $params(n) != 1 } {
     	set vs [split [scpi::query $mm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
     } else {
-    	set vs [split [scpi::query $mm "DATA:REMOVE? $params(n)"] ","]
+    	set vs [scpi::query $mm "READ?"]
     } 
 	# среднее значение и погрешность измерения
 	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
@@ -249,7 +247,7 @@ proc ::measure::measure::resistance { args } {
             if { $params(n) != 1 } {
                 set cs [split [scpi::query $cmm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
             } else {
-                set cs [split [scpi::query $cmm "DATA:REMOVE? $params(n)"] ","]
+                set cs [scpi::query $cmm "READ?"]
             }
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }

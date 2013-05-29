@@ -57,7 +57,9 @@ proc runTempStep {} {
     global doMeasurement tempDerValues scpi::commandDelays tcmm
     global log
     
-    set scpi::commandDelays($tcmm) 0.0
+    if { [info exists tcmm] } {
+        set scpi::commandDelays($tcmm) 0.0
+    }
     
     set step [measure::config::get prog.temp.step 1.0]
     lassign [readTemp] temp tempErr
