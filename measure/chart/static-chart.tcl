@@ -64,9 +64,9 @@ proc measure::chart::staticChart { args } {
                 # в данном режиме старые точки прореживаются
                 if { [llength $xValues($series)] >= $seriesMaxCount($series) } {
                     # достигли предела - проредить старые точки
-                    ::measure::listutils::xyThinout xValues($series) yValues($series)
-            		#::measure::listutils::thinout xValues($series) 2
-            		#::measure::listutils::thinout yValues($series) 2
+                    lassign [makeXLimits] xmin xmax 
+                    lassign [makeYLimits] ymin ymax 
+                    ::measure::listutils::xyThinout xValues($series) yValues($series) [expr 1.0 / ($xmax - $xmin)] [expr 1.0 / ($ymax - $ymin)]
                 }
         		lappend xValues($series) $x
         		lappend yValues($series) $y

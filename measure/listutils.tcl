@@ -106,7 +106,9 @@ proc ::measure::listutils::timedThinout { xvalues yvalues times } {
 # Аргументы:
 #   xvalues - имя переменной, хранящей список значений по оси X
 #   yvalues - имя переменной, хранящей список значений по оси Y
-proc ::measure::listutils::xyThinout { xvalues yvalues } {
+#   xWeight - вес расстояний по оси X
+#   yWeight - вес расстояний по оси Y
+proc ::measure::listutils::xyThinout { xvalues yvalues {xWeight 1.0} {yWeight 1.0} } {
     upvar $xvalues x
     upvar $yvalues y
     
@@ -116,7 +118,7 @@ proc ::measure::listutils::xyThinout { xvalues yvalues } {
     
     set ranges [list]
     for { set i 1 } { $i < [llength $x] && $i < [llength $y] } { incr i } {
-        ::lappend ranges [expr power2([lindex $x $i] - [lindex $x $i-1]) + power2([lindex $y $i] - [lindex $y $i-1])]
+        ::lappend ranges [expr power2(([lindex $x $i] - [lindex $x $i-1]) * $xWeight) + power2(([lindex $y $i] - [lindex $y $i-1]) * $yWeight)]
     }
     set m [::math::statistics::median $ranges]
      
@@ -127,7 +129,7 @@ proc ::measure::listutils::xyThinout { xvalues yvalues } {
     ::lappend yy [lindex $y 0]
     
     for { set i 1 } { $i < [llength $x] && $i < [llength $y] } { incr i } {
-        set r [expr power2([lindex $x $i] - [lindex $xx end]) + power2([lindex $y $i] - [lindex $yy end])]
+        set r [expr power2(([lindex $x $i] - [lindex $xx end]) * $xWeight) + power2(([lindex $y $i] - [lindex $yy end]) * $yWeight)]
         if { $r > $m } {
             ::lappend xx [lindex $x $i]
             ::lappend yy [lindex $y $i]
