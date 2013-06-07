@@ -165,7 +165,7 @@ proc toggleTestResistance {} {
 	set mode [measure::config::get current.method 0]
 	::measure::widget::setDisabled [expr $mode == 1] $p.r $p.lr
 	::measure::widget::setDisabled [expr $mode == 1] $p.rerr $p.lrerr
-	::measure::widget::setDisabled [expr $mode == 2] $p.cur $p.lcur
+	::measure::widget::setDisabled [expr $mode != 3] $p.cur $p.lcur
 	::measure::widget::setDisabled [expr $mode == 2] $p.curerr $p.lcurerr
 }
 

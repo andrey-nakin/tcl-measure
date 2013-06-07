@@ -38,8 +38,7 @@ proc setup {} {
     # Инициализация мультиметров на образце
     measure::measure::setupMmsForResistance
 
-    if { 2 == [measure::config::get current.method] && [measure::config::get ps.addr] != "" } {
-        # в режиме ручного измерения тока
+    if { 3 != [measure::config::get current.method] && [measure::config::get ps.addr] != "" } {
         # цепь запитывается при помощи управляемого ИП
         set ps [hardware::agilent::pse3645a::open \
     		-baud [measure::config::get ps.baud] \

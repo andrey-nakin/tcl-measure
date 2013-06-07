@@ -303,17 +303,19 @@ proc ::measure::widget::resistanceMethodControls { prefix settingsVar } {
     grid [ttk::label $prefix.lman -text "\u0412\u043E\u043B\u044C\u0442\u043C\u0435\u0442\u0440\u043E\u043C/\u0412\u0440\u0443\u0447\u043D\u0443\u044E:"] -row 4 -column 0 -sticky w
     grid [ttk::radiobutton $prefix.man -value 2 -variable settings(${settingsVar}.method) -command toggleTestResistance] -row 4 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lcur -text "  \u0421\u0438\u043B\u0430 \u0442\u043E\u043A\u0430, \u043C\u0410:"] -row 5 -column 0 -sticky w
-    grid [ttk::spinbox $prefix.cur -width 10 -textvariable settings(${settingsVar}.manual.current) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 5 -column 1 -sticky e
+    grid [ttk::label $prefix.lohm -text "\u041E\u043C\u043C\u0435\u0442\u0440\u043E\u043C:"] -row 5 -column 0 -sticky w
+    grid [ttk::radiobutton $prefix.ohm -value 3 -variable settings(${settingsVar}.method) -command toggleTestResistance] -row 5 -column 1 -sticky e
     
-    grid [ttk::label $prefix.lcurerr -text "  \u041F\u043E\u0433\u0440\u0435\u0448\u043D\u043E\u0441\u0442\u044C, \u043C\u0410:"] -row 6 -column 0 -sticky w
-    grid [ttk::spinbox $prefix.curerr -width 10 -textvariable settings(${settingsVar}.manual.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 6 -column 1 -sticky e
+    grid [ttk::label $prefix.lspc1 -text " "] -row 6 -column 0 -columnspan 2 -sticky w
     
-    grid [ttk::label $prefix.lohm -text "\u041E\u043C\u043C\u0435\u0442\u0440\u043E\u043C:"] -row 7 -column 0 -sticky w
-    grid [ttk::radiobutton $prefix.ohm -value 3 -variable settings(${settingsVar}.method) -command toggleTestResistance] -row 7 -column 1 -sticky e
+    grid [ttk::label $prefix.lcur -text "\u0421\u0438\u043B\u0430 \u0442\u043E\u043A\u0430, \u043C\u0410:"] -row 7 -column 0 -sticky w
+    grid [ttk::spinbox $prefix.cur -width 10 -textvariable settings(${settingsVar}.manual.current) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 7 -column 1 -sticky e
+    
+    grid [ttk::label $prefix.lcurerr -text "\u041F\u043E\u0433\u0440\u0435\u0448\u043D\u043E\u0441\u0442\u044C, \u043C\u0410:"] -row 8 -column 0 -sticky w
+    grid [ttk::spinbox $prefix.curerr -width 10 -textvariable settings(${settingsVar}.manual.error) -from 0 -to 10000000 -increment 100 -validate key -validatecommand {string is double %P}] -row 8 -column 1 -sticky e
     
     grid columnconfigure $prefix { 0 1 } -pad 5
-    grid rowconfigure $prefix { 0 1 2 3 4 5 6 7 } -pad 5
+    grid rowconfigure $prefix { 0 1 2 3 4 5 6 7 8 } -pad 5
     grid columnconfigure $prefix { 1 } -weight 1
 }
 
