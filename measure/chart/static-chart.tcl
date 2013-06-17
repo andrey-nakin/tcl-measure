@@ -26,6 +26,7 @@ proc measure::chart::staticChart { args } {
 	set usage ": measure::chart::movingChart \[options] canvas\noptions:"
 	array set options [::cmdline::getoptions args $opts $usage]
 	lassign $args canvas
+	set options(canvas) $canvas
 
 	namespace eval ::measure::chart::${canvas} {
         variable redo
@@ -66,7 +67,9 @@ proc measure::chart::staticChart { args } {
                     # достигли предела - проредить старые точки
                     lassign [makeXLimits] xmin xmax 
                     lassign [makeYLimits] ymin ymax 
-                    ::measure::listutils::xyThinout xValues($series) yValues($series) [expr 1.0 / ($xmax - $xmin)] [expr 1.0 / ($ymax - $ymin)]
+                    ::measure::listutils::xyThinout xValues($series) yValues($series) \
+                        [expr [winfo width $options(canvas)] / ($xmax - $xmin)] \
+                        [expr [winfo height $options(canvas)] / ($ymax - $ymin)]
                 }
         		lappend xValues($series) $x
         		lappend yValues($series) $y
