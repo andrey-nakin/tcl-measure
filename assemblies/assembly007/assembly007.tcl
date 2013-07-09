@@ -463,7 +463,7 @@ pack $p -fill x -padx 10 -pady 5
 
 set p [ttk::labelframe $w.nb.tsetup.tc -text " Термопара " -pad 10]
 pack $p -fill x -padx 10 -pady 5
-::measure::widget::thermoCoupleControls -nb $w.nb -workingTs $w.nb.m -currentTs $w.nb.setup $p tc
+::measure::widget::thermoCoupleControls -nb $w.nb -workingTs $w.nb.m -currentTs $w.nb.tsetup $p tc
 
 # Стандартная панель
 ::measure::widget::std-bottom-panel $w
