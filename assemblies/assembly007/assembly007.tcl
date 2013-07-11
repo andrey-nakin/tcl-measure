@@ -25,6 +25,7 @@ package require measure::datafile
 package require measure::format
 package require startfile
 package require hardware::agilent::mm34410a
+package require measure::widget::fullscreen
 
 ###############################################################################
 # Константы
