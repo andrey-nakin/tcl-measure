@@ -230,10 +230,9 @@ proc ::measure::measure::resistance { args } {
 	}
 
 	# считываем значение напряжения и вычисляем погрешность измерений
+	set vs [split [scpi::query $mm "FETCH?"] ","] 
 	if { $params(n) != 1 } {
-    	set vs [split [scpi::query $mm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
-    } else {
-    	set vs [scpi::query $mm "READ?"]
+    	scpi::cmd $mm "SAMPLE:COUNT 1"
     } 
 	# среднее значение и погрешность измерения
 	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
@@ -244,11 +243,10 @@ proc ::measure::measure::resistance { args } {
 	switch -exact -- $mmethod {
         0 {
             # измеряем непосредственно ток
-            if { $params(n) != 1 } {
-                set cs [split [scpi::query $cmm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
-            } else {
-                set cs [scpi::query $cmm "READ?"]
-            }
+        	set cs [split [scpi::query $cmm "FETCH?"] ","] 
+        	if { $params(n) != 1 } {
+            	scpi::cmd $cmm "SAMPLE:COUNT 1"
+            } 
             # среднее значение и погрешность измерения
         	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
             # инструментальная погрешность
