@@ -16,6 +16,9 @@ package require hardware::owen::trm201
 # Число измерений, по которым определяется производная dT/dt
 set DERIVATIVE_READINGS 10
 
+# Число точек, по которым экстраполируется измеряемая величина
+set EXTRAPOL 2
+
 # Процедура проверяет правильность настроек, при необходимости вносит поправки
 proc validateSettings {} {
     measure::config::validate {
@@ -28,12 +31,17 @@ proc validateSettings {} {
 		measure.numOfSamples 1
 
 		current.method 0
+		
+		switch.voltage 0
+		switch.current 0
+		switch.step 1
+		switch.delay 0
     }	
 }
 
 # Инициализация приборов
 proc setup {} {
-    global ps tcmm log trm connectors connectorIndex connectorStep vSwitches cSwitches
+    global ps tcmm log trm connectors connectorIndex connectorStep vSwitches cSwitches tValues vValues cValues rValues
 
     # Инициализация мультиметров на образце
     measure::measure::setupMmsForResistance
@@ -110,6 +118,10 @@ proc setup {} {
     }
     set connectorIndex 0
     set connectorStep 0
+    set tValues {}
+    set vValues {}
+    set cValues {}
+    set rValues {}
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -232,7 +244,8 @@ proc readTempMm {} {
 
 # Измеряем сопротивление и регистрируем его вместе с температурой
 proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { dotrace 1 } } {
-    global settings connectors connectorIndex connectorStep vSwitches cSwitches
+    global log
+    global settings connectors connectorIndex connectorStep vSwitches cSwitches tValues vValues cValues rValues EXTRAPOL
 
 	# Измеряем напряжение
 	lassign [measure::measure::resistance] v sv c sc r sr
@@ -242,24 +255,9 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
 
     if { $write } {
     	# Выводим результаты в результирующий файл
-    	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
-    	if { $manual } {
-    	   set manual true
-        } else {
-            set manual false
-        }
-        if { $rho != "" } {
-            set rho [format %0.6g $rho]
-            set rhoErr [format %0.2g $rhoErr]
-        }
-    	measure::datafile::write $settings(result.fileName) [list \
-            TIMESTAMP [format %0.3f $temp] [format %0.3f $tempErr] [format %0.3f $tempDer]  \
-            [format %0.6g $c] [format %0.2g $sc]    \
-            [format %0.6g $v] [format %0.2g $sv]    \
-            [format %0.6g $r] [format %0.2g $sr]    \
-            $rho $rhoErr  \
-            $manual \
-            [lindex $vSwitches $connectorIndex] [lindex $cSwitches $connectorIndex] ]
+    	writeDataPoint $settings(result.fileName) $temp $tempErr $tempDer \
+            $v $sv $c $sc $r $sr    \
+            $manual [lindex $vSwitches $connectorIndex] [lindex $cSwitches $connectorIndex]   
     }
     
     if { $dotrace } {
@@ -271,6 +269,18 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
     
     if { [llength $connectors] > 1 && $write } {
         # отслеживаем переполюсовки
+        if { $connectorStep == 0 } {
+            # записываем точку в файл с очищенными результатами
+        	lassign [refineDataPoint $tValues $vValues $temp $v $sv] refinedV refinedSV 
+        	lassign [refineDataPoint $tValues $cValues $temp $c $sc] refinedC refinedSC 
+        	lassign [refineDataPoint $tValues $rValues $temp $r $sr] refinedR refinedSR
+             
+        	writeDataPoint [refinedFileName $settings(result.fileName)] $temp $tempErr $tempDer \
+                $refinedV $refinedSV $refinedC $refinedSC $refinedR $refinedSR   
+
+            set tValues {}; set vValues {}; set cValues {}; set rValues {}
+        }
+        
         incr connectorStep
         if { [measure::config::get switch.step 1] <= $connectorStep } {
             set connectorStep 0
@@ -281,6 +291,13 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
             setConnectors [lindex $connectors $connectorIndex]
             after [measure::config::get switch.delay 0]
         }
+    }
+    
+    if { $write } {
+        ::measure::listutils::lappend tValues $temp $EXTRAPOL
+        ::measure::listutils::lappend vValues $v $EXTRAPOL
+        ::measure::listutils::lappend cValues $c $EXTRAPOL
+        ::measure::listutils::lappend rValues $r $EXTRAPOL
     }
 }
 
@@ -310,4 +327,55 @@ proc setConnectors { conns } {
     	# в данном режиме цепь всегда разомкнута
         hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
     }
+}
+
+# конструирует имя файла для очищенных данных
+proc refinedFileName { fn } {
+    return "[file rootname $fn].refined[file extension $fn]"
+}
+
+# вычислим "очищенное" значение по нескольким предыдущим и текущему значению, полученному после переполюсовки
+proc refineDataPoint { tValues values t v err } {
+    global log
+    set len [llength $values]
+
+    if { $len > 0 } {
+        # в простейшем случае просто среднее арифметическое двух значений
+        set prev [lindex $values end]
+        
+        if { $len > 1} {
+            # по двум предыдущим точкам определяем, какое могло бы быть значение при текущей температуре и прежней переполюсовке
+            set slope [::measure::math::slope $tValues $values]
+            set prev [expr $prev + $slope * ($t - [lindex $tValues end])]
+        }
+        
+        set err [::measure::sigma::add $err [expr abs(0.5 * ($prev - $v))] ] 
+        set v [expr 0.5 * ($prev + $v)]
+    }
+    
+    # simply return given values by default
+    return [list $v $err]
+}
+
+# записывает точку в файл данных с попутным вычислением удельного сопротивления
+proc writeDataPoint { fn temp tempErr tempDer v sv c sc r sr { manual 0 } { vPolarity "" } { cPolarity "" } } {
+	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
+    if { $rho != "" } {
+        set rho [format %0.6g $rho]
+        set rhoErr [format %0.2g $rhoErr]
+    }
+	
+	if { $manual } {
+	   set manual true
+    } else {
+        set manual ""
+    }
+    
+	measure::datafile::write $fn [list \
+        TIMESTAMP [format %0.3f $temp] [format %0.3f $tempErr] [format %0.3f $tempDer]  \
+        [format %0.6g $c] [format %0.2g $sc]    \
+        [format %0.6g $v] [format %0.2g $sv]    \
+        [format %0.6g $r] [format %0.2g $sr]    \
+        $rho $rhoErr  \
+        $manual $vPolarity $cPolarity ]
 }
