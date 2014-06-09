@@ -360,6 +360,15 @@ grid columnconfigure $p { 1 } -weight 1
 
 pack $p -fill x -padx 10 -pady 5
 
+# Настройки переполюсовки
+
+set p [ttk::labelframe $w.nb.ms.l.switch -text " Переполюсовка " -pad 10]
+pack $p -fill x -padx 10 -pady 5
+::measure::widget::switchControls $p switch
+
+grid [ttk::label $p.lstep -text "Кол-во точек перед переполюсовкой:"] -row 3 -column 0 -sticky w
+grid [ttk::spinbox $p.step -width 10 -textvariable settings(switch.step) -from 1 -to 100 -increment 1 -validate key -validatecommand {string is integer %P}] -row 3 -column 1 -sticky e
+
 # Правая колонка
 
 # Раздел настроек метода измерения тока

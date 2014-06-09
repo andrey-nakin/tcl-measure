@@ -330,7 +330,7 @@ proc ::measure::widget::switchControls { prefix settingsVar } {
     grid [ttk::spinbox $prefix.delay -width 10 -textvariable settings(${settingsVar}.delay) -from 0 -to 10000 -increment 100 -validate key -validatecommand {string is integer %P}] -row 2 -column 1 -sticky e
     
     grid columnconfigure $prefix {0 1} -pad 5
-    grid rowconfigure $prefix {0 1 2 3} -pad 5
+    grid rowconfigure $prefix {0 1 2 3 4 5 6 7 8 9} -pad 5
     grid columnconfigure $prefix { 1 } -weight 1
 }
 

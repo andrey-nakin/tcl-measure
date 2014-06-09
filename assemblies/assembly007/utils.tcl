@@ -33,7 +33,7 @@ proc validateSettings {} {
 
 # Инициализация приборов
 proc setup {} {
-    global ps tcmm log trm
+    global ps tcmm log trm connectors connectorIndex connectorStep vSwitches cSwitches
 
     # Инициализация мультиметров на образце
     measure::measure::setupMmsForResistance
@@ -84,6 +84,32 @@ proc setup {} {
         # Настраиваем ТРМ-201 для измерения температуры
         ::hardware::owen::trm201::setTcType $trm [measure::config::get tc.type] 
     }
+
+    set connectors [list { 0 0 0 0 }]
+    set vSwitches { 0 }
+    set cSwitches { 0 }
+    if { 0 != [measure::config::get switch.voltage 0]} {
+        # переполюсовка по напряжению
+    	# Инверсное подключение вольтметра
+    	lappend connectors {1000 1000 0 0}
+        lappend vSwitches { 1 } 
+        lappend cSwitches { 0 } 
+    }
+    if { 0 != [measure::config::get switch.current 0]} {
+        # переполюсовка по току
+    	# Инверсное подключение источника тока
+    	lappend connectors { 0 0 1000 1000 }
+        lappend vSwitches { 0 } 
+        lappend cSwitches { 1 } 
+        if { 0 != [measure::config::get switch.voltage 0]} {
+    		# Инверсное подключение вольтметра и источника тока
+    		lappend connectors { 1000 1000 1000 1000 } 
+            lappend vSwitches { 1 } 
+            lappend cSwitches { 1 } 
+        }
+    }
+    set connectorIndex 0
+    set connectorStep 0
 }
 
 # Завершаем работу установки, матчасть в исходное.
@@ -206,7 +232,7 @@ proc readTempMm {} {
 
 # Измеряем сопротивление и регистрируем его вместе с температурой
 proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { dotrace 1 } } {
-    global settings
+    global settings connectors connectorIndex connectorStep vSwitches cSwitches
 
 	# Измеряем напряжение
 	lassign [measure::measure::resistance] v sv c sc r sr
@@ -220,7 +246,7 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
     	if { $manual } {
     	   set manual true
         } else {
-            set manual ""
+            set manual false
         }
         if { $rho != "" } {
             set rho [format %0.6g $rho]
@@ -232,7 +258,8 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
             [format %0.6g $v] [format %0.2g $sv]    \
             [format %0.6g $r] [format %0.2g $sr]    \
             $rho $rhoErr  \
-            $manual]
+            $manual \
+            [lindex $vSwitches $connectorIndex] [lindex $cSwitches $connectorIndex] ]
     }
     
     if { $dotrace } {
@@ -241,10 +268,46 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
             [format %0.3f $temp] [format %0.3f $tempDer] [format %0.6g $r]  \
         ]
     }
+    
+    if { [llength $connectors] > 1 && $write } {
+        # отслеживаем переполюсовки
+        incr connectorStep
+        if { [measure::config::get switch.step 1] <= $connectorStep } {
+            set connectorStep 0
+            incr connectorIndex
+            if { $connectorIndex >= [llength $connectors] } {
+                set connectorIndex 0 
+            }
+            setConnectors [lindex $connectors $connectorIndex]
+            after [measure::config::get switch.delay 0]
+        }
+    }
 }
 
 proc resetConnectors { } {
     global settings
 
     hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 {0 0 0 0 0 0 0 0}
+}
+
+# Устанавливает положение переключателей полярности
+proc setConnectors { conns } {
+    global settings
+
+    if { $settings(current.method) != 3 } {
+    	# размыкаем цепь
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
+    	#after 500
+    
+    	# производим переключение полярности
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 0 $conns
+    	#after 500
+
+    	# замыкаем цепь
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {0}
+    	#after 500
+    } else {
+    	# в данном режиме цепь всегда разомкнута
+        hardware::owen::mvu8::modbus::setChannels $settings(switch.serialAddr) $settings(switch.rs485Addr) 4 {1000}
+    }
 }
