@@ -141,14 +141,20 @@ proc makeMeasurement {} {
 proc addComment { comment } {
     global log measureComments refinedMeasureComments
 
+    ${log}::debug "addComment //$comment//"
+
     if { ![info exists measureComments] } {
         set measureComments {}
     }
     if { ![info exists refinedMeasureComments] } {
         set refinedMeasureComments {}
     }
-    lappend measureComments $comment
-    lappend refinedMeasureComments $comment
+    lappend measureComments "$comment"
+    ${log}::debug "len measureComments = [llength $measureComments]"
+    ${log}::debug "len comment = [llength $comment]"
+    ${log}::debug "comment = //$comment//"
+    ${log}::debug "measureComments = //$measureComments//"
+    lappend refinedMeasureComments "$comment"
 }
 
 ###############################################################################

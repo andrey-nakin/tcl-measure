@@ -86,7 +86,6 @@ proc stopMeasure {} {
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
 	$w.nb.m.ctl.measure configure -state disabled
-	$w.nb.m.ctl.comment configure -state disabled
 	$w.nb.m.ctl.addComment configure -state disabled
 }
 
@@ -112,7 +111,6 @@ proc startMeasure {} {
     # Разрешаем кнопку останова измерений
 	$w.nb.m.ctl.stop configure -state normal
 	$w.nb.m.ctl.measure configure -state normal
-	$w.nb.m.ctl.comment configure -state normal
 	$w.nb.m.ctl.addComment configure -state normal
 	
     # Очищаем результаты в окне программы
@@ -129,7 +127,6 @@ proc terminateMeasure {} {
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
 	$w.nb.m.ctl.measure configure -state disabled
-	$w.nb.m.ctl.comment configure -state disabled
 	$w.nb.m.ctl.addComment configure -state disabled
 	
 	# Посылаем в измерительный поток сигнал об останове
@@ -210,7 +207,7 @@ proc addComment {} {
     global measureComment 
 	global workerId
 	if { [info exists workerId] } {
-		thread::send -async $workerId "addComment $measureComment"
+		thread::send -async $workerId "addComment \"$measureComment\""
 	}
 }
 
@@ -283,7 +280,7 @@ set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
 grid [ttk::button $p.measure -text "Снять точку" -state disabled -command makeMeasurement -image ::img::next -compound left] -row 0 -column 0 -sticky w
-grid [ttk::entry $p.comment -textvariable measureComment -state disabled] -row 0 -column 1 -sticky we
+grid [ttk::entry $p.comment -textvariable measureComment] -row 0 -column 1 -sticky we
 grid [ttk::button $p.addComment -text "Добавить комментарий" -state disabled -command addComment -compound left] -row 0 -column 2 -sticky w
 grid [ttk::button $p.stop -text "Остановить запись" -command terminateMeasure -state disabled -image ::img::stop -compound left] -row 0 -column 3 -sticky e
 grid [ttk::button $p.start -text "Начать запись" -command startMeasure -image ::img::start -compound left] -row 0 -column 4 -sticky e
