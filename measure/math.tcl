@@ -58,7 +58,10 @@ proc ::measure::math::slope { xvalues yvalues } {
     }
     
     if { $len == 2 } {
-        set res [expr ([lindex $yvalues 1] - [lindex $yvalues 0]) / ([lindex $xvalues 1] - [lindex $xvalues 0])]
+        if { [catch { set res [expr ([lindex $yvalues 1] - [lindex $yvalues 0]) / ([lindex $xvalues 1] - [lindex $xvalues 0])] }] } {
+            set res 0.0
+        }
+        
         # check if res is INF
         if { [catch {expr $res - $res}] } { 
             set res 0.0
