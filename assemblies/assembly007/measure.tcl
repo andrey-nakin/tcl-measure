@@ -138,6 +138,19 @@ proc makeMeasurement {} {
     set doMeasurement 1
 }
 
+proc addComment { comment } {
+    global log measureComments refinedMeasureComments
+
+    if { ![info exists measureComments] } {
+        set measureComments {}
+    }
+    if { ![info exists refinedMeasureComments] } {
+        set refinedMeasureComments {}
+    }
+    lappend measureComments $comment
+    lappend refinedMeasureComments $comment
+}
+
 ###############################################################################
 # Начало работы
 ###############################################################################

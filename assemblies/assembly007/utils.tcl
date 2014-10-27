@@ -245,7 +245,7 @@ proc readTempMm {} {
 # Измеряем сопротивление и регистрируем его вместе с температурой
 proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { dotrace 1 } } {
     global log
-    global settings connectors connectorIndex connectorStep vSwitches cSwitches tValues vValues cValues rValues EXTRAPOL
+    global settings connectors connectorIndex connectorStep vSwitches cSwitches tValues vValues cValues rValues EXTRAPOL measureComments refinedMeasureComments
 
 	# Измеряем напряжение
 	lassign [measure::measure::resistance] v sv c sc r sr
@@ -257,7 +257,8 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
     	# Выводим результаты в результирующий файл
     	writeDataPoint $settings(result.fileName) $temp $tempErr $tempDer \
             $v $sv $c $sc $r $sr    \
-            $manual [lindex $vSwitches $connectorIndex] [lindex $cSwitches $connectorIndex]   
+            $manual [lindex $vSwitches $connectorIndex] [lindex $cSwitches $connectorIndex] \
+            measureComments   
     }
     
     if { $dotrace } {
@@ -275,8 +276,11 @@ proc readResistanceAndWrite { temp tempErr tempDer { write 0 } { manual 0 } { do
         	lassign [refineDataPoint $tValues $cValues $temp $c $sc] refinedC refinedSC 
         	lassign [refineDataPoint $tValues $rValues $temp $r $sr] refinedR refinedSR
              
+            display $refinedV $refinedSV $refinedC $refinedSC $refinedR $refinedSR $temp $tempErr $tempDer refined
+            
         	writeDataPoint [refinedFileName $settings(result.fileName)] $temp $tempErr $tempDer \
-                $refinedV $refinedSV $refinedC $refinedSC $refinedR $refinedSR   
+                $refinedV $refinedSV $refinedC $refinedSC $refinedR $refinedSR \
+                0 "" "" refinedMeasureComments   
 
             set tValues {}; set vValues {}; set cValues {}; set rValues {}
         }
@@ -358,7 +362,9 @@ proc refineDataPoint { tValues values t v err } {
 }
 
 # записывает точку в файл данных с попутным вычислением удельного сопротивления
-proc writeDataPoint { fn temp tempErr tempDer v sv c sc r sr { manual 0 } { vPolarity "" } { cPolarity "" } } {
+proc writeDataPoint { fn temp tempErr tempDer v sv c sc r sr { manual 0 } { vPolarity "" } { cPolarity "" } { cfn "" } } {
+    global $cfn
+
 	lassign [::measure::measure::calcRho $r $sr] rho rhoErr
     if { $rho != "" } {
         set rho [format %0.6g $rho]
@@ -371,11 +377,19 @@ proc writeDataPoint { fn temp tempErr tempDer v sv c sc r sr { manual 0 } { vPol
         set manual ""
     }
     
+    set comment ""
+    if { [string length $cfn] > 0 && [info exists $cfn] } {
+        upvar 0 $cfn cmt
+        set comment $cmt
+        unset $cfn 
+    }
+    
 	measure::datafile::write $fn [list \
         TIMESTAMP [format %0.3f $temp] [format %0.3f $tempErr] [format %0.3f $tempDer]  \
         [format %0.6g $c] [format %0.2g $sc]    \
         [format %0.6g $v] [format %0.2g $sv]    \
         [format %0.6g $r] [format %0.2g $sr]    \
         $rho $rhoErr  \
-        $manual $vPolarity $cPolarity ]
+        $manual $vPolarity $cPolarity \
+        $comment ]
 }

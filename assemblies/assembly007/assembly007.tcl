@@ -86,6 +86,8 @@ proc stopMeasure {} {
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
 	$w.nb.m.ctl.measure configure -state disabled
+	$w.nb.m.ctl.comment configure -state disabled
+	$w.nb.m.ctl.addComment configure -state disabled
 }
 
 # Запускаем измерения
@@ -110,6 +112,8 @@ proc startMeasure {} {
     # Разрешаем кнопку останова измерений
 	$w.nb.m.ctl.stop configure -state normal
 	$w.nb.m.ctl.measure configure -state normal
+	$w.nb.m.ctl.comment configure -state normal
+	$w.nb.m.ctl.addComment configure -state normal
 	
     # Очищаем результаты в окне программы
 	clearResults
@@ -125,6 +129,8 @@ proc terminateMeasure {} {
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
 	$w.nb.m.ctl.measure configure -state disabled
+	$w.nb.m.ctl.comment configure -state disabled
+	$w.nb.m.ctl.addComment configure -state disabled
 	
 	# Посылаем в измерительный поток сигнал об останове
 	measure::interop::terminate
@@ -200,12 +206,26 @@ proc makeMeasurement {} {
 	}
 }
 
+proc addComment {} {
+    global measureComment 
+	global workerId
+	if { [info exists workerId] } {
+		thread::send -async $workerId "addComment $measureComment"
+	}
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
 
 proc display { v sv c sc r sr temp tempErr tempDer write } {
     global runtime chartR_T chartR_t chartT_t chartdT_t w
+    
+    if { $write == "refined" } {
+        # очищенная точка - выводим только на графике
+    	measure::chart::${chartR_T}::addPoint $temp $r refined
+    	return
+    }
     
     # Выводим результаты в окно программы
 	set runtime(temperature) [::measure::format::valueWithErr -- $temp $tempErr "К"]
@@ -263,11 +283,14 @@ set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
 grid [ttk::button $p.measure -text "Снять точку" -state disabled -command makeMeasurement -image ::img::next -compound left] -row 0 -column 0 -sticky w
-grid [ttk::button $p.stop -text "Остановить запись" -command terminateMeasure -state disabled -image ::img::stop -compound left] -row 0 -column 1 -sticky e
-grid [ttk::button $p.start -text "Начать запись" -command startMeasure -image ::img::start -compound left] -row 0 -column 2 -sticky e
+grid [ttk::entry $p.comment -textvariable measureComment -state disabled] -row 0 -column 1 -sticky we
+grid [ttk::button $p.addComment -text "Добавить комментарий" -state disabled -command addComment -compound left] -row 0 -column 2 -sticky w
+grid [ttk::button $p.stop -text "Остановить запись" -command terminateMeasure -state disabled -image ::img::stop -compound left] -row 0 -column 3 -sticky e
+grid [ttk::button $p.start -text "Начать запись" -command startMeasure -image ::img::start -compound left] -row 0 -column 4 -sticky e
 
-grid columnconfigure $p { 0 1 2 } -pad 10
-grid columnconfigure $p { 0 } -weight 1
+grid columnconfigure $p { 1 3 4 } -pad 10
+grid columnconfigure $p { 0 2 } -pad 50
+grid columnconfigure $p { 1 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
 # Раздел "Результаты измерения"
@@ -306,6 +329,7 @@ grid $chartR_T -row 0 -column 0 -sticky news
 measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" -dots 1 -lines 1 $chartR_T
 measure::chart::${chartR_T}::series test -order 1 -maxCount 10 -color #7f7fff
 measure::chart::${chartR_T}::series result -order 2 -maxCount 200 -thinout -color green
+measure::chart::${chartR_T}::series refined -order 2 -maxCount 200 -thinout -color blue
 
 set chartR_t [canvas $p.r_t -width 200 -height 200]
 grid $chartR_t -row 0 -column 1 -sticky news
