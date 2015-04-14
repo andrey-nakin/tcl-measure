@@ -78,14 +78,12 @@ proc ::measure::measure::setupMmsForResistance { args } {
     	# Настраиваем мультиметр для измерения постоянного напряжения
     	hardware::agilent::mm34410a::configureDcVoltage \
     		-nplc $mmNplc \
-    		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
     		-text2 "MM1 VOLTAGE" \
     		 $mm
     } else {
     	# Настраиваем мультиметр для измерения сопротивления
     	hardware::agilent::mm34410a::configureResistance4w \
     		-nplc $mmNplc \
-    		-scpiVersion $hardware::agilent::mm34410a::SCPI_VERSION   \
     		-text2 "MM1 RESISTANCE" \
     		 $mm
     }

@@ -69,12 +69,13 @@ proc scpi::open { args } {
 		}
 	}
 
-    # store device customized names or adder for later diagnostics
+    # store device customized names or addr for later diagnostics
     set name $options(name)
     if { $name == "" } {
         set name $addr
     }
     set channelNames($channel) $name
+    after 1000
 
 	return $channel
 }

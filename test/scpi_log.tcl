@@ -30,7 +30,7 @@ if { [string first INSTR $port] < 0 } {
     }
 }
 
-if {[catch {fconfigure $fd -blocking 1 -mode $mode -buffering line -encoding binary -translation binary} err]} {
+if {[catch {fconfigure $fd -blocking 1 -mode $mode -buffering line -encoding binary -translation binary -timeout 20000} err]} {
 	close $fd
 	puts $err
 	exit

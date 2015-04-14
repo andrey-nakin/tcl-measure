@@ -175,7 +175,7 @@ set hardware::agilent::mm34410a::dciRanges { 100.0e-6 1.0e-3 10.0e-3 100.0e-3 1.
 
 set hardware::agilent::mm34410a::resistanceRanges { 100.0 1.0e3 10.0e3 100.0e3 1.0e6 10.0e6 100.0e6 1.0e9 }
 
-set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*" "^HEWLETT-PACKARD,34401A,.*" }
+set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*" "^HEWLETT-PACKARD,34401A,.*" "^V7-28,*" }
 
 # Calculates and returns systematic DC voltage measure error
 # Automatic ranging mode is assumed. NPLC=10
@@ -451,7 +451,7 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 	set mm [lindex $args 0]
 	
 	# Определим версию протокола SCPI
-	set version [scpi::query $mm "SYSTEM:VERSION?"]
+	set version [string trim [scpi::query $mm "SYSTEM:VERSION?"]]
 	
 	# Проверим правильность версии SCPI
 	if { $params(scpiVersion) != "" && $params(scpiVersion) > $version } {
