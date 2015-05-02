@@ -429,10 +429,34 @@ grid rowconfigure $p { 0 1 } -pad 5
 set p [ttk::labelframe $w.nb.tsetup.tcm -text " Измеритель температуры ТРМ-201 " -pad 10]
 pack $p -fill x -padx 10 -pady 5
 
-grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441 TPM-201:"] -row 0 -column 0 -sticky w
+grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
 grid [ttk::spinbox $p.netAddr -width 10 -textvariable settings(trm1.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
 
 grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testTrm201 settings(rs485.serialPort) settings(trm1.rs485Addr) $p.test] ] -row 0 -column 2 -sticky e
+
+grid columnconfigure $p { 0 1 2 } -pad 5
+grid columnconfigure $p { 2 } -weight 1
+grid rowconfigure $p { 0 1 } -pad 5
+
+set p [ttk::labelframe $w.nb.tsetup.lir1 -text " Декодер угла поворота ЛИР-916 № 1" -pad 10]
+pack $p -fill x -padx 10 -pady 5
+
+grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
+grid [ttk::spinbox $p.netAddr -width 10 -textvariable settings(lir1.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
+
+grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testLir916 settings(rs485.serialPort) settings(lir1.rs485Addr) $p.test] ] -row 0 -column 2 -sticky e
+
+grid columnconfigure $p { 0 1 2 } -pad 5
+grid columnconfigure $p { 2 } -weight 1
+grid rowconfigure $p { 0 1 } -pad 5
+
+set p [ttk::labelframe $w.nb.tsetup.lir2 -text " Декодер угла поворота ЛИР-916 № 2" -pad 10]
+pack $p -fill x -padx 10 -pady 5
+
+grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
+grid [ttk::spinbox $p.netAddr -width 10 -textvariable settings(lir2.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
+
+grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testLir916 settings(rs485.serialPort) settings(lir2.rs485Addr) $p.test] ] -row 0 -column 2 -sticky e
 
 grid columnconfigure $p { 0 1 2 } -pad 5
 grid columnconfigure $p { 2 } -weight 1

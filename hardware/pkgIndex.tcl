@@ -12,5 +12,6 @@ package ifneeded scpimm 0.1.0 [list source [file join $dir scpi-mm.tcl]]
 set maindir $dir
 set dir [file join $maindir owen] ;	 source [file join $dir pkgIndex.tcl]
 set dir [file join $maindir agilent] ;	 source [file join $dir pkgIndex.tcl]
+set dir [file join $maindir skbis] ;	 source [file join $dir pkgIndex.tcl]
 unset maindir
 

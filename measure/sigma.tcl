@@ -66,3 +66,11 @@ proc measure::sigma::div { a da b db } {
 	return [expr 1.0 / $b * sqrt($da * $da + $x * $x)]
 }
 
+proc measure::sigma::sin { a da } {
+	return [expr 0.5 * abs( sin($a + $da) - sin($a - $da) )]
+}
+
+proc measure::sigma::pow3 { a da } {
+	return [measure::sigma::mul $a $da $a $da $a $da]
+}
+
