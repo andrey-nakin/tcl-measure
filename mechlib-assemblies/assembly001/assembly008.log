@@ -1,0 +1,494 @@
+[2015-05-02T10:53:14]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T10:53:14]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:05:28]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:05:28]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:11:09]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:11:09]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:11:53]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:11:53]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:18:05]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:18:05]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:18:36]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:18:36]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:23:00]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:23:00]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:23:19]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:23:19]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:26:22]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:26:22]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:38:51]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:38:51]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:39:30]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:39:30]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:39:41]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:39:41]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:42:55]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:42:55]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:45:08]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:45:08]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T11:45:38]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T11:45:38]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T14:45:17]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T14:45:17]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T14:45:33]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T14:45:33]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T14:46:48]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T14:46:48]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T14:49:29]	error	tester	Error executing worker thread: Required `mm.addr' option is not found in configuration file
+-code 1 -level 0 -errorcode NONE -errorinfo {Required `mm.addr' option is not found in configuration file
+    while executing
+"error "Required `$optName' option is not found in configuration file""
+    (procedure "measure::config::get" line 26)
+    invoked from within
+"measure::config::get -required mm.addr"
+    (procedure "measure::measure::setupMmsForResistance" line 38)
+    invoked from within
+"measure::measure::setupMmsForResistance"
+    (procedure "setup" line 5)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T14:49:29]	error	tester	Error executing finalizer: can't read "settings(switch.serialAddr)": no such element in array
+[2015-05-02T16:17:15]	error	tester	Error executing worker thread: Unsupported thermocopule type 
+-code 1 -level 0 -errorcode NONE -errorinfo {Unsupported thermocopule type 
+    while executing
+"error "Unsupported thermocopule type $tcType""
+    (procedure "::hardware::owen::trm201::setTcType" line 5)
+    invoked from within
+"::hardware::owen::trm201::setTcType $trm [measure::config::get tc.type] "
+    (procedure "setup" line 7)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T16:17:40]	error	tester	Error executing worker thread: Cannot setup thermocouple type on TRM-201: '16' is set but '' is actually returned
+-code 1 -level 0 -errorcode NONE -errorinfo {Cannot setup thermocouple type on TRM-201: '16' is set but '' is actually returned
+    while executing
+"error "Cannot setup thermocouple type on TRM-201: '$tc' is set but '$res' is actually returned""
+    (procedure "::hardware::owen::trm201::setTcType" line 11)
+    invoked from within
+"::hardware::owen::trm201::setTcType $trm [measure::config::get tc.type] "
+    (procedure "setup" line 7)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
+[2015-05-02T16:26:33]	error	tester	Error executing worker thread: Cannot setup thermocouple type on TRM-201: '16' is set but '' is actually returned
+-code 1 -level 0 -errorcode NONE -errorinfo {Cannot setup thermocouple type on TRM-201: '16' is set but '' is actually returned
+    while executing
+"error "Cannot setup thermocouple type on TRM-201: '$tc' is set but '$res' is actually returned""
+    (procedure "::hardware::owen::trm201::setTcType" line 11)
+    invoked from within
+"::hardware::owen::trm201::setTcType $trm [measure::config::get tc.type] "
+    (procedure "setup" line 7)
+    invoked from within
+"setup"
+    (procedure "run" line 5)
+    invoked from within
+"run"
+    (file "./tester.tcl" line 69)
+    invoked from within
+"source ./tester.tcl "
+    ("uplevel" body line 1)
+    invoked from within
+"uplevel 1 $workScript_ "} -errorline 4
