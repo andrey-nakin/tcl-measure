@@ -11,12 +11,44 @@ package require Tcl 8.4
 package provide hardware::skbis::lir916 1.0.0
 
 package require modbus
+package require cmdline
 
 namespace eval hardware::skbis::lir916 {
   namespace export init done test readAngle
 }
 
-proc ::hardware::skbis::lir916::test { port addr } {
+set ::hardware::skbis::lir916::configOptions {
+	{settings	"9600,n,8,1"	"Baud, parity, data size, stop bits"}
+	{baud		""	"Baud"}
+	{parity		""	"Parity"}
+}
+
+proc ::hardware::skbis::lir916::test { args } {
+	variable configOptions
+
+	puts "args 1 = $args"
+	set usage ": test \[options] port addr \noptions:"
+	array set params [::cmdline::getoptions args $configOptions $usage]
+	puts "args 2 = $args"
+	lassign $args port addr
+
+	set settings $params(settings)
+	puts "settings 1 = $settings"
+
+	if { $params(baud) } {
+		set s [split $params(settings) ,]
+		set settings "$params(baud),[lindex $s 1],[lindex $s 2],[lindex $s 3]"
+	}
+
+	puts "settings 2 = $settings"
+
+	if { $params(parity) } {
+		set s [split $params(settings) ,]
+		set settings "[lindex $s 0],$params(parity),[lindex $s 2],[lindex $s 3]"
+	}
+
+	puts "settings 3 = $settings"
+
 	set ok 0
     catch {
 		set res [readAbsolute $port $addr]

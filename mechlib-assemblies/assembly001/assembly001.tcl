@@ -187,6 +187,31 @@ proc addComment {} {
 	}
 }
 
+proc testLir916Impl { lir btn } {
+    global settings
+	package require hardware::skbis::lir916
+
+#	if { [catch {
+		set res [::hardware::skbis::lir916::test -baud $settings(${lir}.baud) -parity $settings(${lir}.parity) $settings(rs485.serialPort) $settings(${lir}.addr)]
+#	} ] } {
+#		set res 0
+#	}
+
+	if { $res > 0 } {
+		tk_messageBox -icon info -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u0421\u0432\u044F\u0437\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430"
+	} elseif { $res == 0} {
+		tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438"
+	} else {
+		tk_messageBox -icon error -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u423\u441\u442\u440\u43E\u439\u441\u442\u432\u43E \u43D\u435 \u44F\u432\u43B\u44F\u435\u442\u441\u44F \u438\u441\u442\u43E\u447\u43D\u438\u43A\u43E\u43C \u43F\u438\u442\u430\u43D\u438\u44F Agilent E3645A \u438\u43B\u438 \u430\u43D\u430\u43B\u43E\u433\u43E\u43C"
+	}
+    $btn configure -state enabled
+} 
+
+proc testLir916 { lir btn } {
+    $btn configure -state disabled
+	after 100 [list testLir916Impl $lir $btn]
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
@@ -430,7 +455,7 @@ set p [ttk::labelframe $w.nb.tsetup.tcm -text " Измеритель темпе�
 pack $p -fill x -padx 10 -pady 5
 
 grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.netAddr -width 10 -textvariable settings(trm1.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
+grid [ttk::spinbox $p.netAddr -width 6 -textvariable settings(trm1.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
 
 grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testTrm201 settings(rs485.serialPort) settings(trm1.rs485Addr) $p.test] ] -row 0 -column 2 -sticky e
 
@@ -442,24 +467,36 @@ set p [ttk::labelframe $w.nb.tsetup.lir1 -text " Декодер угла пов�
 pack $p -fill x -padx 10 -pady 5
 
 grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.netAddr -width 10 -textvariable settings(lir1.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
+grid [ttk::spinbox $p.netAddr -width 6 -textvariable settings(lir1.addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
 
-grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testLir916 settings(rs485.serialPort) settings(lir1.rs485Addr) $p.test] ] -row 0 -column 2 -sticky e
+grid [ttk::label $p.lbaud -text "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C, бод/с:"] -row 0 -column 2 -sticky w
+grid [ttk::combobox $p.baud -width 8 -textvariable settings(lir1.baud) -state readonly -values {9600 19200 28800 38400 57600 76800}] -row 0 -column 3 -sticky w
 
-grid columnconfigure $p { 0 1 2 } -pad 5
-grid columnconfigure $p { 2 } -weight 1
+grid [ttk::label $p.lparity -text "\u0427\u0451\u0442\u043D\u043E\u0441\u0442\u044C:"] -row 0 -column 4 -sticky w
+grid [ttk::combobox $p.parity -width 6 -textvariable settings(lir1.parity) -state readonly -values $measure::com::parities] -row 0 -column 5 -sticky w
+
+grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list testLir916 lir1 $p.test] ] -row 0 -column 6 -sticky e
+
+grid columnconfigure $p { 0 1 2 3 4 5 6 } -pad 5
+grid columnconfigure $p { 6 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
 set p [ttk::labelframe $w.nb.tsetup.lir2 -text " Декодер угла поворота ЛИР-916 № 2" -pad 10]
 pack $p -fill x -padx 10 -pady 5
 
 grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.netAddr -width 10 -textvariable settings(lir2.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
+grid [ttk::spinbox $p.netAddr -width 6 -textvariable settings(lir2.addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
 
-grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testLir916 settings(rs485.serialPort) settings(lir2.rs485Addr) $p.test] ] -row 0 -column 2 -sticky e
+grid [ttk::label $p.lbaud -text "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C, бод/с:"] -row 0 -column 2 -sticky w
+grid [ttk::combobox $p.baud -width 8 -textvariable settings(lir2.baud) -state readonly -values {9600 19200 28800 38400 57600 76800}] -row 0 -column 3 -sticky w
 
-grid columnconfigure $p { 0 1 2 } -pad 5
-grid columnconfigure $p { 2 } -weight 1
+grid [ttk::label $p.lparity -text "\u0427\u0451\u0442\u043D\u043E\u0441\u0442\u044C:"] -row 0 -column 4 -sticky w
+grid [ttk::combobox $p.parity -width 6 -textvariable settings(lir2.parity) -state readonly -values $measure::com::parities] -row 0 -column 5 -sticky w
+
+grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testLir916 settings(rs485.serialPort) settings(lir2.addr) $p.test] ] -row 0 -column 6 -sticky e
+
+grid columnconfigure $p { 0 1 2 3 4 5 6 } -pad 5
+grid columnconfigure $p { 6 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
 set p [ttk::labelframe $w.nb.tsetup.tc -text " Термопара " -pad 10]
