@@ -15,11 +15,11 @@ namespace eval hardware::owen::trm201 {
   namespace export init
   
     variable thermoCoupleMapping
-    array set thermoCoupleMapping { B 14 J 15 K 16 N 18 R 19 S 20 T 21 }  
+    array set thermoCoupleMapping { B 14 J 15 K 16 L 17 N 18 R 19 S 20 T 21 }  
 }
 
 proc ::hardware::owen::trm201::test { port addr } {
-    set desc [::owen::configure -port $port -addr $addr]
+    set desc [::owen::configure -port $port -addr $addr -settings "9600,n,8,1"]
     set res [::owen::readString $desc DEV]
     if { [regexp "^...201$" $res] } {
         return 1
@@ -31,7 +31,7 @@ proc ::hardware::owen::trm201::test { port addr } {
 }
 
 proc ::hardware::owen::trm201::init { port addr } {
-    return [::owen::configure -port $port -addr $addr]
+    return [::owen::configure -port $port -addr $addr -settings "19200,n,8,1"]
 }
 
 proc ::hardware::owen::trm201::done { desc } {
