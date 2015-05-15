@@ -56,7 +56,7 @@ proc ::hardware::skbis::lir916::init { args } {
 		set params(settings) "$params(baud),[lindex $s 1],[lindex $s 2],[lindex $s 3]"
 	}
 
-	return [list $params(com) $params(settings) $params(addr)]
+	return [list $params(com) $params(settings) $params(addr) 0 0]
 }
 
 proc ::hardware::skbis::lir916::done { desc } {
@@ -86,15 +86,15 @@ proc ::hardware::skbis::lir916::readAngle { desc } {
 
 	set pi 3.1415926535897932384626433832795
 	set res [readAbsolute $desc]
-	set hi [lindex $res 0]
-	set lo [lindex $res 1]
+	set hi [expr [lindex $res 0] - [lindex $desc 4] ]
+	set lo [expr [lindex $res 1] - [lindex $desc 3] ]
 	set counter [expr (($hi & 0xFF) << 4) + (($lo >> 12) & 0xF) ]
 	set angle [expr ($lo & 0xFFF) * 2.0 * $pi / 0x1000 ]
 	return [list [expr $angle + 2.0 * $pi * $counter] [expr $pi / 0x1000] ]
 }
 
 proc ::hardware::skbis::lir916::readAbsolute { desc } {
-	::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings -com [lindex $desc 1]
+	::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings [lindex $desc 1]
 	return [::modbus::cmd 0x03 [lindex $desc 2] 0 2]
 }
 

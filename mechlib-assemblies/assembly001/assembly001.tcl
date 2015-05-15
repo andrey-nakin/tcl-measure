@@ -207,6 +207,9 @@ proc testLir916 { lir btn } {
 	after 100 [list testLir916Impl $lir $btn]
 }
 
+proc resetAngles {} {
+}
+
 ###############################################################################
 # Обработчики событий
 ###############################################################################
@@ -289,6 +292,8 @@ grid [ttk::entry $p.ec -textvariable runtime(phi1) -state readonly] -row 0 -colu
 
 grid [ttk::label $p.lv -text "φ2, град:"] -row 0 -column 3 -sticky w
 grid [ttk::entry $p.ev -textvariable runtime(phi2) -state readonly] -row 0 -column 4 -sticky we
+
+grid [ttk::button $p.reset -text "Обнулить углы" -command [list resetAngles] ] -row 0 -column 6 -columnspan 2 -sticky e
 
 grid [ttk::label $p.lt -text "Напряжение γ, %:"] -row 1 -column 0 -sticky w
 grid [ttk::entry $p.et -textvariable runtime(gamma) -state readonly] -row 1 -column 1 -sticky we
