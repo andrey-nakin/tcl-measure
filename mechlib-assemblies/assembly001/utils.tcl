@@ -132,11 +132,17 @@ proc rad2grad { v } {
 }
 
 proc display { phi1 phi1Err phi2 phi2Err temp tempErr tempDer { write 0 } } {
+	global settings
+
 	# рассчитываем деформацию
 	lassign [calcGamma $phi1 $phi1Err $phi2 $phi2Err] gamma gammaErr
 
 	# рассчитываем напряжение
 	lassign [calcTau $phi2 $phi2Err] tau tauErr
+
+	if { $write } {
+		writeDataPoint $settings(result.fileName) $temp $tempErr $tempDer $phi1 $phi1Err $phi2 $phi2Err $gamma $gammaErr $tau $tauErr 0
+	}
 
 	# переводим углы из радиан в градусы        
 	set phi1 [rad2grad $phi1]
@@ -146,15 +152,12 @@ proc display { phi1 phi1Err phi2 phi2Err temp tempErr tempDer { write 0 } } {
 
 	if { [measure::interop::isAlone] } {
 	    # Выводим результаты в консоль
-# !!!
-#    	set cv [::measure::format::valueWithErr -mult 1.0e-3 $c $sc A]
-#    	set vv [::measure::format::valueWithErr -mult 1.0e-3 $v $sv V]
-#    	set rv [::measure::format::valueWithErr $r $sr "\u03A9"]
-#    	set pw [::measure::format::value -prec 2 [expr 1.0e-6 * $c * $v] W]
 		set phi1v [::measure::format::valueWithErr -noScale -- $phi1 $phi1Err "°"]
 		set phi2v [::measure::format::valueWithErr -noScale -- $phi2 $phi2Err "°"]
+		set gammav [::measure::format::valueWithErr -noScale -- $gamma $gammaErr "%%"]
+		set tauv [::measure::format::valueWithErr -- $tau $tauErr "Па"]
     	set tv [::measure::format::valueWithErr $temp $tempErr K]
-    	puts "φ1=$phi1v\tφ2=$phi2v\t$T=$tv"
+    	puts "φ1=$phi1v\tφ2=$phi2v\tγ=$gammav\tτ=$tauv\tT=$tv"
 	} else {
 	    # Выводим результаты в окно программы
         measure::interop::cmd [list display $phi1 $phi1Err $phi2 $phi2Err $temp $tempErr $tempDer $gamma $gammaErr $tau $tauErr $write]
@@ -209,8 +212,6 @@ proc readAngles {} {
 
 # записывает точку в файл данных с попутным вычислением удельного сопротивления
 proc writeDataPoint { fn temp tempErr tempDer phi1 phi1Err phi2 phi2Err gamma gammaErr tau tauErr manual } {
-    global $cfn
-
 	if { $manual } {
 	   set manual true
     } else {

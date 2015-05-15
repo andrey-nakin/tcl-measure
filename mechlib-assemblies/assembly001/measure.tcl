@@ -40,9 +40,12 @@ proc runTimeStep {} {
         # считываем температуру
         lassign [readTemp] temp tempErr tempDer
         
-        # регистрируем сопротивление
-        readResistanceAndWrite $temp $tempErr $tempDer 1 $doMeasurement
-        
+        # считываем углы
+		lassign [readAngles] phi1 phi1Err phi2 phi2Err
+
+		# выводим результаты на экране
+		display $phi1 $phi1Err $phi2 $phi2Err $temp $tempErr $tempDer 1
+
         set t2 [clock milliseconds]
         after [expr int($step - ($t2 - $t1))] set doMeasurement 0
         vwait doMeasurement
@@ -75,18 +78,21 @@ proc runTempStep {} {
         lassign [readTemp] temp tempErr tempDer
         measure::listutils::lappend tempDerValues $tempDer 10 
         
+        # считываем углы
+		lassign [readAngles] phi1 phi1Err phi2 phi2Err
+
         if { $doMeasurement
             || $temp > $prevT && $temp > [expr ($prevN + 1) * $step]  \
             || $temp < $prevT && $temp < [expr ($prevN - 1) * $step] } {
 
-            # регистрируем сопротивление
-            readResistanceAndWrite $temp $tempErr $tempDer 1 $doMeasurement
+			# выводим результаты на экране
+			display $phi1 $phi1Err $phi2 $phi2Err $temp $tempErr $tempDer 1
             
             set prevT [expr floor($temp / $step + 0.5) * $step]
             set prevN [expr floor($temp / $step + 0.5)]
         } else {
-            # измеряем сопротивление, но не регистрируем
-            readResistanceAndWrite $temp $tempErr $tempDer 0
+			# выводим результаты на экране без записи в файл
+			display $phi1 $phi1Err $phi2 $phi2Err $temp $tempErr $tempDer 0
         } 
 
         # определим, какую паузу нужно выдержать в зависимости от dT/dt
@@ -111,8 +117,11 @@ proc runManual {} {
         # считываем температуру
         lassign [readTemp] temp tempErr tempDer
         
-        # регистрируем сопротивление
-        readResistanceAndWrite $temp $tempErr $tempDer $doMeasurement $doMeasurement
+        # считываем углы
+		lassign [readAngles] phi1 phi1Err phi2 phi2Err
+
+		# выводим результаты на экране
+		display $phi1 $phi1Err $phi2 $phi2Err $temp $tempErr $tempDer $doMeasurement
         
         after 500 set doMeasurement 0
         vwait doMeasurement
@@ -138,25 +147,6 @@ proc makeMeasurement {} {
     set doMeasurement 1
 }
 
-proc addComment { comment } {
-    global log measureComments refinedMeasureComments
-
-    ${log}::debug "addComment //$comment//"
-
-    if { ![info exists measureComments] } {
-        set measureComments {}
-    }
-    if { ![info exists refinedMeasureComments] } {
-        set refinedMeasureComments {}
-    }
-    lappend measureComments "$comment"
-    ${log}::debug "len measureComments = [llength $measureComments]"
-    ${log}::debug "len comment = [llength $comment]"
-    ${log}::debug "comment = //$comment//"
-    ${log}::debug "measureComments = //$measureComments//"
-    lappend refinedMeasureComments "$comment"
-}
-
 ###############################################################################
 # Начало работы
 ###############################################################################
@@ -178,26 +168,13 @@ setup
 
 # Создаём файлы с результатами измерений
 measure::datafile::create $settings(result.fileName) $settings(result.format) $settings(result.rewrite) {
-	"Date/Time" "T (K)" "+/- (K)" "dT/dt (K/min)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" "Rho (Ohm*cm)" "+/- (Ohm*cm)" "Manual" "U polarity" "I polarity" 
-} "$settings(result.comment), [measure::measure::dutParams]"
-
-if { $settings(switch.voltage) || $settings(switch.current) } {
-    # в случае переполюсовок создадим ещё один файл с "очищенными" данными
-    measure::datafile::create [refinedFileName $settings(result.fileName)] $settings(result.format) $settings(result.rewrite) {
-    	"Date/Time" "T (K)" "+/- (K)" "dT/dt (K/min)" "I (mA)" "+/- (mA)" "U (mV)" "+/- (mV)" "R (Ohm)" "+/- (Ohm)" "Rho (Ohm*cm)" "+/- (Ohm*cm)" 
-    } "$settings(result.comment), [measure::measure::dutParams]"
-}
-
-measure::datafile::create $settings(trace.fileName) $settings(result.format) $settings(result.rewrite) {
-	"Date/Time" "T (K)" "dT/dt (K/min)" "R (Ohm)" 
+	"Date/Time" "T (K)" "+/- (K)" "dT/dt (K/min)" "phi1" "+/-" "phi2" "+/-" "gamma (%)" "+/- (%)" "tau (Pa)" "+/- (Pa)"
 } "$settings(result.comment), [measure::measure::dutParams]"
 
 ###############################################################################
 # Основной цикл измерений
 ###############################################################################
 
-# Холостое измерение для "прогрева" мультиметров
-measure::measure::resistance -n 1
 readTemp
 
 set doMeasurement 0

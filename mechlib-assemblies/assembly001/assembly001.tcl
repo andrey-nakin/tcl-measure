@@ -87,7 +87,6 @@ proc stopMeasure {} {
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
 	$w.nb.m.ctl.measure configure -state disabled
-	$w.nb.m.ctl.addComment configure -state disabled
 }
 
 # Запускаем измерения
@@ -112,7 +111,6 @@ proc startMeasure {} {
     # Разрешаем кнопку останова измерений
 	$w.nb.m.ctl.stop configure -state normal
 	$w.nb.m.ctl.measure configure -state normal
-	$w.nb.m.ctl.addComment configure -state normal
 	
     # Очищаем результаты в окне программы
 	clearResults
@@ -128,7 +126,6 @@ proc terminateMeasure {} {
     # Запрещаем кнопку останова измерений    
 	$w.nb.m.ctl.stop configure -state disabled
 	$w.nb.m.ctl.measure configure -state disabled
-	$w.nb.m.ctl.addComment configure -state disabled
 	
 	# Посылаем в измерительный поток сигнал об останове
 	measure::interop::terminate
@@ -182,14 +179,6 @@ proc makeMeasurement {} {
 
 	if { [info exists workerId] } {
 		thread::send -async $workerId makeMeasurement
-	}
-}
-
-proc addComment {} {
-    global measureComment 
-	global workerId
-	if { [info exists workerId] } {
-		thread::send -async $workerId "addComment \"$measureComment\""
 	}
 }
 
@@ -430,9 +419,6 @@ set p [ttk::labelframe $w.nb.dut.reg -text " Файлы " -pad 10]
 
 grid [ttk::label $p.lname -text "Имя файла результатов: " -anchor e] -row 0 -column 0 -sticky w
 grid [ttk::entry $p.name -textvariable settings(result.fileName)] -row 0 -column 1 -columnspan 4 -sticky we
-
-grid [ttk::label $p.ltname -text "Имя файла трассировки: " -anchor e] -row 1 -column 0 -sticky w
-grid [ttk::entry $p.tname -textvariable settings(trace.fileName)] -row 1 -column 1 -columnspan 4 -sticky we
 
 grid [ttk::label $p.lformat -text "Формат файлов:"] -row 3 -column 0 -sticky w
 grid [ttk::combobox $p.format -width 10 -textvariable settings(result.format) -state readonly -values [list TXT CSV]] -row 3 -column 1 -columnspan 2 -sticky w
