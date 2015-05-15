@@ -16,8 +16,9 @@ package require measure::sigma
 package require measure::tsclient
 package require measure::datafile
 package require measure::measure
+package require measure::format
 
-set DELAY 500
+set DELAY 1000
 
 ###############################################################################
 # Подпрограммы
@@ -35,9 +36,12 @@ proc run {} {
         # считываем температуру
         lassign [readTemp] temp tempErr tempDer
         
-        # регистрируем сопротивление
-        readResistanceAndWrite $temp $tempErr $tempDer 0 0 0
-        
+        # считываем углы
+		lassign [readAngles] phi1 phi1Err phi2 phi2Err
+
+		# выводим результаты на экране
+		display $phi1 $phi1Err $phi2 $phi2Err $temp $tempErr $tempDer
+
         after $DELAY
     }
 }

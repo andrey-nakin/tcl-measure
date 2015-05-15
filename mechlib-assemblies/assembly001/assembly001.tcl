@@ -37,17 +37,18 @@ package require measure::widget::fullscreen
 
 # Очищаем поля с результатами измерений
 proc clearResults {} {
-    global runtime chartR_T chartR_t chartT_t chartdT_t
+    global runtime chartTau_gamma chartT_t chartGamma_T chartTau_T
 
-	set runtime(current) ""
-	set runtime(voltage) ""
-	set runtime(resistance) ""
-	set runtime(power) ""
+	set runtime(phi1) ""
+	set runtime(phi2) ""
+	set runtime(tau) ""
+	set runtime(gamma) ""
+	set runtime(temperature) ""
 
-	measure::chart::${chartR_t}::clear
 	measure::chart::${chartT_t}::clear
-	measure::chart::${chartdT_t}::clear
-   	measure::chart::${chartR_T}::clear
+   	measure::chart::${chartTau_gamma}::clear
+   	measure::chart::${chartGamma_T}::clear
+   	measure::chart::${chartTau_T}::clear
 }
 
 # Запускаем тестовый модуль
@@ -91,7 +92,7 @@ proc stopMeasure {} {
 
 # Запускаем измерения
 proc startMeasure {} {
-	global w log runtime chartR_T workerId
+	global w log runtime chartTau_gamma workerId
 
 	# запрещаем кнопку запуска измерений
 	$w.nb.m.ctl.start configure -state disabled
@@ -117,7 +118,7 @@ proc startMeasure {} {
 	clearResults
 
 	# Очищаем график
-	measure::chart::${chartR_T}::clear
+	measure::chart::${chartTau_gamma}::clear
 }
 
 # Прерываем измерения
@@ -171,6 +172,11 @@ proc toggleProgControls {} {
 	::measure::widget::setDisabled [expr $mode == 1] $p.tempStep
 }
 
+proc changeMeasureMethod {} {
+	set mode [measure::config::get measure.method 0]
+# TODO
+}
+
 proc makeMeasurement {} {
 	global workerId
 
@@ -191,11 +197,11 @@ proc testLir916Impl { lir btn } {
     global settings
 	package require hardware::skbis::lir916
 
-#	if { [catch {
-		set res [::hardware::skbis::lir916::test -baud $settings(${lir}.baud) -parity $settings(${lir}.parity) $settings(rs485.serialPort) $settings(${lir}.addr)]
-#	} ] } {
-#		set res 0
-#	}
+	if { [catch {
+		set res [::hardware::skbis::lir916::test -com $settings(rs485.serialPort) -addr $settings(${lir}.addr) -baud $settings(${lir}.baud)]
+	} ] } {
+		set res 0
+	}
 
 	if { $res > 0 } {
 		tk_messageBox -icon info -type ok -title "\u041E\u043F\u0440\u043E\u0441" -parent . -message "\u0421\u0432\u044F\u0437\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430"
@@ -216,31 +222,27 @@ proc testLir916 { lir btn } {
 # Обработчики событий
 ###############################################################################
 
-proc display { v sv c sc r sr temp tempErr tempDer write } {
-    global runtime chartR_T chartR_t chartT_t chartdT_t w
-    
-    if { $write == "refined" } {
-        # очищенная точка - выводим только на графике
-    	measure::chart::${chartR_T}::addPoint $temp $r refined
-    	return
-    }
+proc display { phi1 phi1Err phi2 phi2Err temp tempErr tempDer gamma gammaErr tau tauErr write } {
+    global runtime chartTau_gamma chartGamma_T chartTau_T chartT_t w
     
     # Выводим результаты в окно программы
-	set runtime(temperature) [::measure::format::valueWithErr -- $temp $tempErr "К"]
-	set runtime(derivative1) [::measure::format::value -prec 3 -- $tempDer "К/мин"]
-	set runtime(current) [::measure::format::valueWithErr -mult 1.0e-3 -- $c $sc "\u0410"]
-	set runtime(voltage) [::measure::format::valueWithErr -mult 1.0e-3 -- $v $sv "\u0412"]
-	set runtime(resistance) [::measure::format::valueWithErr -- $r $sr "\u03A9"]
-	set runtime(power) [::measure::format::value -prec 2 -- [expr 1.0e-6 * $c * $v] "\u0412\u0442"]
+	set runtime(phi1) [::measure::format::valueWithErr -noScale -- $phi1 $phi1Err ""]
+	set runtime(phi2) [::measure::format::valueWithErr -noScale -- $phi2 $phi2Err ""]
+	set runtime(gamma) [::measure::format::valueWithErr -noScale -- $gamma $gammaErr ""]
+	set runtime(tau) [::measure::format::valueWithErr -noScale -mult 1.0e-6 -- $tau $tauErr ""]
+	set runtime(temperature) [::measure::format::valueWithErr -- $temp $tempErr ""]
 
-	measure::chart::${chartR_t}::setYErr $sr
-	measure::chart::${chartR_t}::addPoint $r
     measure::chart::${chartT_t}::addPoint $temp
-	measure::chart::${chartdT_t}::addPoint $tempDer
+
+	set tau [expr 1.0e-6 * $tau]
 	if { $write } {
-    	measure::chart::${chartR_T}::addPoint $temp $r result
+    	measure::chart::${chartTau_gamma}::addPoint $gamma $tau result
+    	measure::chart::${chartGamma_T}::addPoint $temp $gamma result
+    	measure::chart::${chartTau_T}::addPoint $temp $tau result
     } else {
-    	measure::chart::${chartR_T}::addPoint $temp $r test
+    	measure::chart::${chartTau_gamma}::addPoint $gamma $tau test
+    	measure::chart::${chartGamma_T}::addPoint $temp $gamma test
+    	measure::chart::${chartTau_T}::addPoint $temp $tau test
     }
 
 	event generate ${w}. <<ReadTemperature>> -data $temp
@@ -281,8 +283,6 @@ set p [ttk::labelframe $w.nb.m.ctl -text " Управление " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
 grid [ttk::button $p.measure -text "Снять точку" -state disabled -command makeMeasurement -image ::img::next -compound left] -row 0 -column 0 -sticky w
-grid [ttk::entry $p.comment -textvariable measureComment] -row 0 -column 1 -sticky we
-grid [ttk::button $p.addComment -text "Добавить комментарий" -state disabled -command addComment -compound left] -row 0 -column 2 -sticky w
 grid [ttk::button $p.stop -text "Остановить запись" -command terminateMeasure -state disabled -image ::img::stop -compound left] -row 0 -column 3 -sticky e
 grid [ttk::button $p.start -text "Начать запись" -command startMeasure -image ::img::start -compound left] -row 0 -column 4 -sticky e
 
@@ -295,20 +295,20 @@ grid rowconfigure $p { 0 1 } -pad 5
 set p [ttk::labelframe $w.nb.m.v -text " Результаты измерения " -pad 10]
 pack $p -fill x -side bottom -padx 10 -pady 5
 
-grid [ttk::label $p.lc -text "φ1, градусы:"] -row 0 -column 0 -sticky w
-grid [ttk::entry $p.ec -textvariable runtime(current) -state readonly] -row 0 -column 1 -sticky we
+grid [ttk::label $p.lc -text "φ1, град:"] -row 0 -column 0 -sticky w
+grid [ttk::entry $p.ec -textvariable runtime(phi1) -state readonly] -row 0 -column 1 -sticky we
 
-grid [ttk::label $p.lv -text "φ2, градусы:"] -row 0 -column 3 -sticky w
-grid [ttk::entry $p.ev -textvariable runtime(voltage) -state readonly] -row 0 -column 4 -sticky we
-
-grid [ttk::label $p.lr -text "T, К:"] -row 0 -column 6 -sticky w
-grid [ttk::entry $p.er -textvariable runtime(resistance) -state readonly] -row 0 -column 7 -sticky we
+grid [ttk::label $p.lv -text "φ2, град:"] -row 0 -column 3 -sticky w
+grid [ttk::entry $p.ev -textvariable runtime(phi2) -state readonly] -row 0 -column 4 -sticky we
 
 grid [ttk::label $p.lt -text "Напряжение γ, %:"] -row 1 -column 0 -sticky w
-grid [ttk::entry $p.et -textvariable runtime(temperature) -state readonly] -row 1 -column 1 -sticky we
+grid [ttk::entry $p.et -textvariable runtime(gamma) -state readonly] -row 1 -column 1 -sticky we
 
-grid [ttk::label $p.lder -text "Деформация τ, Н/кв.м:"] -row 1 -column 3 -sticky w
-grid [ttk::entry $p.eder -textvariable runtime(derivative1) -state readonly] -row 1 -column 4 -sticky we
+grid [ttk::label $p.lder -text "Деформация τ, МПа:"] -row 1 -column 3 -sticky w
+grid [ttk::entry $p.eder -textvariable runtime(tau) -state readonly] -row 1 -column 4 -sticky we
+
+grid [ttk::label $p.lr -text "T, К:"] -row 1 -column 6 -sticky w
+grid [ttk::entry $p.er -textvariable runtime(temperature) -state readonly] -row 1 -column 7 -sticky we
 
 grid columnconfigure $p { 0 1 3 4 5 6 7 8 9 10 } -pad 5
 grid columnconfigure $p { 2 5 8 } -minsize 20
@@ -316,27 +316,30 @@ grid columnconfigure $p { 1 4 7 } -weight 1
 grid rowconfigure $p { 0 1 2 3 } -pad 5
 
 # Раздел "График"
-set p [ttk::labelframe $w.nb.m.c -text " Температурная зависимость " -pad 2]
+set p [ttk::labelframe $w.nb.m.c -text " Оперативный контроль " -pad 2]
 pack $p -fill both -padx 10 -pady 5 -expand 1
 
-set chartR_T [canvas $p.r_T -width 200 -height 200]
-grid $chartR_T -row 0 -column 0 -sticky news
-measure::chart::staticChart -xlabel "T, К" -ylabel "R, Ом" -dots 1 -lines 1 $chartR_T
-measure::chart::${chartR_T}::series test -order 1 -maxCount 10 -color #7f7fff
-measure::chart::${chartR_T}::series result -order 2 -maxCount 200 -thinout -color green
-measure::chart::${chartR_T}::series refined -order 2 -maxCount 200 -thinout -color blue
-
-set chartR_t [canvas $p.r_t -width 200 -height 200]
-grid $chartR_t -row 0 -column 1 -sticky news
-measure::chart::movingChart -ylabel "R, Ом" -linearTrend $chartR_t
-
 set chartT_t [canvas $p.t_t -width 200 -height 200]
-grid $chartT_t -row 1 -column 0 -sticky news
+grid $chartT_t -row 0 -column 0 -sticky news
 measure::chart::movingChart -ylabel "T, К" -linearTrend $chartT_t
 
-set chartdT_t [canvas $p.dt_t -width 200 -height 200]
-grid $chartdT_t -row 1 -column 1 -sticky news
-measure::chart::movingChart -ylabel "dT/dt, К/мин" -linearTrend $chartdT_t
+set chartTau_gamma [canvas $p.r_T -width 200 -height 200]
+grid $chartTau_gamma -row 0 -column 1 -sticky news
+measure::chart::staticChart -xlabel "Напряжение γ, %" -ylabel "τ, МПа" -dots 1 -lines 1 $chartTau_gamma
+measure::chart::${chartTau_gamma}::series test -order 1 -maxCount 10 -color #7f7fff
+measure::chart::${chartTau_gamma}::series result -order 2 -maxCount 200 -thinout -color green
+
+set chartGamma_T [canvas $p.gamma_T -width 200 -height 200]
+grid $chartGamma_T -row 1 -column 0 -sticky news
+measure::chart::staticChart -xlabel "Температура T, К" -ylabel "γ, %" -dots 1 -lines 1 $chartGamma_T
+measure::chart::${chartGamma_T}::series test -order 1 -maxCount 10 -color #7f7fff
+measure::chart::${chartGamma_T}::series result -order 2 -maxCount 200 -thinout -color green
+
+set chartTau_T [canvas $p.tau_T -width 200 -height 200]
+grid $chartTau_T -row 1 -column 1 -sticky news
+measure::chart::staticChart -xlabel "Температура T, К" -ylabel "τ, МПа" -dots 1 -lines 1 $chartTau_T
+measure::chart::${chartTau_T}::series test -order 1 -maxCount 10 -color #7f7fff
+measure::chart::${chartTau_T}::series result -order 2 -maxCount 200 -thinout -color green
 
 grid columnconfigure $p { 0 1 } -weight 1
 grid rowconfigure $p { 0 1 } -weight 1
@@ -380,6 +383,20 @@ grid columnconfigure $p { 1 } -weight 1
 pack $p -fill x -padx 10 -pady 5
 
 # Правая колонка
+
+set p [ttk::labelframe $w.nb.ms.r.measure -text " Метод измерения " -pad 10]
+
+grid [ttk::label $p.ltime -text "Динамический момент:"] -row 0 -column 0 -sticky w
+grid [ttk::radiobutton $p.dynamic -value 0 -variable settings(measure.method) -command changeMeasureMethod] -row 0 -column 1 -sticky e
+
+grid [ttk::label $p.ltemp -text "Постоянный момент:"] -row 1 -column 0 -sticky w
+grid [ttk::radiobutton $p.const -value 1 -variable settings(measure.method) -command changeMeasureMethod] -row 1 -column 1 -sticky e
+
+grid columnconfigure $p {0 1} -pad 5
+grid rowconfigure $p {0 1 2 3 4} -pad 5
+grid columnconfigure $p { 1 } -weight 1
+
+pack $p -fill x -padx 10 -pady 5
 
 # Закладка "Образец"
 ttk::frame $w.nb.dut
@@ -455,12 +472,18 @@ set p [ttk::labelframe $w.nb.tsetup.tcm -text " Измеритель темпе�
 pack $p -fill x -padx 10 -pady 5
 
 grid [ttk::label $p.lnetAddr -text "\u0421\u0435\u0442\u0435\u0432\u043E\u0439 \u0430\u0434\u0440\u0435\u0441:"] -row 0 -column 0 -sticky w
-grid [ttk::spinbox $p.netAddr -width 6 -textvariable settings(trm1.rs485Addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
+grid [ttk::spinbox $p.netAddr -width 6 -textvariable settings(trm1.addr) -from 1 -to 2040 -validate key -validatecommand {string is integer %P}] -row 0 -column 1 -sticky w
 
-grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testTrm201 settings(rs485.serialPort) settings(trm1.rs485Addr) $p.test] ] -row 0 -column 2 -sticky e
+grid [ttk::label $p.lbaud -text "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C, бод/с:"] -row 0 -column 2 -sticky w
+grid [ttk::combobox $p.baud -width 8 -textvariable settings(trm1.baud) -state readonly -values {9600 19200 28800 38400 57600 76800}] -row 0 -column 3 -sticky w
 
-grid columnconfigure $p { 0 1 2 } -pad 5
-grid columnconfigure $p { 2 } -weight 1
+grid [ttk::label $p.lprotocol -text "Протокол обмена:"] -row 0 -column 4 -sticky w
+grid [ttk::combobox $p.protocol -width 12 -textvariable settings(trm1.protocol) -state readonly -values {OWEN Modbus-RTU}] -row 0 -column 5 -sticky w
+
+grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testTrm201 settings(rs485.serialPort) settings(trm1.rs485Addr) $p.test] ] -row 0 -column 6 -sticky e
+
+grid columnconfigure $p { 0 1 2 3 4 5 6 } -pad 5
+grid columnconfigure $p { 6 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
 set p [ttk::labelframe $w.nb.tsetup.lir1 -text " Декодер угла поворота ЛИР-916 № 1" -pad 10]
@@ -471,9 +494,6 @@ grid [ttk::spinbox $p.netAddr -width 6 -textvariable settings(lir1.addr) -from 1
 
 grid [ttk::label $p.lbaud -text "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C, бод/с:"] -row 0 -column 2 -sticky w
 grid [ttk::combobox $p.baud -width 8 -textvariable settings(lir1.baud) -state readonly -values {9600 19200 28800 38400 57600 76800}] -row 0 -column 3 -sticky w
-
-grid [ttk::label $p.lparity -text "\u0427\u0451\u0442\u043D\u043E\u0441\u0442\u044C:"] -row 0 -column 4 -sticky w
-grid [ttk::combobox $p.parity -width 6 -textvariable settings(lir1.parity) -state readonly -values $measure::com::parities] -row 0 -column 5 -sticky w
 
 grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list testLir916 lir1 $p.test] ] -row 0 -column 6 -sticky e
 
@@ -490,18 +510,27 @@ grid [ttk::spinbox $p.netAddr -width 6 -textvariable settings(lir2.addr) -from 1
 grid [ttk::label $p.lbaud -text "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C, бод/с:"] -row 0 -column 2 -sticky w
 grid [ttk::combobox $p.baud -width 8 -textvariable settings(lir2.baud) -state readonly -values {9600 19200 28800 38400 57600 76800}] -row 0 -column 3 -sticky w
 
-grid [ttk::label $p.lparity -text "\u0427\u0451\u0442\u043D\u043E\u0441\u0442\u044C:"] -row 0 -column 4 -sticky w
-grid [ttk::combobox $p.parity -width 6 -textvariable settings(lir2.parity) -state readonly -values $measure::com::parities] -row 0 -column 5 -sticky w
-
-grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list ::measure::widget::testLir916 settings(rs485.serialPort) settings(lir2.addr) $p.test] ] -row 0 -column 6 -sticky e
+grid [ttk::button $p.test -text "\u041E\u043F\u0440\u043E\u0441" -command [list testLir916 lir2 $p.test] ] -row 0 -column 6 -sticky e
 
 grid columnconfigure $p { 0 1 2 3 4 5 6 } -pad 5
 grid columnconfigure $p { 6 } -weight 1
 grid rowconfigure $p { 0 1 } -pad 5
 
-set p [ttk::labelframe $w.nb.tsetup.tc -text " Термопара " -pad 10]
+# Закладка "Параметры приборов"
+ttk::frame $w.nb.cal
+$w.nb add $w.nb.cal -text " Калибровка приборов "
+
+set p [ttk::labelframe $w.nb.cal.lir -text " ЛИР-916" -pad 10]
 pack $p -fill x -padx 10 -pady 5
-::measure::widget::thermoCoupleControls -nb $w.nb -workingTs $w.nb.m -currentTs $w.nb.tsetup $p tc
+
+grid [ttk::label $p.lcoeff -text "Коэффициент пересчёта угла поворота:"] -row 0 -column 0 -sticky w
+grid [ttk::spinbox $p.coeff -width 12 -textvariable settings(lir2.coeff) -from 0.001 -to 1000 -validate key -validatecommand {string is double %P}] -row 0 -column 1 -sticky w
+
+grid [ttk::button $p.test -text "Определить коэффициент" -command [list testLir916 lir2 $p.test] ] -row 0 -column 6 -sticky e
+
+grid columnconfigure $p { 0 1 2 3 4 5 6 } -pad 5
+grid columnconfigure $p { 6 } -weight 1
+grid rowconfigure $p { 0 1 } -pad 5
 
 # Стандартная панель
 ::measure::widget::std-bottom-panel $w

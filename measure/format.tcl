@@ -65,6 +65,7 @@ proc ::measure::format::valueWithErr { args } {
     	{prec.arg      ""	"Value precision"}
     	{errPrec.arg   2	"Error precision"}
     	{mult.arg      1.0	"Value multiplier"}
+    	{noScale   0	"Disable autoscale"}
     }
     
 	set usage ": valueWithErr \[options] v err units\noptions:"
@@ -81,19 +82,19 @@ proc ::measure::format::valueWithErr { args } {
         set vPrec [valuePrec $v $err]
     }
     	
-    if { $av >= 1.0e9 } {
+    if { !$params(noScale) && $av >= 1.0e9 } {
         set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g \u0413${units}" [expr 1.0e-9 * $v] [expr 1.0e-9 * $err]]
-    } elseif { $av >= 1.0e6 && $av < 1.0e9  } {
+    } elseif { !$params(noScale) && $av >= 1.0e6 && $av < 1.0e9  } {
         set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u041C${units}" [expr 1.0e-6 * $v] [expr 1.0e-6 * $err]]
-    } elseif { $av >= 1.0e3 && $av < 1.0e6  } { 
+    } elseif { !$params(noScale) && $av >= 1.0e3 && $av < 1.0e6  } { 
         set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043A${units}" [expr 1.0e-3 * $v] [expr 1.0e-3 * $err]]
-    } elseif { $av >= 1.0e-3 && $av < 1.0e0  } { 
+    } elseif { !$params(noScale) && $av >= 1.0e-3 && $av < 1.0e0  } { 
         set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043C${units}" [expr 1.0e3 * $v] [expr 1.0e3 * $err]]
-    } elseif { $av >= 1.0e-6 && $av < 1.0e-3  } { 
+    } elseif { !$params(noScale) && $av >= 1.0e-6 && $av < 1.0e-3  } { 
         set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u03BC${units}" [expr 1.0e6 * $v] [expr 1.0e6 * $err]]
-    } elseif { $av >= 1.0e-9 && $av < 1.0e-6  } { 
+    } elseif { !$params(noScale) && $av >= 1.0e-9 && $av < 1.0e-6  } { 
         set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043D${units}" [expr 1.0e9 * $v] [expr 1.0e9 * $err]]
-    } elseif { $av >= 1.0e-12 && $av < 1.0e-9  } { 
+    } elseif { !$params(noScale) && $av >= 1.0e-12 && $av < 1.0e-9  } { 
         set rf [format "%0.[expr $vPrec > 3 ? $vPrec : 3]g \u00b1 %0.${errPrec}g \u043F${units}" [expr 1.0e12 * $v] [expr 1.0e12 * $err]]
     } else {
         set rf [format "%0.${vPrec}g \u00b1 %0.${errPrec}g ${units}" $v $err]

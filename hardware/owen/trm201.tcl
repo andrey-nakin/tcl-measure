@@ -30,8 +30,22 @@ proc ::hardware::owen::trm201::test { port addr } {
     return 0
 }
 
-proc ::hardware::owen::trm201::init { port addr } {
-    return [::owen::configure -port $port -addr $addr -settings "19200,n,8,1"]
+proc ::hardware::owen::trm201::init { args } {
+	set usage ": test \[options] port addr \noptions:"
+	set configOptions {
+		{settings.arg	"9600,n,8,1"	"Baud, parity, data size, stop bits"}
+		{baud.arg		""	"Baud"}
+		{protocol.arg		"OWEN"	"RS-485 protocol, either OWEN or Modbus-RTU"}
+	}
+
+	array set params [::cmdline::getoptions args $configOptions $usage]
+	lassign $args port addr
+	if { $params(baud) != "" } {
+		set s [split $params(settings) ,]
+		set params(settings) "$params(baud),[lindex $s 1],[lindex $s 2],[lindex $s 3]"
+	}
+
+    return [::owen::configure -port $port -addr $addr -settings $params(settings)]
 }
 
 proc ::hardware::owen::trm201::done { desc } {
