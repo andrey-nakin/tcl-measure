@@ -46,10 +46,27 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 
 	# create thread
 	set measureThread [thread::create -joinable { 
-		package require measure::logger
+#		rename source realsource
+#		proc ::source { f } {
+#			if {[catch {set fh [open $f r]; set b [read $fh]; close $fh} rc]} {
+#				return -code error -errorinfo $rc -errorcode $::errorCode $rc
+#			}
+#			set s [info script]
+#			info script $f
+#			if {[catch {uplevel 1 $b} rc]==1} {
+#				info script $s
+#				# the line below dumps errors in wish console
+#				catch {thread::send -async $mainthread [list puts $::errorInfo]}
+#				return -code error -errorinfo $rc -errorcode $::errorCode $rc
+#			}
+#			info script $s
+#			return $rc
+#		}
+
+#		package require measure::logger
 
 		# global logger to use within worker script
-		set log [measure::logger::init measure::worker]
+#		set log [measure::logger::init measure::worker]
 
 		proc notify { script { sync 0 } } {
 			global log mainThreadId_
@@ -100,6 +117,10 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 		proc interopStart {} {
 			global log workScript_ stopScript_ errorProc_ finalizer_
 
+			package require measure::logger
+			# global logger to use within worker script
+			set log [measure::logger::init measure::worker]
+
 			if { [catch { uplevel 1 $workScript_ } rc inf] } {
 				interopCatch_ $rc $inf
 			} else {
@@ -112,6 +133,11 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 
 	tsv::lappend interop workers $measureThread
 
+	if {[info exists starkit::mode] && $starkit::mode ne "unwrapped"} {
+        set self $starkit::topdir 
+        thread::send $measureThread "vfs::mk4::Mount \"$self\" \"$self\" -readonly" 
+    }
+    thread::send $measureThread [list set ::auto_path $::auto_path]
 	thread::send $measureThread "interopConfig [thread::id] { $workScript } { $stopScript } $errorProc"
 	thread::send -async $measureThread "interopStart"
 

@@ -68,12 +68,16 @@ proc measure::datafile::parseFileName { fn } {
 # Инициализирует выделенный поток для записи данных
 proc ::measure::datafile::startup { } {
 	set t [thread::create -joinable {
-        package require measure::logger
-        package require measure::datafile
-        
-        # Инициализируем протоколирование
-        set log [measure::logger::init measure::datafile]
-        ${log}::setlevel info
+        proc init_df_thread {} {
+			global log
+
+		    package require measure::logger
+		    package require measure::datafile
+		    
+		    # Инициализируем протоколирование
+		    set log [measure::logger::init measure::datafile]
+		    ${log}::setlevel info
+		}
 
 		proc stop {} {
 		    measure::datafile::closeAll
@@ -83,6 +87,13 @@ proc ::measure::datafile::startup { } {
 		# enter to event loop
 		thread::wait
 	}]
+
+	if {[info exists starkit::mode] && $starkit::mode ne "unwrapped"} {
+        set self $starkit::topdir 
+        thread::send $t "vfs::mk4::Mount \"$self\" \"$self\" -readonly" 
+    }
+    thread::send $t [list set ::auto_path $::auto_path]
+	thread::send $t init_df_thread
 
 	tsv::set measure-datafile thread $t
 }
