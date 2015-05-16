@@ -68,6 +68,24 @@ proc measure::datafile::parseFileName { fn } {
 # Инициализирует выделенный поток для записи данных
 proc ::measure::datafile::startup { } {
 	set t [thread::create -joinable {
+		#rename source realsource
+
+		proc ::source1 { f } {
+			if {[catch {set fh [open $f r]; set b [read $fh]; close $fh} rc]} {
+				return -code error -errorinfo $rc -errorcode $::errorCode $rc
+			}
+			set s [info script]
+			info script $f
+			if {[catch {uplevel 1 $b} rc]==1} {
+				info script $s
+				# the line below dumps errors in wish console
+				catch {thread::send -async $mainthread [list puts $::errorInfo]}
+				return -code error -errorinfo $rc -errorcode $::errorCode $rc
+			}
+			info script $s
+			return $rc
+		}
+
         proc init_df_thread {} {
 			global log
 

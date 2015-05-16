@@ -46,27 +46,23 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 
 	# create thread
 	set measureThread [thread::create -joinable { 
-#		rename source realsource
-#		proc ::source { f } {
-#			if {[catch {set fh [open $f r]; set b [read $fh]; close $fh} rc]} {
-#				return -code error -errorinfo $rc -errorcode $::errorCode $rc
-#			}
-#			set s [info script]
-#			info script $f
-#			if {[catch {uplevel 1 $b} rc]==1} {
-#				info script $s
-#				# the line below dumps errors in wish console
-#				catch {thread::send -async $mainthread [list puts $::errorInfo]}
-#				return -code error -errorinfo $rc -errorcode $::errorCode $rc
-#			}
-#			info script $s
-#			return $rc
-#		}
+		#rename source realsource
 
-#		package require measure::logger
-
-		# global logger to use within worker script
-#		set log [measure::logger::init measure::worker]
+		proc ::source1 { f } {
+			if {[catch {set fh [open $f r]; set b [read $fh]; close $fh} rc]} {
+				return -code error -errorinfo $rc -errorcode $::errorCode $rc
+			}
+			set s [info script]
+			info script $f
+			if {[catch {uplevel 1 $b} rc]==1} {
+				info script $s
+				# the line below dumps errors in wish console
+				catch {thread::send -async $mainthread [list puts $::errorInfo]}
+				return -code error -errorinfo $rc -errorcode $::errorCode $rc
+			}
+			info script $s
+			return $rc
+		}
 
 		proc notify { script { sync 0 } } {
 			global log mainThreadId_
@@ -131,6 +127,7 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 		thread::wait
 	}]
 
+	tsv::set mainThread mainThread [thread::id]
 	tsv::lappend interop workers $measureThread
 
 	if {[info exists starkit::mode] && $starkit::mode ne "unwrapped"} {
@@ -247,6 +244,19 @@ proc measure::interop::cmd { args } {
 
 	if { [info exists mainThreadId_] } {
 		if { [catch { thread::send -async $mainThreadId_ {*}$args } rc] } {
+			${log}::error "Error executing command `$args': $rc"
+		}
+	}
+}
+
+# Runs a command synchronously in the context of the main thread
+# Arguments:
+#   cmd - command to run
+proc measure::interop::sync-cmd { args } {
+	global log mainThreadId_
+
+	if { [info exists mainThreadId_] } {
+		if { [catch { thread::send $mainThreadId_ {*}$args } rc] } {
 			${log}::error "Error executing command `$args': $rc"
 		}
 	}
