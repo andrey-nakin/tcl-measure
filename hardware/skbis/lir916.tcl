@@ -24,6 +24,7 @@ set ::hardware::skbis::lir916::configOptions {
 	{settings.arg	"9600,n,8,1"	"Baud, parity, data size, stop bits"}
 	{baud.arg		""	"Baud"}
 	{zero.arg		0	"Zero position"}
+	{coeff.arg		1.0	"Multiplicator"}
 }
 
 set ::hardware::skbis::lir916::usage ": test \[options] port addr \noptions:"
@@ -61,8 +62,9 @@ proc ::hardware::skbis::lir916::init { args } {
 		set params(settings) "$params(baud),[lindex $s 1],[lindex $s 2],[lindex $s 3]"
 	}
 
-	set desc [list $params(com) $params(settings) $params(addr)]
+	set desc [list $params(com) $params(settings) $params(addr) $params(coeff)]
 	tsv::set lir16zero [channelId $desc] $params(zero)
+	tsv::set lir16coeff [channelId $desc] $params(coeff)
 	return $desc
 }
 
@@ -84,12 +86,22 @@ proc ::hardware::skbis::lir916::setZero { addr } {
 	return $zero
 }
 
-# Считывает абсолютное значение угла
-# Аргументы:
-#   desc - дескриптор устройства
-# Результат
-#    угол и абсолютная погрешность в радианах
-proc ::hardware::skbis::lir916::readAngle { desc } {
+# Set new angle recalculation coeff
+# Arguments:
+#   addr - device address (not descriptor!)
+#   coeff - new coefficient
+proc ::hardware::skbis::lir916::setCoeff { addr coeff } {
+	set key "channel_$addr"
+	tsv::set lir16coeff $key $coeff
+}
+
+# Read relative angle from device
+# Arguments:
+#   desc - device descriptor
+#   ?noCoeff? - if true, do not recalc angle
+# Result
+#    angle and absolute error in radians
+proc ::hardware::skbis::lir916::readAngle { desc { noCoeff 0 } } {
 	variable TO_RADIANS
 	variable ERROR
 	
@@ -107,7 +119,12 @@ proc ::hardware::skbis::lir916::readAngle { desc } {
 	}
 
 	# convert 32-bit integer value to angle in radians
-	return [list [expr $v * $TO_RADIANS] $ERROR ]
+	if { $noCoeff } {
+		return [list [expr $v * $TO_RADIANS] $ERROR]
+	} else {
+		set coeff [tsv::get lir16coeff $key]
+		return [list [expr $v * $TO_RADIANS * $coeff] [expr $ERROR * $coeff] ]
+	}
 }
 
 ####### private procedures

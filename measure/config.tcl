@@ -76,7 +76,7 @@ proc measure::config::get { args } {
 		{required	""	"Whether configuration settings required"}
 	}
 
-	set usage ": init \[options] channel\noptions:"
+	set usage ": init \[options] optName ?defValue?\noptions:"
 	array set options [::cmdline::getoptions args $opts $usage]
 
 	set optName [lindex $args 0]
