@@ -12,9 +12,10 @@ package provide hardware::skbis::lir916 1.0.0
 
 package require modbus
 package require cmdline
+package require Thread
 
 namespace eval hardware::skbis::lir916 {
-  namespace export init done test readAngle
+  namespace export init done test readAngle setZero
 }
 
 set ::hardware::skbis::lir916::configOptions {
@@ -22,9 +23,13 @@ set ::hardware::skbis::lir916::configOptions {
 	{addr.arg		"1"	"RS-485 address"}
 	{settings.arg	"9600,n,8,1"	"Baud, parity, data size, stop bits"}
 	{baud.arg		""	"Baud"}
+	{zero.arg		0	"Zero position"}
 }
 
 set ::hardware::skbis::lir916::usage ": test \[options] port addr \noptions:"
+set ::hardware::skbis::lir916::PI 3.1415926535897932384626433832795
+set ::hardware::skbis::lir916::ERROR [expr $::hardware::skbis::lir916::PI / 0x1000]
+set ::hardware::skbis::lir916::TO_RADIANS [expr 2.0 * $::hardware::skbis::lir916::PI / 0x1000]
 
 proc ::hardware::skbis::lir916::test { args } {
 	variable configOptions
@@ -56,45 +61,74 @@ proc ::hardware::skbis::lir916::init { args } {
 		set params(settings) "$params(baud),[lindex $s 1],[lindex $s 2],[lindex $s 3]"
 	}
 
-	return [list $params(com) $params(settings) $params(addr) 0 0]
+	set desc [list $params(com) $params(settings) $params(addr)]
+	tsv::set lir16zero [channelId $desc] $params(zero)
+	return $desc
 }
 
 proc ::hardware::skbis::lir916::done { desc } {
 }
 
+# Устанавливает последнее считанное значение за нулевую отметку
+# Аргументы:
+#   addr - адрес устройства (не дескриптор!)
+# Результат
+#    Значение нулевой отметки
+proc ::hardware::skbis::lir916::setZero { addr } {
+	set key "channel_$addr"
+	if { [tsv::get lir16value $key zero] } {
+		tsv::set lir16zero $key $zero
+	} else {
+		error "No measurements on device #$addr"
+	}
+	return $zero
+}
+
 # Считывает абсолютное значение угла
 # Аргументы:
-#   port - последовательный порт
-#   addr - адрес устройства в сети RS-485
+#   desc - дескриптор устройства
 # Результат
 #    угол и абсолютная погрешность в радианах
 proc ::hardware::skbis::lir916::readAngle { desc } {
-# !!!
-	if { [lindex $desc 2] == 100 } {
-		global PHI1
-		if { ![info exists PHI1] } { set PHI1 0 }
-		set PHI1 [expr $PHI1 + 0.002 * rand() - 0.00075]
-		return [list $PHI1 [expr $PHI1 * 0.0001] ]
-	}
-	if { [lindex $desc 2] == 200 } {
-		global PHI2
-		if { ![info exists PHI2] } { set PHI2 0 }
-		set PHI2 [expr $PHI2 + 0.004 * rand() - 0.00150]
-		return [list $PHI2 [expr $PHI2 * 0.0001] ]
-	}
-# !!!
+	variable TO_RADIANS
+	variable ERROR
+	
+	# read digital angle
+	lassign [readAbsolute $desc] hi lo
+	set v [expr ($hi << 16) + $lo]
 
-	set pi 3.1415926535897932384626433832795
-	set res [readAbsolute $desc]
-	set hi [expr [lindex $res 0] - [lindex $desc 4] ]
-	set lo [expr [lindex $res 1] - [lindex $desc 3] ]
-	set counter [expr (($hi & 0xFF) << 4) + (($lo >> 12) & 0xF) ]
-	set angle [expr ($lo & 0xFFF) * 2.0 * $pi / 0x1000 ]
-	return [list [expr $angle + 2.0 * $pi * $counter] [expr $pi / 0x1000] ]
+	# store last read value for later use
+	set key [channelId $desc]
+	tsv::set lir16value $key $v
+
+	# shift  value to zero position if any
+	if { [tsv::get lir16zero $key z] } {
+		set v [expr $v - $z]
+	}
+
+	# convert 32-bit integer value to angle in radians
+	return [list [expr $v * $TO_RADIANS] $ERROR ]
 }
 
+####### private procedures
+
+array set ::hardware::skbis::lir916::sampleData {}
 proc ::hardware::skbis::lir916::readAbsolute { desc } {
+#!!!
+	variable sampleData
+	set key "channel_[lindex $desc 2]"
+	if { ![info exists sampleData($key)] } {
+		set sampleData($key) 0
+	}
+	incr sampleData($key) [expr int(rand() * [lindex $desc 2])]
+	return [list [expr $sampleData($key) >> 16] [expr $sampleData($key) & 0xFFFF] ]
+#!!!	
+
 	::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings [lindex $desc 1]
 	return [::modbus::cmd 0x03 [lindex $desc 2] 0 2]
+}
+
+proc ::hardware::skbis::lir916::channelId { desc } {
+	return "channel_[lindex $desc 2]"
 }
 
