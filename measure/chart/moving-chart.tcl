@@ -18,7 +18,7 @@ proc measure::chart::movingChart { args } {
 	set opts {
 		{linearTrend	""	"add linear trend line"}
 		{ylabel.arg		""	"Y-axis label"}
-		{xpoints.arg	"200"	"Number of points on X-axis"}
+		{xpoints.arg	"250"	"Number of points on X-axis"}
 	}
 
 	set usage ": measure::chart::movingChart \[options] canvas\noptions:"
@@ -80,7 +80,7 @@ proc measure::chart::movingChart { args } {
 			set ylimits {0.0 1.0}
 		}
 
-		set s [::Plotchart::createXYPlot $canvas [list 0 $options(xpoints) 20] [measure::chart::limits [lindex $ylimits 0] [lindex $ylimits 1]]]
+		set s [::Plotchart::createXYPlot $canvas [list 0 $options(xpoints) 50] [measure::chart::limits [lindex $ylimits 0] [lindex $ylimits 1]]]
 		$s dataconfig series1 -colour green
 		$s ytext $options(ylabel)
 		$s yconfig -format %2g
