@@ -52,3 +52,21 @@ proc measure::com::makeMode { args } {
 	return "$options(baud),$parity,$options(length),$options(stop)"	
 }
 
+# Tests if given serial port can be opened
+# Arguments
+#   port - port name, e.g. /dev/ttyUSB0
+# Return
+#   1 - port is opened correctly
+#   0 - port cannot be open
+proc measure::com::test { port } {
+	if {[catch {set fd [open $port r+]}]} {
+		return 0
+	}
+	if {[catch {fconfigure $fd -blocking 1 -mode "9600,n,8,1"}]} {
+		close $fd
+		return 0
+	}
+	close $fd
+	return 1
+}
+

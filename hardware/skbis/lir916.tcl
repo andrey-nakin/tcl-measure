@@ -7,54 +7,41 @@
 #   Copyright (c) 2015 by Andrey V. Nakin <andrey.nakin@gmail.com>
 #
 
-package require Tcl 8.4
 package provide hardware::skbis::lir916 1.0.0
 
+namespace eval hardware::skbis::lir916 {
+  namespace export init done test readAngle setZero setCoeff
+}
+
+package require Tcl 8.5
 package require modbus
 package require cmdline
 package require Thread
 
-namespace eval hardware::skbis::lir916 {
-  namespace export init done test readAngle setZero
-}
-
-set ::hardware::skbis::lir916::configOptions {
-	{com.arg		"/dev/ttyUSB0"	"Serial port"}
-	{addr.arg		"1"	"RS-485 address"}
-	{settings.arg	"9600,n,8,1"	"Baud, parity, data size, stop bits"}
-	{baud.arg		""	"Baud"}
-	{zero.arg		0	"Zero position"}
-	{coeff.arg		1.0	"Multiplicator"}
-}
-
-set ::hardware::skbis::lir916::usage ": test \[options] port addr \noptions:"
 set ::hardware::skbis::lir916::PI 3.1415926535897932384626433832795
 set ::hardware::skbis::lir916::ERROR [expr $::hardware::skbis::lir916::PI / 0x1000]
 set ::hardware::skbis::lir916::TO_RADIANS [expr 2.0 * $::hardware::skbis::lir916::PI / 0x1000]
 
 proc ::hardware::skbis::lir916::test { args } {
-	variable configOptions
-	variable usage
-
-	array set params [::cmdline::getoptions args $configOptions $usage]
-
-	set settings $params(settings)
-	if { $params(baud) } {
-		set s [split $params(settings) ,]
-		set params(settings) "$params(baud),[lindex $s 1],[lindex $s 2],[lindex $s 3]"
-	}
-
 	set ok 0
     catch {
-		set res [readAbsolute $settings(com) $settings(addr)]
+		set desc [init {*}$args]
+		set res [readAbsolute $desc]
         set ok [expr [llength $res] >= 2]
     } 
 	return $ok
 }
 
 proc ::hardware::skbis::lir916::init { args } {
-	variable configOptions
-	variable usage
+	set configOptions {
+		{com.arg		"/dev/ttyUSB0"	"Serial port"}
+		{addr.arg		"1"	"RS-485 address"}
+		{settings.arg	"9600,n,8,1"	"Baud, parity, data size, stop bits"}
+		{baud.arg		""	"Baud"}
+		{zero.arg		0	"Zero position"}
+		{coeff.arg		1.0	"Multiplicator"}
+	}
+	set usage ": init \[options]\noptions:"
 
 	array set params [::cmdline::getoptions args $configOptions $usage]
 	if { $params(baud) != "" } {
@@ -81,7 +68,7 @@ proc ::hardware::skbis::lir916::setZero { addr } {
 	if { [tsv::get lir16value $key zero] } {
 		tsv::set lir16zero $key $zero
 	} else {
-		error "No measurements on device #$addr"
+		error "No measurements on device with address #$addr"
 	}
 	return $zero
 }
