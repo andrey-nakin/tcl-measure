@@ -53,16 +53,16 @@ proc ::hardware::owen::trm201::modbus::done { desc } {
 #   desc - дескриптор
 # Результат
 #    температура в К и инструментальная погрешность
-array set ::hardware::owen::trm201::modbus::sampleData {}
+#array set ::hardware::owen::trm201::modbus::sampleData {}
 proc ::hardware::owen::trm201::modbus::readTemperature { desc } {
 #!!!
-	variable sampleData
-	set key "channel_[lindex $desc 2]"
-	if { ![info exists sampleData($key)] } {
-		set sampleData($key) 0
-	}
-	incr sampleData($key) [expr int(rand() * [lindex $desc 2])]
-	return [list [expr 293.0 + 0.1 * $sampleData($key)] 0.1 ]
+#	variable sampleData
+#	set key "channel_[lindex $desc 2]"
+#	if { ![info exists sampleData($key)] } {
+#		set sampleData($key) 0
+#	}
+#	incr sampleData($key) [expr int(rand() * [lindex $desc 2])]
+#	return [list [expr 293.0 + 0.1 * $sampleData($key)] 0.1 ]
 #!!!	
 
 	::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings [lindex $desc 1]
