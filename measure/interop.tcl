@@ -17,12 +17,10 @@ namespace eval measure::interop {
 }
 
 proc measure::interop::mainScriptFileName { } {
-    global mainThreadId_
+    global mainThreadId_ log
     
-    if { [measure::interop::isAlone] } {
+    if { [measure::interop::isAlone] || ![tsv::get mainThread mainScript sn] } {
        set sn [info script] 
-    } else {
-        set sn [thread::send $mainThreadId_ { info script }]
     }
     
     return $sn
@@ -44,25 +42,11 @@ proc measure::interop::mainScriptFileName { } {
 proc measure::interop::startWorker { workScript { stopScript "" } { errorProc measure::interop::workerError } } {
 	global log
 
+	tsv::set mainThread mainThread [thread::id]
+	tsv::set mainThread mainScript [info script]
+
 	# create thread
 	set measureThread [thread::create -joinable { 
-		#rename source realsource
-
-		proc ::source1 { f } {
-			if {[catch {set fh [open $f r]; set b [read $fh]; close $fh} rc]} {
-				return -code error -errorinfo $rc -errorcode $::errorCode $rc
-			}
-			set s [info script]
-			info script $f
-			if {[catch {uplevel 1 $b} rc]==1} {
-				info script $s
-				# the line below dumps errors in wish console
-				catch {thread::send -async $mainthread [list puts $::errorInfo]}
-				return -code error -errorinfo $rc -errorcode $::errorCode $rc
-			}
-			info script $s
-			return $rc
-		}
 
 		proc notify { script { sync 0 } } {
 			global log mainThreadId_
@@ -127,7 +111,6 @@ proc measure::interop::startWorker { workScript { stopScript "" } { errorProc me
 		thread::wait
 	}]
 
-	tsv::set mainThread mainThread [thread::id]
 	tsv::lappend interop workers $measureThread
 
 	if {[info exists starkit::mode] && $starkit::mode ne "unwrapped"} {

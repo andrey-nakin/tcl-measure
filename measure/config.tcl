@@ -20,7 +20,7 @@ namespace eval measure::config {
 set measure::config::configFileIsRead 0
 
 proc measure::config::read { { cfgFileName "" } } {
-	global measure::config::configFileIsRead
+	global measure::config::configFileIsRead log
 
     set cfgFileName [configFileName $cfgFileName]
 #	set logConfig [measure::logger::init measure::config]
