@@ -35,7 +35,6 @@ proc ::hardware::owen::trm201::init { args } {
 	set configOptions {
 		{settings.arg	"9600,n,8,1"	"Baud, parity, data size, stop bits"}
 		{baud.arg		""	"Baud"}
-		{protocol.arg		"OWEN"	"RS-485 protocol, either OWEN or Modbus-RTU"}
 	}
 
 	array set params [::cmdline::getoptions args $configOptions $usage]
