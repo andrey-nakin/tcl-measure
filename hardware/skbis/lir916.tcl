@@ -89,12 +89,14 @@ proc ::hardware::skbis::lir916::setCoeff { addr coeff } {
 # Result
 #    angle and absolute error in radians
 proc ::hardware::skbis::lir916::readAngle { desc { noCoeff 0 } } {
+  global log
+
 	variable TO_RADIANS
 	variable ERROR
 	
 	# read digital angle
 	lassign [readAbsolute $desc] hi lo
-	set v [expr ($hi << 16) + $lo]
+	set v [expr ($hi << 16) + ($lo & 0xFFFF)]
 
 	# store last read value for later use
 	set key [channelId $desc]
