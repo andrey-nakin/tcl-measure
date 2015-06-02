@@ -784,7 +784,9 @@ proc hardware::agilent::mm34410a::minTimeout { nplc } {
 } 
 
 proc hardware::agilent::mm34410a::checkTimeout { channel timeout } {
-	if { [fconfigure $channel -timeout] < $timeout } {
-        fconfigure $channel -timeout $timeout	   
-    }
+    catch {
+    	if { [fconfigure $channel -timeout] < $timeout } {
+            fconfigure $channel -timeout $timeout	   
+        }
+    }   
 }

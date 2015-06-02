@@ -160,7 +160,8 @@ proc ::measure::measure::resistance { args } {
     }
 	
     # сохраняем текущее значение таймаута и вычисляем новое
-	set timeout [fconfigure $mm -timeout]
+	set timeout 5000
+	catch { set timeout [fconfigure $mm -timeout] }
     set newTimeout [expr int(2.0 * [oneMeasurementDuration])]
     if { $newTimeout < 10000 } {
         set newTimeout 10000
@@ -174,7 +175,7 @@ proc ::measure::measure::resistance { args } {
      
     if { $mmethod == 3 } {
         # особый случай - измерение сопротивления при помощи омметра
-    	fconfigure $mm -timeout $newTimeout 
+    	catch { fconfigure $mm -timeout $newTimeout } 
     	if { $params(n) != 1 } {
     	    set rs [split [scpi::query $mm ":SAMPLE:COUNT $params(n);:READ?;:SAMPLE:COUNT 1"] ","]
         } else {
@@ -201,7 +202,7 @@ proc ::measure::measure::resistance { args } {
     } else {
     	scpi::cmd $mm ":INIT"
     }
-	fconfigure $mm -timeout $newTimeout 
+	catch { fconfigure $mm -timeout $newTimeout } 
 
     if { [info exists cmm] } {
     	# запускаем измерение тока
@@ -210,7 +211,7 @@ proc ::measure::measure::resistance { args } {
         } else {
         	scpi::cmd $cmm ":INIT"
         }
-    	fconfigure $cmm -timeout $newTimeout
+    	catch { fconfigure $cmm -timeout $newTimeout }
     } elseif { [info exists ps] } {
         # ток в цепи измеряем при помощи ИП
         set c [scpi::query $ps MEASURE:CURR?]
@@ -219,12 +220,12 @@ proc ::measure::measure::resistance { args } {
 
 	# ждём завершения измерения напряжения и восстанавливаем таймаут
 	scpi::query $mm "*OPC?"
-	fconfigure $mm -timeout $timeout
+	catch { fconfigure $mm -timeout $timeout }
 
     if { [info exists cmm] } {
     	# ждём завершения измерения тока и восстанавливаем таймаут
         scpi::query $cmm "*OPC?"
-    	fconfigure $cmm -timeout $timeout
+    	catch { fconfigure $cmm -timeout $timeout }
 	}
 
 	# считываем значение напряжения и вычисляем погрешность измерений
