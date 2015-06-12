@@ -118,16 +118,10 @@ proc ::hardware::skbis::lir916::readAngle { desc { noCoeff 0 } } {
 
 ####### private procedures
 
-#array set ::hardware::skbis::lir916::sampleData {}
 proc ::hardware::skbis::lir916::readAbsolute { desc } {
 #!!!
-#	variable sampleData
-#	set key "channel_[lindex $desc 2]"
-#	if { ![info exists sampleData($key)] } {
-#		set sampleData($key) 0
-#	}
-#	incr sampleData($key) [expr int(rand() * [lindex $desc 2])]
-#	return [list [expr $sampleData($key) >> 16] [expr $sampleData($key) & 0xFFFF] ]
+	set v [expr int([clock milliseconds] / 10)]
+	return [list [expr ($v >> 16) && 0xFF] [expr $v & 0xFFFF] ]
 #!!!	
 
 	::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings [lindex $desc 1]
