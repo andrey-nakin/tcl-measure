@@ -119,10 +119,10 @@ proc ::hardware::skbis::lir916::readAngle { desc { noCoeff 0 } } {
 ####### private procedures
 
 proc ::hardware::skbis::lir916::readAbsolute { desc } {
-#!!!
-	set v [expr int([clock milliseconds] / 10)]
-	return [list [expr ($v >> 16) && 0xFF] [expr $v & 0xFFFF] ]
-#!!!	
+# for debug purposes
+#	set v [expr int([clock milliseconds] / 10)]
+#	return [list [expr ($v >> 16) && 0xFF] [expr $v & 0xFFFF] ]
+#	
 
 	::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings [lindex $desc 1]
 	return [::modbus::cmd 0x03 [lindex $desc 2] 0 2]
