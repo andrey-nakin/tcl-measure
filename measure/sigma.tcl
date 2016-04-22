@@ -130,7 +130,7 @@ proc measure::sigma::sample { a { confLevel 0.95 } } {
 		return { 0.0 0.0 }
 	}
 	if { $n == 1 } {
-		return { [lindex $a 0] 0.0 }
+		return [list [lindex $a 0] 0.0 ]
 	}
 	
 	lassign [::math::statistics::basic-stats $a] mean _ _ _ sample_std
