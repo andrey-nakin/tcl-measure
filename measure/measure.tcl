@@ -236,7 +236,8 @@ proc ::measure::measure::resistance { args } {
     	scpi::cmd $mm "SAMPLE:COUNT 1"
     } 
 	# среднее значение и погрешность измерения
-	set v [expr abs([math::statistics::mean $vs])]; set sv [math::statistics::stdev $vs]; if { $sv == ""} { set sv 0 }
+	lassign [measure::sigma::sample $vs] v sv
+	set v [expr abs($v)]
 	# инструментальная погрешность
    	set vErr [hardware::agilent::mm34410a::dcvSystematicError $v "" $mmNplc]
 	
@@ -249,7 +250,8 @@ proc ::measure::measure::resistance { args } {
             	scpi::cmd $cmm "SAMPLE:COUNT 1"
             } 
             # среднее значение и погрешность измерения
-        	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
+			lassign [measure::sigma::sample $cs] c sc
+        	set c [expr abs($c)]
             # инструментальная погрешность
             set cErr [hardware::agilent::mm34410a::dciSystematicError $c "" $cmmNplc]
         }
@@ -266,7 +268,8 @@ proc ::measure::measure::resistance { args } {
     			lappend cs [expr $c / $rr]
     		}
             # среднее значение и погрешность измерения
-        	set c [expr abs([math::statistics::mean $cs])]; set sc [math::statistics::stdev $cs]; if { $sc == ""} { set sc 0 }
+			lassign [measure::sigma::sample $cs] c sc
+        	set c [expr abs($c)]
     		# инструментальная погрешность
 	    	set vvErr [hardware::agilent::mm34410a::dcvSystematicError $vv "" $cmmNplc]
 	    	set cErr [measure::sigma::div $vv $vvErr $rr [measure::config::get current.reference.error 0.0]]
@@ -298,7 +301,8 @@ proc ::measure::measure::resistance { args } {
 	}
 
 	# вычисляем средние значения и сигмы
-	set r [expr abs([math::statistics::mean $rs])]; set sr [math::statistics::stdev $rs]; if { $sr == ""} { set sr 0 }
+	lassign [measure::sigma::sample $rs] r sr
+	set r [expr abs($r)]
    	set rErr [measure::sigma::div $v $vErr $c $cErr]
 
     if { !$noSystErr } {

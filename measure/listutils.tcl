@@ -6,7 +6,7 @@
 #
 
 package require Tcl 8.4
-package provide measure::listutils 0.1.0
+package provide measure::listutils 0.2.0
 
 package require math::statistics
 package require measure::math
@@ -138,6 +138,18 @@ proc ::measure::listutils::xyThinout { xvalues yvalues {xWeight 1.0} {yWeight 1.
     
     set x $xx
     set y $yy
+}
+
+# Добавляет значение в список, если оно не найдено в списке. 
+# Аргументы:
+#   lname - имя переменной-списка
+#   v - значение для добавления 
+proc ::measure::listutils::lappend-missing { lname v } {
+    upvar $lname lst 
+
+	if { [::lsearch $lst $v] == -1 } {
+		::lappend lst $v
+    }
 }
 
 #set x { 1 2 3 4 5 6 7 8 9 }
