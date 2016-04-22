@@ -38,22 +38,24 @@ proc ::measure::measure::setupMmsForResistance { args } {
 	set rs485Addr [measure::config::get switch.rs485Addr]
 	if { $serialAddr != "" && $rs485Addr != "" } {
 		# Положение переполюсовок по умолчанию
-		set conns { 0 0 0 0 }
+		set conns { 0 0 0 0 0 }
 
-	    if { $mmethod == 3 } {
-	    	# в данном режиме цепь всегда разомкнута
-			lappend conns 1000
-		} else {
-			lappend conns 0
-		}
-
-	    if { $mmethod == 2 } {
+	    if { $mmethod == 2 || $mmethod == 3 } {
 	    	# в данном режиме нужно замкнуть цепь вместо амперметра
 			lappend conns 1000
 		} else {
 			lappend conns 0
 		}
 
+	    if { $mmethod == 1 } {
+	    	# в данном режиме нужно переключить MM2 на измерение напряжения
+			lappend conns 1000
+			lappend conns 1000
+		} else {
+			lappend conns 0
+			lappend conns 0
+		}
+		
         hardware::owen::mvu8::modbus::setChannels $serialAddr $rs485Addr 0 $conns
 	}
 	
@@ -254,10 +256,9 @@ proc ::measure::measure::resistance { args } {
         1 {
             # измеряем падение напряжения на эталоне
             set rr [measure::config::get current.reference.resistance 1.0]
-            if { $params(n) != 1 } {
-                set vvs [split [scpi::query $cmm "DATA:REMOVE? $params(n);:SAMPLE:COUNT 1"] ","]
-            } else {
-                set vvs [split [scpi::query $cmm "DATA:REMOVE? $params(n)"] ","]
+            set vvs [split [scpi::query $cmm "FETCH?"] ","]
+        	if { $params(n) != 1 } {
+            	scpi::cmd $cmm "SAMPLE:COUNT 1"
             } 
             set vv [expr abs([math::statistics::mean $vvs])] 
     		set cs [list]
