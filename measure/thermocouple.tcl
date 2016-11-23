@@ -22,7 +22,7 @@ namespace eval measure::thermocouple {
 # Return
 #   list instance
 proc measure::thermocouple::getTcTypes {} {
-	return [list B C E J K N R S T]
+	return [list B C E J K L N R S T]
 }
 
 # Calculates temperature and error by given voltage and voltage error
