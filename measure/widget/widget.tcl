@@ -506,7 +506,12 @@ proc ::measure::widget::dutControls { prefix settingsVar } {
     grid [ttk::label $prefix.lthe -text "\u00b1"] -row 3 -column 2 -sticky e
     grid [ttk::spinbox $prefix.the -width 10 -textvariable settings(${settingsVar}.thicknessErr) -from 0 -to 100 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 3 -column 3 -sticky e
     
-    grid columnconfigure $prefix {0 1 2 3} -pad 5
+    grid [ttk::label $prefix.ldm -text "\u0414\u0438\u0430\u043C\u0435\u0442\u0440, \u043C\u043C:"] -row 4 -column 0 -sticky w
+    grid [ttk::spinbox $prefix.dm -width 10 -textvariable settings(${settingsVar}.diameter) -from 0 -to 100 -increment 0.1 -validate key -validatecommand {string is double %P}] -row 4 -column 1 -sticky e
+    grid [ttk::label $prefix.ldme -text "\u00b1"] -row 4 -column 2 -sticky e
+    grid [ttk::spinbox $prefix.dme -width 10 -textvariable settings(${settingsVar}.diameterErr) -from 0 -to 100 -increment 0.01 -validate key -validatecommand {string is double %P}] -row 4 -column 3 -sticky e
+    
+    grid columnconfigure $prefix {0 1 2 3 4} -pad 5
     grid rowconfigure $prefix {0 1 2 3 4} -pad 5
     grid columnconfigure $prefix { 0 } -weight 1
 }

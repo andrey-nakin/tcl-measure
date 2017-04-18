@@ -336,6 +336,9 @@ proc ::measure::measure::calcRho { r rErr { dutCfgPrefix dut } } {
     # толщина образца и погрешность, мм
     set t [measure::config::get "${dutCfgPrefix}.thickness"]
     set tErr [measure::config::get "${dutCfgPrefix}.thicknessErr" 0.0]
+    # diameter and error, mm
+    set d [measure::config::get "${dutCfgPrefix}.diameter"]
+    set dErr [measure::config::get "${dutCfgPrefix}.diameterErr" 0.0]
     
     if { $l == "" } {
         # не указано расстояние между потенциальными контактами
@@ -347,23 +350,36 @@ proc ::measure::measure::calcRho { r rErr { dutCfgPrefix dut } } {
     set l [expr 0.1 * $l]
     set lErr [expr 0.1 * $lErr]
     
-    if { $w == "" || $t == "" } {
-        # указано расстояние между потенциальными контактами,
-        # но не указано сечение
-        set rho [expr $r * $l * 2 * $pi]
-        set rhoErr [::measure::sigma::mul $r $rErr $l $lErr]
-        return [list $rho $rhoErr]  
+    if { $d != "" } {
+        # diameter is set, use it to calculate the section
+        
+        # convert to cm
+        set d [expr 0.1 * $d]
+        set dErr [expr 0.1 * $dErr]
+        
+        # the section and its error, cm^2
+        set s [expr 0.25 * $pi * $d * $d]
+        set sErr [::measure::sigma::mul $d $dErr $d $dErr]
+    } else {
+        # diameter is not set, use width & thickness to calculate the section
+        if { $w == "" || $t == "" } {
+            # указано расстояние между потенциальными контактами,
+            # но не указано сечение
+            set rho [expr $r * $l * 2 * $pi]
+            set rhoErr [::measure::sigma::mul $r $rErr $l $lErr]
+            return [list $rho $rhoErr]  
+        }
+
+        # переведём в см
+        set w [expr 0.1 * $w]
+        set wErr [expr 0.1 * $wErr]
+        set t [expr 0.1 * $t]
+        set tErr [expr 0.1 * $tErr]
+        
+        # сечение и его погрешность, см^2
+        set s [expr $w * $t]
+        set sErr [::measure::sigma::mul $w $wErr $t $tErr]
     }
-    
-    # переведём в см
-    set w [expr 0.1 * $w]
-    set wErr [expr 0.1 * $wErr]
-    set t [expr 0.1 * $t]
-    set tErr [expr 0.1 * $tErr]
-    
-    # сечение и его погрешность, см^2
-    set s [expr $w * $t]
-    set sErr [::measure::sigma::mul $w $wErr $t $tErr]
     
     # погонное сопротивление и погрешность (Ом/см)
     set a [expr $r / $l]
