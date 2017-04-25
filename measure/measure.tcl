@@ -409,6 +409,9 @@ proc measure::measure::dutParams { { dutCfgPrefix dut } } {
     # толщина образца и погрешность, мм
     set t [measure::config::get "${dutCfgPrefix}.thickness"]
     set tErr [measure::config::get "${dutCfgPrefix}.thicknessErr" 0.0]
+    # diameter and error, mm
+    set d [measure::config::get "${dutCfgPrefix}.diameter"]
+    set dErr [measure::config::get "${dutCfgPrefix}.diameterErr" 0.0]
     
     set s ""
     if { $l != "" } {
@@ -431,6 +434,12 @@ proc measure::measure::dutParams { { dutCfgPrefix dut } } {
             append s ", "
         }
         append s "thickness=$t +/- $tErr mm"
+    } 
+    if { $d != "" } {
+        if { [string length $s] > 0 } {
+            append s ", "
+        }
+        append s "diameter=$d +/- $dErr mm"
     } 
     
     return $s
