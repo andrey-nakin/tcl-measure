@@ -58,7 +58,11 @@ proc ::modbus::debug {data} {
 	puts [::modbus::bin2asc $data]
 }
 
+set ::modbus::LAST_RESPONSE ""
+
 proc ::modbus::cmd {fun args} {
+	global ::modbus::LAST_RESPONSE
+
 	variable Priv
 	
 	set fun [string range 00[expr $fun] end-1 end]
@@ -72,6 +76,7 @@ proc ::modbus::cmd {fun args} {
 	::modbus::port_open
 	set rspCmd [::modbus::port_send $reqCmd $rspLen]
 	::modbus::port_close
+	set LAST_RESPONSE $rspCmd
 	
 	set rspCmd [::modbus::unpack_$mode $reqCmd $rspCmd]
 	if {$rspCmd == ""} {return ""}
