@@ -276,6 +276,7 @@ proc measure::datafile::createInt { fileName format rewrite headers comment } {
         eval "set commentChar \$${fmt}(comment)"
         eval "set separator \$${fmt}(separator)"
         
+        puts $f "$commentChar $fileName"
         if { $comment != "" } {
             puts $f "$commentChar $comment"
         }
