@@ -119,13 +119,29 @@ proc ::hardware::skbis::lir916::readAngle { desc { noCoeff 0 } } {
 ####### private procedures
 
 proc ::hardware::skbis::lir916::readAbsolute { desc } {
+	global log
+	global ::modbus::LAST_RESPONSE
 # for debug purposes
 #	set v [expr int([clock milliseconds] / 10)]
 #	return [list [expr ($v >> 16) && 0xFF] [expr $v & 0xFFFF] ]
 #	
 
-	::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings [lindex $desc 1]
-	return [::modbus::cmd 0x03 [lindex $desc 2] 0 2]
+	# repeat several times until data are successfully read
+	for { set attempts 0 } { $attempts < 3 } { incr attempts } {
+		::modbus::configure -mode "RTU" -com [lindex $desc 0] -settings [lindex $desc 1]
+		set res [::modbus::cmd 0x03 [lindex $desc 2] 0 2]
+		if { $res != "" && [llength $res] >= 2 } {
+			# successful attempt
+			break
+		}
+	}
+
+	if { $res == "" || [llength $res] < 2 } {
+		${log}::error "Bad response from LIR-916: $res, desc=$desc, LAST_RESPONSE=$LAST_RESPONSE ([llength $LAST_RESPONSE])"
+		error "No response from LIR-916"
+	}
+
+	return $res
 }
 
 proc ::hardware::skbis::lir916::channelId { desc } {
