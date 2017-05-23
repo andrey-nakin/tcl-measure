@@ -30,12 +30,29 @@ proc ::measure::widget::exit-button { w } {
 	pack [ttk::button $w.fr.bexit -text "\u0412\u044b\u0445\u043e\u0434" -image ::img::delete -compound left -command quit] -padx 5 -pady {20 5} -side right
 }
 
+proc ::measure::widget::app-dir {} {
+    set dir [file dirname [info script]] 
+    if { [string first .exe $dir] > 0 } {
+        set idx 0
+        set ff [file split $dir]
+        foreach f $ff {
+            if { [string first .exe $f] > 0 } {
+                break
+            }
+            incr idx
+        }
+        set ff [lrange $ff 0 $idx-1]
+        eval "set dir \[file join $ff\]"  
+    }
+    return $dir
+}
+
 proc ::measure::widget::std-bottom-panel { w } {
 	frame $w.fr
 	pack $w.fr -fill x -side bottom
 	pack [ttk::button $w.fr.bexit -text "\u0412\u044b\u0445\u043e\u0434" -image ::img::delete -compound left -command quit] -padx 5 -pady {20 5} -side right
 
-	set manual [file join [file dirname [info script]] doc manual.pdf]
+	set manual [file join [app-dir] doc manual.pdf]
 	if { [file exists $manual] } {
 		pack [ttk::button $w.fr.bmanual -text "\u0421\u043f\u0440\u0430\u0432\u043a\u0430" -image ::img::pdf -compound left -command [list startfile::start $manual]] -padx 5 -pady {20 5} -side left
 	}
