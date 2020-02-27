@@ -175,7 +175,7 @@ set hardware::agilent::mm34410a::dciRanges { 100.0e-6 1.0e-3 10.0e-3 100.0e-3 1.
 
 set hardware::agilent::mm34410a::resistanceRanges { 100.0 1.0e3 10.0e3 100.0e3 1.0e6 10.0e6 100.0e6 1.0e9 }
 
-set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*" "^HEWLETT-PACKARD,34401A,.*" "^V7-28,*" "^AKIP V7-78-1*" }
+set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*" "^HEWLETT-PACKARD,34401A,.*" "^V7-28,*" "^\\s*AKIP V7-78-1*" "^\\s*34401*" }
 
 # Calculates and returns systematic DC voltage measure error
 # Automatic ranging mode is assumed. NPLC=10
@@ -352,6 +352,7 @@ proc hardware::agilent::mm34410a::test { args } {
 
 		# производим опрос устройства
 		set id [scpi::query $mm "*IDN?"]
+		${log}::debug "hardware::agilent::mm34410a::test *IDN?=|${id}|"
 		if { $id != "" } {
 		    set result -1
     		foreach sid $supportedIds {
@@ -442,6 +443,7 @@ set hardware::agilent::mm34410a::configOptions {
 #   scpiVersion - минимальная необходимая версия языка SCPI, например 1994.0.
 #   text2 - текст для вывода на дисплее №2 мультиметра. Если нет поддержки мультиметра, опция игнорируется.
 proc hardware::agilent::mm34410a::configureDcVoltage { args } {
+	global log 
 	variable configOptions
 	variable SCPI_VERSION
     
@@ -452,6 +454,7 @@ proc hardware::agilent::mm34410a::configureDcVoltage { args } {
 	
 	# Определим версию протокола SCPI
 	set version [string trim [scpi::query $mm "SYSTEM:VERSION?"]]
+	${log}::debug "hardware::agilent::mm34410a::configureDcVoltage SYSTEM:VERSION?=|${version}|"
 	
 	# Проверим правильность версии SCPI
 	if { $params(scpiVersion) != "" && $params(scpiVersion) > $version } {
