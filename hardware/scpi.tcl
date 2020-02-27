@@ -65,7 +65,9 @@ proc scpi::open { args } {
 			fconfigure $channel -mode $options(mode)
 		}
 		if { $options(handshake) != "" } {
-			fconfigure $channel -handshake $options(handshake)
+			catch {
+				fconfigure $channel -handshake $options(handshake)
+			}
 		}
 	}
 
