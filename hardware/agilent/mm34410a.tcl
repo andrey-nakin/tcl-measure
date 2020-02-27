@@ -175,7 +175,7 @@ set hardware::agilent::mm34410a::dciRanges { 100.0e-6 1.0e-3 10.0e-3 100.0e-3 1.
 
 set hardware::agilent::mm34410a::resistanceRanges { 100.0 1.0e3 10.0e3 100.0e3 1.0e6 10.0e6 100.0e6 1.0e9 }
 
-set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*" "^HEWLETT-PACKARD,34401A,.*" "^V7-28,*" }
+set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*" "^HEWLETT-PACKARD,34401A,.*" "^V7-28,*" "^AKIP V7-78-1*" }
 
 # Calculates and returns systematic DC voltage measure error
 # Automatic ranging mode is assumed. NPLC=10
