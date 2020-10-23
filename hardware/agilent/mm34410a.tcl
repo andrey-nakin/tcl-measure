@@ -184,9 +184,10 @@ set hardware::agilent::mm34410a::supportedIds { "^Agilent Technologies,34410A,.*
 #   voltage - voltage value measured in volts
 #   range - measurement range in volts. In omitted, min possible range is assumed
 #   nplc - value of NPLC parameter. If omitted, max possible value is assumed
+#   channel - optional instrument's channel name if one needs to calculate instrument-specific systematic error
 # Returns
 #   Absolute error.
-proc hardware::agilent::mm34410a::dcvSystematicError { voltage { range "" } { nplc "" } } {
+proc hardware::agilent::mm34410a::dcvSystematicError { voltage { range "" } { nplc "" } { channel "" } } {
 	global hardware::agilent::mm34410a::dcvReadingErrors
 	global hardware::agilent::mm34410a::dcvRangeErrors
 
@@ -200,9 +201,10 @@ proc hardware::agilent::mm34410a::dcvSystematicError { voltage { range "" } { np
 #   current - current value measured in ampers
 #   range - measurement range in ampers. In omitted, min possible range is assumed
 #   nplc - value of NPLC parameter. If omitted, max possible value is assumed
+#   channel - optional instrument's channel name if one needs to calculate instrument-specific systematic error
 # Returns
 #   Absolute error.
-proc hardware::agilent::mm34410a::dciSystematicError { current { range "" } { nplc "" } } {
+proc hardware::agilent::mm34410a::dciSystematicError { current { range "" } { nplc "" } { channel "" } } {
 	global hardware::agilent::mm34410a::dciReadingErrors
 	global hardware::agilent::mm34410a::dciRangeErrors
 
@@ -217,9 +219,10 @@ proc hardware::agilent::mm34410a::dciSystematicError { current { range "" } { np
 #   resistance - resistance value measured in ohms
 #   range - measurement range in ohms. In omitted, min possible range is assumed
 #   nplc - value of NPLC parameter. If omitted, max possible value is assumed
+#   channel - optional instrument's channel name if one needs to calculate instrument-specific systematic error
 # Returns
 #   Absolute error.
-proc hardware::agilent::mm34410a::resistanceSystematicError { resistance { range "" } { nplc "" } } {
+proc hardware::agilent::mm34410a::resistanceSystematicError { resistance { range "" } { nplc "" } { channel "" } } {
 	global hardware::agilent::mm34410a::resistance4wReadingErrors
 	global hardware::agilent::mm34410a::resistance4wRangeErrors
 
